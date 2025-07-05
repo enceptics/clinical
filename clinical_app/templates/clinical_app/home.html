@@ -21,14 +21,13 @@
             --gradient-end: #00f2fe;
             --hover-gradient-start: #6a85b6; /* A deeper blue-grey */
             --hover-gradient-end: #bac8e0; /* A lighter blue-grey */
-            --custom-card-height: 160px; /* Smaller uniform height for custom styled cards */
+            --custom-card-height: 180px; /* Slightly taller uniform height for custom styled cards */
         }
 
         body {
             font-family: 'Poppins', sans-serif; /* Main font */
             background-color: var(--bg-light); /* Light grey background */
             color: var(--text-dark); /* Dark text for readability */
-            /* Bootstrap handles min-height and padding via its layout */
         }
 
         /* --- Text and Font Enhancements --- */
@@ -37,6 +36,7 @@
             font-weight: 700; /* Bolder main heading */
             color: var(--primary-color); /* Make dashboard title vibrant */
             letter-spacing: -0.5px; /* Slight letter spacing for modern feel */
+            padding-bottom: 15px; /* Add some space below the title */
         }
 
         /* --- Custom Card Styles (for admin dashboard cards) --- */
@@ -54,6 +54,7 @@
             flex-direction: column;
             justify-content: space-between;
             min-height: var(--custom-card-height); /* Uniform height for these cards */
+            margin-bottom: 1.5rem; /* Add margin bottom for spacing between rows on smaller screens */
         }
 
         /* Pseudo-element for the beautiful hover gradient overlay */
@@ -141,7 +142,7 @@
             font-weight: 600; /* Bolder title */
             color: var(--text-dark); /* Darker initial color for clarity */
             margin-bottom: 0.25rem;
-            font-size: 1.1rem; /* Slightly larger title font */
+            font-size: 1.2rem; /* Slightly larger title font */
             transition: color 0.4s ease;
             line-height: 1.2;
         }
@@ -151,8 +152,8 @@
             font-family: 'Poppins', sans-serif; /* Poppins for main text */
             font-weight: 900; /* Ultra bold for data prominence */
             color: var(--primary-color); /* Initial vibrant color */
-            font-size: 2.8rem; /* Significantly larger font size */
-            margin-bottom: 0;
+            font-size: 3rem; /* Significantly larger font size */
+            margin-bottom: 0.5rem; /* Add a bit more space below the value */
             line-height: 1.2;
             transition: color 0.4s ease, transform 0.4s ease; /* Add transform for value animation */
         }
@@ -160,7 +161,6 @@
         /* Hover effect: Move text up, move icon to top left, change icon circle background */
         .custom-styled-card:hover .card-text-container {
             transform: translateY(-20px); /* Move the text up slightly on hover */
-            color: white; /* Text color change handled by overall card hover */
         }
             
         .custom-styled-card:hover .card-body h5 {
@@ -176,8 +176,8 @@
         .custom-styled-card:hover .icon-circle {
             bottom: unset; /* Reset bottom position */
             right: unset; /* Reset right position */
-            top: 2rem; /* Move to top */
-            left: 2rem; /* Move to left */
+            top: 1.5rem; /* Move to top, adjust for padding */
+            left: 1.5rem; /* Move to left, adjust for padding */
             transform: scale(1.05); /* Slight scale */
             background: var(--card-bg); /* Change icon circle background to white */
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
@@ -221,6 +221,9 @@
             margin-bottom: 0.5rem; /* Add space between list items */
             border-radius: 0.5rem; /* Slightly rounded corners for list items */
             transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            display: flex; /* Use flexbox for better alignment of content */
+            flex-direction: column;
+            align-items: flex-start;
         }
         .list-group-item:hover {
             background-color: rgba(var(--primary-color-rgb), 0.05); /* Very light hover background */
@@ -229,6 +232,7 @@
         .list-group-item strong {
             font-weight: 700; /* Make labels bolder */
             color: var(--text-dark);
+            margin-right: 5px; /* Space between label and value */
         }
         .list-group-item a {
             color: var(--primary-color); /* Apply primary color to links in list items */
@@ -283,171 +287,269 @@
         /* Specific styling for the 'p' tag within admin cards */
         .custom-styled-card .card-body p.card-text {
             color: var(--text-muted); /* Muted text color */
-            font-size: 0.95rem; /* Slightly larger description text */
+            font-size: 1rem; /* Slightly larger description text */
             margin-bottom: 0.5rem;
             transition: color 0.4s ease;
         }
         .custom-styled-card:hover .card-body p.card-text {
             color: rgba(255, 255, 255, 0.8); /* Lighter on hover */
         }
+
+        /* Responsive adjustments */
+        @media (max-width: 767.98px) {
+            h1.mb-4 {
+                font-size: 1.8rem; /* Adjust title size for smaller screens */
+                text-align: center;
+            }
+            .custom-styled-card {
+                min-height: 160px; /* Adjust height for smaller screens if needed */
+            }
+            .custom-styled-card .card-body h3.card-text-value {
+                font-size: 2.5rem; /* Slightly smaller value on mobile */
+            }
+            .custom-styled-card .icon-circle {
+                width: 50px;
+                height: 50px;
+                bottom: 1rem;
+                right: 1rem;
+            }
+            .custom-styled-card .icon-circle i {
+                font-size: 1.8rem;
+            }
+            .custom-styled-card:hover .icon-circle {
+                top: 1rem;
+                left: 1rem;
+            }
+        }
     </style>
-<div class="container-fluid">
-    <h1 class="mb-4">Welcome to Your Dashboard, {{ user.get_full_name|default:user.username }}!</h1>
+<div class="container-fluid py-4"> {# Added py-4 for vertical padding #}
+    <h1 class="mb-4 text-center text-md-start">Welcome to Your Dashboard, {{ user.get_full_name|default:user.username }}!</h1>
 
     {% if user.is_authenticated %}
         {% if user_type == 'admin' %}
             <div class="row">
                 <div class="col-md-4">
-                    <div class="card custom-styled-card"> {# Added custom-styled-card class #}
+                    <a href="{% url 'patient_list' %}" class="card custom-styled-card" aria-label="Total Patients Card"> {# Link entire card for better UX #}
                         <div class="card-body">
                             <div class="card-text-container">
                                 <h5>Total Patients</h5>
-                                <h3 class="card-text-value">{{ total_patients }}</h3> {# Changed class for value #}
+                                <h3 class="card-text-value">{{ total_patients }}</h3>
                                 <p class="card-text">Registered patients in the system.</p>
                             </div>
                             <div class="icon-circle">
-                                <i class="fas fa-user-injured"></i> {# Font Awesome icon #}
+                                <i class="fas fa-user-injured" aria-hidden="true"></i>
                             </div>
-                            <a href="{% url 'patient_list' %}" class="btn btn-primary btn-sm mt-3">View All Patients</a>
                         </div>
-                    </div>
+                    </a>
                 </div>
                 <div class="col-md-4">
-                    <div class="card custom-styled-card"> {# Added custom-styled-card class #}
+                    <a href="#" class="card custom-styled-card disabled" aria-label="Total Doctors Card"> {# Disabled link for now #}
                         <div class="card-body">
                             <div class="card-text-container">
                                 <h5>Total Doctors</h5>
-                                <h3 class="card-text-value">{{ total_doctors }}</h3> {# Changed class for value #}
+                                <h3 class="card-text-value">{{ total_doctors }}</h3>
                                 <p class="card-text">Medical professionals available.</p>
                             </div>
                             <div class="icon-circle">
-                                <i class="fas fa-user-md"></i> {# Font Awesome icon #}
+                                <i class="fas fa-user-md" aria-hidden="true"></i>
                             </div>
-                            {# Link to doctor list when implemented #}
-                            <a href="#" class="btn btn-primary btn-sm mt-3 disabled">View All Doctors</a>
                         </div>
-                    </div>
+                    </a>
                 </div>
                 <div class="col-md-4">
-                    <div class="card custom-styled-card"> {# Added custom-styled-card class #}
+                    <a href="#" class="card custom-styled-card disabled" aria-label="Pending Appointments Card"> {# Disabled link for now #}
                         <div class="card-body">
                             <div class="card-text-container">
                                 <h5>Pending Appointments</h5>
-                                <h3 class="card-text-value">{{ pending_appointments }}</h3> {# Changed class for value #}
+                                <h3 class="card-text-value">{{ pending_appointments }}</h3>
                                 <p class="card-text">Appointments scheduled but not completed.</p>
                             </div>
                             <div class="icon-circle">
-                                <i class="fas fa-calendar-alt"></i> {# Font Awesome icon #}
+                                <i class="fas fa-calendar-alt" aria-hidden="true"></i>
                             </div>
-                            {# Link to appointments when implemented #}
-                            <a href="#" class="btn btn-primary btn-sm mt-3 disabled">View Appointments</a>
                         </div>
-                    </div>
+                    </a>
                 </div>
             </div>
-            {# Add more admin specific stats/widgets #}
+            
+            <hr class="my-4"> {# Separator #}
+
+            <div class="row mt-4">
+                <div class="col-12 text-center">
+                    <h4 class="text-muted">Admin Quick Actions</h4>
+                    <a href="{% url 'patient_create' %}" class="btn btn-primary me-2 mb-2">Register New Patient</a>
+                    <a href="#" class="btn btn-primary disabled me-2 mb-2" aria-disabled="true">Manage Doctors</a>
+                    <a href="#" class="btn btn-primary disabled mb-2" aria-disabled="true">View System Logs</a>
+                </div>
+            </div>
 
         {% elif user_type == 'doctor' %}
             <div class="row">
                 <div class="col-md-6">
-                    <div class="card mb-4"> {# Retained Bootstrap card #}
-                        <div class="card-header bg-info text-white">Your Upcoming Appointments</div> {# Retained Bootstrap classes for header #}
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">Your Upcoming Appointments</div>
                         <div class="card-body">
                             {% if my_appointments %}
-                                <ul class="list-group"> {# Retained Bootstrap list-group #}
+                                <ul class="list-group list-group-flush"> {# Use list-group-flush for edge-to-edge #}
                                     {% for appt in my_appointments %}
-                                        <li class="list-group-item"> {# Retained Bootstrap list-group-item #}
-                                            <strong>Patient:</strong> <a href="{% url 'patient_detail' appt.patient.pk %}">{{ appt.patient.user.get_full_name }}</a><br>
-                                            <strong>Date:</strong> <span class="date-time">{{ appt.appointment_date|date:"F d, Y P" }}</span><br>
-                                            <strong>Reason:</strong> {{ appt.reason_for_visit|truncatechars:50 }}
+                                        <li class="list-group-item">
+                                            <div>
+                                                <strong>Patient:</strong> <a href="{% url 'patient_detail' appt.patient.pk %}" aria-label="View patient details for {{ appt.patient.user.get_full_name }}">{{ appt.patient.user.get_full_name }}</a>
+                                            </div>
+                                            <div>
+                                                <strong>Date:</strong> <span class="date-time">{{ appt.appointment_date|date:"F d, Y P" }}</span>
+                                            </div>
+                                            <div>
+                                                <strong>Reason:</strong> {{ appt.reason_for_visit|truncatechars:70 }}
+                                            </div>
+                                            <a href="{% url 'appointment_detail' appt.pk %}" class="btn btn-link btn-sm mt-2" aria-label="View details for appointment on {{ appt.appointment_date|date:'F d, Y' }}">View Details</a>
                                         </li>
                                     {% endfor %}
                                 </ul>
                             {% else %}
-                                <p>No upcoming appointments.</p>
+                                <div class="alert alert-info" role="alert">
+                                    <i class="fas fa-info-circle me-2"></i> No upcoming appointments scheduled.
+                                </div>
+                                <a href="{% url 'doctor_patient_list' %}" class="btn btn-primary mt-3">View All My Patients</a>
                             {% endif %}
-                            <a href="#" class="btn btn-primary btn-sm mt-3 disabled">View All Appointments</a>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <div class="card mb-4"> {# Retained Bootstrap card #}
-                        <div class="card-header bg-success text-white">Your Recent Encounters</div> {# Retained Bootstrap classes for header #}
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">Your Recent Encounters</div>
                         <div class="card-body">
                             {% if recent_encounters %}
-                                <ul class="list-group"> {# Retained Bootstrap list-group #}
+                                <ul class="list-group list-group-flush">
                                     {% for encounter in recent_encounters %}
-                                        <li class="list-group-item"> {# Retained Bootstrap list-group-item #}
-                                            <strong>Patient:</strong> <a href="{% url 'patient_detail' encounter.patient.pk %}">{{ encounter.patient.user.get_full_name }}</a><br>
-                                            <strong>Date:</strong> <span class="date-time">{{ encounter.encounter_date|date:"F d, Y P" }}</span><br>
-                                            <strong>Type:</strong> {{ encounter.get_encounter_type_display }}
-                                            <br><a href="{% url 'encounter_detail' encounter.pk %}" class="btn btn-link btn-sm">View Details</a>
+                                        <li class="list-group-item">
+                                            <div>
+                                                <strong>Patient:</strong> <a href="{% url 'patient_detail' encounter.patient.pk %}" aria-label="View patient details for {{ encounter.patient.user.get_full_name }}">{{ encounter.patient.user.get_full_name }}</a>
+                                            </div>
+                                            <div>
+                                                <strong>Date:</strong> <span class="date-time">{{ encounter.encounter_date|date:"F d, Y P" }}</span>
+                                            </div>
+                                            <div>
+                                                <strong>Type:</strong> {{ encounter.get_encounter_type_display }}
+                                            </div>
+                                            <a href="{% url 'encounter_detail' encounter.pk %}" class="btn btn-link btn-sm mt-2" aria-label="View details for encounter on {{ encounter.encounter_date|date:'F d, Y' }}">View Details</a>
                                         </li>
                                     {% endfor %}
                                 </ul>
                             {% else %}
-                                <p>No recent encounters.</p>
+                                <div class="alert alert-warning" role="alert">
+                                    <i class="fas fa-exclamation-triangle me-2"></i> No recent encounters recorded.
+                                </div>
+                                <a href="{% url 'doctor_patient_list' %}" class="btn btn-primary mt-3">View All My Patients</a>
                             {% endif %}
-                            <a href="{% url 'doctor_patient_list' %}" class="btn btn-primary btn-sm mt-3">View All My Patients</a>
                         </div>
                     </div>
                 </div>
             </div>
-            {# Add more doctor specific stats/widgets #}
 
         {% elif user_type == 'patient' %}
             <div class="row">
                 <div class="col-md-6">
-                    <div class="card mb-4"> {# Retained Bootstrap card #}
-                        <div class="card-header bg-info text-white">Your Upcoming Appointments</div> {# Retained Bootstrap classes for header #}
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">Your Upcoming Appointments</div>
                         <div class="card-body">
                             {% if my_appointments %}
-                                <ul class="list-group"> {# Retained Bootstrap list-group #}
+                                <ul class="list-group list-group-flush">
                                     {% for appt in my_appointments %}
-                                        <li class="list-group-item"> {# Retained Bootstrap list-group-item #}
-                                            <strong>Doctor:</strong> {{ appt.doctor.user.get_full_name }}<br>
-                                            <strong>Date:</strong> <span class="date-time">{{ appt.appointment_date|date:"F d, Y P" }}</span><br>
-                                            <strong>Reason:</strong> {{ appt.reason_for_visit|truncatechars:50 }}
+                                        <li class="list-group-item">
+                                            <div>
+                                                <strong>Doctor:</strong> {{ appt.doctor.user.get_full_name }}
+                                            </div>
+                                            <div>
+                                                <strong>Date:</strong> <span class="date-time">{{ appt.appointment_date|date:"F d, Y P" }}</span>
+                                            </div>
+                                            <div>
+                                                <strong>Reason:</strong> {{ appt.reason_for_visit|truncatechars:70 }}
+                                            </div>
+                                            <a href="{% url 'appointment_detail' appt.pk %}" class="btn btn-link btn-sm mt-2" aria-label="View details for appointment on {{ appt.appointment_date|date:'F d, Y' }}">View Details</a>
                                         </li>
                                     {% endfor %}
                                 </ul>
                             {% else %}
-                                <p>No upcoming appointments.</p>
+                                <div class="alert alert-info" role="alert">
+                                    <i class="fas fa-info-circle me-2"></i> You have no upcoming appointments.
+                                </div>
+                                <a href="#" class="btn btn-primary mt-3 disabled" aria-disabled="true">Schedule New Appointment</a>
                             {% endif %}
-                            <a href="#" class="btn btn-primary btn-sm mt-3 disabled">Schedule New Appointment</a>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <div class="card mb-4"> {# Retained Bootstrap card #}
-                        <div class="card-header bg-success text-white">Your Recent Encounters</div> {# Retained Bootstrap classes for header #}
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">Your Recent Encounters</div>
                         <div class="card-body">
                             {% if my_recent_encounters %}
-                                <ul class="list-group"> {# Retained Bootstrap list-group #}
+                                <ul class="list-group list-group-flush">
                                     {% for encounter in my_recent_encounters %}
-                                        <li class="list-group-item"> {# Retained Bootstrap list-group-item #}
-                                            <strong>Date:</strong> <span class="date-time">{{ encounter.encounter_date|date:"F d, Y P" }}</span><br>
-                                            <strong>Doctor:</strong> {{ encounter.doctor.user.get_full_name }}<br>
-                                            <strong>Type:</strong> {{ encounter.get_encounter_type_display }}
-                                            <br><a href="{% url 'encounter_detail' encounter.pk %}" class="btn btn-link btn-sm">View Details</a>
+                                        <li class="list-group-item">
+                                            <div>
+                                                <strong>Date:</strong> <span class="date-time">{{ encounter.encounter_date|date:"F d, Y P" }}</span>
+                                            </div>
+                                            <div>
+                                                <strong>Doctor:</strong> {{ encounter.doctor.user.get_full_name }}
+                                            </div>
+                                            <div>
+                                                <strong>Type:</strong> {{ encounter.get_encounter_type_display }}
+                                            </div>
+                                            <a href="{% url 'encounter_detail' encounter.pk %}" class="btn btn-link btn-sm mt-2" aria-label="View details for encounter on {{ encounter.encounter_date|date:'F d, Y' }}">View Details</a>
                                         </li>
                                     {% endfor %}
                                 </ul>
                             {% else %}
-                                <p>No recent encounters.</p>
+                                <div class="alert alert-warning" role="alert">
+                                    <i class="fas fa-exclamation-triangle me-2"></i> No recent encounters recorded for you.
+                                </div>
+                                <a href="#" class="btn btn-primary mt-3 disabled" aria-disabled="true">View Full History</a>
                             {% endif %}
-                            <a href="#" class="btn btn-primary btn-sm mt-3 disabled">View Full History</a>
                         </div>
                     </div>
                 </div>
             </div>
-            {# Add more patient specific stats/widgets #}
 
         {% else %}
-            <p>Your dashboard content will appear here based on your role.</p>
+            <div class="alert alert-secondary" role="alert">
+                <h4 class="alert-heading">Role Not Recognized</h4>
+                <p>Your dashboard content will appear here based on your assigned role in the system. Please contact support if you believe this is an error.</p>
+                <hr>
+                <p class="mb-0">You can try logging out and logging back in, or contact your administrator.</p>
+            </div>
         {% endif %}
     {% else %}
-        <p>Please <a href="{% url 'login' %}">log in</a> to access your dashboard.</p>
+        <div class="alert alert-info text-center" role="alert">
+            <h4 class="alert-heading">Welcome!</h4>
+            <p>Please <a href="{% url 'login' %}"><strong>log in</strong></a> to access your personalized dashboard and manage your clinical activities.</p>
+            <p class="mb-0">If you don't have an account, please contact your system administrator.</p>
+        </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+    {# Add any specific JavaScript for dashboard functionality here #}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Example: Smooth scroll to top on some action
+            // document.getElementById('scrollToTopBtn').addEventListener('click', function() {
+            //     window.scrollTo({ top: 0, behavior: 'smooth' });
+            // });
+
+            // Initialize any charting libraries, if you add them (e.g., Chart.js, D3.js)
+            // if (document.getElementById('myChart')) {
+            //     // Chart.js initialization code here
+            // }
+
+            // Add any other dynamic behaviors here
+            // For disabled links, prevent default click behavior
+            document.querySelectorAll('a.disabled').forEach(function(link) {
+                link.addEventListener('click', function(event) {
+                    event.preventDefault();
+                });
+            });
+        });
+    </script>
 {% endblock %}

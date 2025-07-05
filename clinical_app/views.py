@@ -471,7 +471,7 @@ class UserRegistrationView(CreateView):
     def form_invalid(self, form):
         messages.error(self.request, "Please correct the errors below.")
         return super().form_invalid(form)
-        
+
 class ConsentFormCreateView(LoginRequiredMixin, IsMedicalStaffMixin, CreateView):
     model = ConsentForm
     form_class = ConsentFormForm
@@ -640,6 +640,293 @@ class PatientUpdateView(LoginRequiredMixin, IsAdminMixin, UpdateView):
             return render(request, self.template_name, context)
 
 
+# --- Encounter Views (for Doctors/Nurses) ---
+
+class EncounterDetailView(LoginRequiredMixin, IsMedicalStaffMixin, DetailView):
+    model = Encounter
+    template_name = 'clinical_app/encounter_detail.html'
+    context_object_name = 'encounter'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        encounter = self.get_object()
+        context['vitals'] = VitalSign.objects.filter(encounter=encounter).order_by('-timestamp')
+        context['medical_history'] = MedicalHistory.objects.filter(patient=encounter.patient).order_by('-recorded_date')
+        context['physical_examinations'] = PhysicalExamination.objects.filter(encounter=encounter).order_by('-examination_date')
+        context['diagnoses'] = Diagnosis.objects.filter(encounter=encounter).order_by('-diagnosis_date')
+        context['treatment_plans'] = TreatmentPlan.objects.filter(encounter=encounter).order_by('-created_date')
+        context['lab_requests'] = LabTestRequest.objects.filter(encounter=encounter).order_by('-requested_date')
+        context['imaging_requests'] = ImagingRequest.objects.filter(encounter=encounter).order_by('-requested_date')
+        context['prescriptions'] = Prescription.objects.filter(encounter=encounter).order_by('-prescription_date')
+        context['case_summary'] = CaseSummary.objects.filter(encounter=encounter).first()
+
+        log_activity(
+            self.request.user,
+            'VIEW',
+            f'Viewed encounter details for patient {encounter.patient.user.get_full_name()} (Encounter ID: {encounter.pk})',
+            model_name='Encounter',
+            object_id=encounter.pk,
+            ip_address=get_client_ip(self.request)
+        )
+        return context
+
+class EncounterCreateView(LoginRequiredMixin, IsMedicalStaffMixin, CreateView):
+    model = Encounter
+    fields = ['patient', 'doctor', 'appointment', 'encounter_type', 'admission_date', 'discharge_date', 'ward', 'bed']
+    template_name = 'clinical_app/encounter_form.html'
+    success_url = reverse_lazy('home')
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        if self.request.user.user_type == 'doctor' and hasattr(self.request.user, 'doctor'):
+            form.fields['doctor'].initial = self.request.user.doctor
+            form.fields['doctor'].widget = forms.HiddenInput()
+        return form
+
+    def form_valid(self, form):
+        if not form.cleaned_data.get('doctor') and self.request.user.user_type == 'doctor' and hasattr(self.request.user, 'doctor'):
+            form.instance.doctor = self.request.user.doctor
+
+        response = super().form_valid(form) # Save the form and get the instance
+
+        log_activity(
+            self.request.user,
+            'CREATE',
+            f'Created new encounter for patient {form.instance.patient.user.get_full_name()} (Encounter ID: {form.instance.pk})',
+            model_name='Encounter',
+            object_id=form.instance.pk,
+            ip_address=get_client_ip(self.request)
+        )
+        messages.success(self.request, f"Encounter for {form.instance.patient.user.get_full_name()} created successfully.")
+        return response
+
+# --- Sub-form Views (e.g., adding vitals to an encounter) ---
+
+class VitalSignCreateView(LoginRequiredMixin, IsMedicalStaffMixin, CreateView):
+    model = VitalSign
+    form_class = VitalSignForm
+    template_name = 'clinical_app/sub_form.html'
+
+    def get_success_url(self):
+        return reverse_lazy('encounter_detail', kwargs={'pk': self.kwargs['encounter_pk']})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['encounter'] = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
+        context['form_title'] = "Record Vital Signs"
+        return context
+
+    def form_valid(self, form):
+        encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
+        form.instance.encounter = encounter
+        form.instance.recorded_by = self.request.user
+
+        response = super().form_valid(form) # Save the form and get the instance
+
+        log_activity(
+            self.request.user,
+            'CREATE',
+            f'Recorded vital signs for patient {encounter.patient.user.get_full_name()} (Encounter ID: {encounter.pk})',
+            model_name='VitalSign',
+            object_id=form.instance.pk,
+            ip_address=get_client_ip(self.request)
+        )
+        messages.success(self.request, "Vital signs recorded successfully.")
+        return response
+
+class PatientListView(LoginRequiredMixin, IsMedicalStaffMixin, ListView):
+    model = Patient
+    template_name = 'clinical_app/patient_list.html'
+    context_object_name = 'patients'
+    paginate_by = 10
+    ordering = ['user__last_name', 'user__first_name']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        query = self.request.GET.get('q')
+        if query:
+            queryset = queryset.filter(
+                Q(user__first_name__icontains=query) |
+                Q(user__last_name__icontains=query) |
+                Q(patient_id__icontains=query) |
+                Q(user__username__icontains=query)
+            )
+        return queryset
+
+class PatientDetailView(LoginRequiredMixin, IsMedicalStaffMixin, DetailView):
+    model = Patient
+    template_name = 'clinical_app/patient_detail.html'
+    context_object_name = 'patient'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        patient = self.get_object()
+        context['encounters'] = patient.encounters.all().order_by('-encounter_date')
+        context['vitals'] = VitalSign.objects.filter(encounter__patient=patient).order_by('-timestamp')[:5] # Last 5 vitals
+        context['diagnoses'] = Diagnosis.objects.filter(encounter__patient=patient).order_by('-diagnosis_date')[:5]
+        context['prescriptions'] = Prescription.objects.filter(encounter__patient=patient).order_by('-prescription_date')[:5]
+        context['consent_forms'] = patient.consent_forms.all()
+
+        # Log patient viewing
+        log_activity(
+            self.request.user,
+            'VIEW',
+            f'Viewed patient record: {patient.user.get_full_name()} (ID: {patient.pk})',
+            model_name='Patient',
+            object_id=patient.pk,
+            ip_address=get_client_ip(self.request)
+        )
+        return context
+
+class PatientCreateView(LoginRequiredMixin, IsAdminMixin, CreateView):
+    model = Patient
+    form_class = PatientRegistrationForm
+    template_name = 'clinical_app/patient_form.html'
+    success_url = reverse_lazy('patient_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['user_form'] = CustomUserCreationForm(prefix='user')
+        return context
+
+    def post(self, request, *args, **kwargs):
+        user_form = CustomUserCreationForm(request.POST, prefix='user')
+        patient_form = PatientRegistrationForm(request.POST)
+
+        if user_form.is_valid() and patient_form.is_valid():
+            with transaction.atomic():
+                user = user_form.save(commit=False)
+                user.user_type = 'patient'
+                user.save()
+
+                patient = patient_form.save(commit=False)
+                patient.user = user
+                patient.save()
+
+                log_activity(
+                    request.user,
+                    'CREATE',
+                    f'Admin created new patient: {user.get_full_name()} (ID: {patient.pk})',
+                    model_name='Patient',
+                    object_id=patient.pk,
+                    ip_address=get_client_ip(request)
+                )
+            messages.success(request, f"Patient {user.get_full_name()} created successfully.")
+            return redirect(self.get_success_url())
+        else:
+            messages.error(request, "Error creating patient. Please check the forms.")
+            context = self.get_context_data()
+            context['user_form'] = user_form
+            context['form'] = patient_form
+            return render(request, self.template_name, context)
+
+class PatientUpdateView(LoginRequiredMixin, IsAdminMixin, UpdateView):
+    model = Patient
+    form_class = PatientRegistrationForm
+    template_name = 'clinical_app/patient_form.html'
+    context_object_name = 'patient'
+
+    def get_object(self, queryset=None):
+        return get_object_or_404(Patient, pk=self.kwargs['pk'])
+
+    def get_success_url(self):
+        return reverse_lazy('patient_detail', kwargs={'pk': self.object.pk})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        patient_user = self.get_object().user
+        context['user_form'] = CustomUserChangeForm(instance=patient_user, prefix='user')
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        patient_form = PatientRegistrationForm(request.POST, instance=self.object)
+        user_form = CustomUserChangeForm(request.POST, instance=self.object.user, prefix='user')
+
+        if patient_form.is_valid() and user_form.is_valid():
+            with transaction.atomic():
+                # Capture old data before saving
+                old_patient_data = {field.name: getattr(self.object, field.name) for field in self.object._meta.fields}
+                old_user_data = {field.name: getattr(self.object.user, field.name) for field in self.object.user._meta.fields}
+
+                user = user_form.save()
+                patient = patient_form.save()
+
+                # Compare old and new data to find specific changes
+                detected_changes = {}
+                for field, old_value in old_patient_data.items():
+                    new_value = getattr(patient, field)
+                    if str(old_value) != str(new_value):
+                        detected_changes[f'patient_{field}'] = {'old': str(old_value), 'new': str(new_value)}
+
+                for field, old_value in old_user_data.items():
+                    new_value = getattr(user, field)
+                    if str(old_value) != str(new_value):
+                        detected_changes[f'user_{field}'] = {'old': str(old_value), 'new': str(new_value)}
+
+                log_activity(
+                    request.user,
+                    'UPDATE',
+                    f'Updated patient record and/or user details for {patient.user.get_full_name()} (ID: {patient.pk})',
+                    model_name='Patient',
+                    object_id=patient.pk,
+                    ip_address=get_client_ip(request),
+                    changes=detected_changes if detected_changes else None
+                )
+            messages.success(request, f"Patient {patient.user.get_full_name()} updated successfully.")
+            return redirect(self.get_success_url())
+        else:
+            messages.error(request, "Error updating patient. Please correct the errors.")
+            context = self.get_context_data()
+            context['form'] = patient_form
+            context['user_form'] = user_form
+            return render(request, self.template_name, context)
+
+class DoctorPatientListView(LoginRequiredMixin, IsDoctorMixin, ListView):
+    model = Patient
+    template_name = 'clinical_app/doctor_patient_list.html'
+    context_object_name = 'patients' # This will now be a list of dicts, not just Patient objects
+    paginate_by = 10
+
+    def get_queryset(self):
+        # Ensure the doctor profile exists for the current user
+        doctor_profile = get_object_or_404(Doctor, user=self.request.user)
+
+        # Get patients associated with this doctor through encounters
+        # Use .distinct() to avoid duplicate patients if they have multiple encounters
+        queryset = Patient.objects.filter(encounters__doctor=doctor_profile).distinct()
+
+        # Apply search query if present
+        query = self.request.GET.get('q')
+        if query:
+            queryset = queryset.filter(
+                Q(user__first_name__icontains=query) |
+                Q(user__last_name__icontains=query) |
+                Q(patient_id__icontains=query) # Assuming Patient model has patient_id
+            )
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        doctor_profile = get_object_or_404(Doctor, user=self.request.user)
+
+        # Get the paginated patients (objects in the current page)
+        patients_on_page = context['patients'] # 'patients' refers to the paginated queryset
+
+        # Build a list of patient data, including their latest encounter
+        patients_with_latest_encounter = []
+        for patient in patients_on_page:
+            # Fetch the latest encounter for this patient by the current doctor
+            latest_encounter = patient.encounters.filter(doctor=doctor_profile).order_by('-encounter_date').first()
+            patients_with_latest_encounter.append({
+                'patient': patient,
+                'latest_encounter': latest_encounter
+            })
+
+        # Override the 'patients' context variable with our new list
+        context['patients'] = patients_with_latest_encounter
+        return context
+        
 # --- Encounter Views (for Doctors/Nurses) ---
 
 class EncounterDetailView(LoginRequiredMixin, IsMedicalStaffMixin, DetailView):
