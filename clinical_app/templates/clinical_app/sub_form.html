@@ -1,0 +1,50 @@
+{% extends "clinical_app/base.html" %}
+
+{% block title %}{{ form_title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h3>{{ form_title }}</h3>
+                {% if encounter %}
+                    <p>For Patient: <a href="{% url 'patient_detail' encounter.patient.pk %}">{{ encounter.patient.user.get_full_name }}</a></p>
+                    <p>Encounter Date: {{ encounter.encounter_date|date:"M d, Y P" }}</p>
+                {% elif patient %}
+                    <p>For Patient: <a href="{% url 'patient_detail' patient.pk %}">{{ patient.user.get_full_name }}</a></p>
+                {% elif lab_request %}
+                    <p>For Lab Request: {{ lab_request.get_tests_display }} for <a href="{% url 'patient_detail' lab_request.encounter.patient.pk %}">{{ lab_request.encounter.patient.user.get_full_name }}</a></p>
+                {% elif imaging_request %}
+                    <p>For Imaging Request: {{ imaging_request.imaging_type.name }} for <a href="{% url 'patient_detail' imaging_request.encounter.patient.pk %}">{{ imaging_request.encounter.patient.user.get_full_name }}</a></p>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {% for field in form %}
+                        <div class="form-group">
+                            {{ field.label_tag }}
+                            {{ field }}
+                            {% if field.help_text %}
+                                <small class="form-text text-muted">{{ field.help_text }}</small>
+                            {% endif %}
+                            {% for error in field.errors %}
+                                <div class="alert alert-danger mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                    <button type="submit" class="btn btn-success">Save</button>
+                    {% if encounter %}
+                        <a href="{% url 'encounter_detail' encounter.pk %}" class="btn btn-secondary">Cancel</a>
+                    {% elif patient %}
+                        <a href="{% url 'patient_detail' patient.pk %}" class="btn btn-secondary">Cancel</a>
+                    {% else %}
+                        <a href="{% url 'home' %}" class="btn btn-secondary">Cancel</a>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

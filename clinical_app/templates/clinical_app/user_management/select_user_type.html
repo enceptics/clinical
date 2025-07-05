@@ -1,0 +1,183 @@
+{# clinical_app/templates/clinical_app/registration/select_user_type.html #}
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management System | Select User Type</title>
+    <link rel="stylesheet" href="{% static 'assets/css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Raleway:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0d6efd;
+            --primary-dark: #0b5ed7;
+            --secondary: #6c757d;
+            --success: #198754;
+            --hospital-blue: #1a73e8;
+            --hospital-green: #34a853;
+            --hospital-light: #f8f9fa;
+            --hospital-dark: #212529;
+            --info: #0dcaf0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)),
+                        url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1953&q=80') no-repeat center center fixed;
+            background-size: cover;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .selection-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+            padding: 40px;
+            text-align: center;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        .selection-title {
+            font-family: 'Raleway', sans-serif;
+            font-weight: 700;
+            font-size: 32px;
+            margin-bottom: 20px;
+            color: var(--hospital-blue);
+        }
+
+        .selection-subtitle {
+            font-size: 18px;
+            color: var(--secondary);
+            margin-bottom: 40px;
+        }
+
+        .user-type-cards {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .card {
+            background-color: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 25px;
+            width: 200px; /* Fixed width for cards */
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            cursor: pointer;
+            text-decoration: none; /* Remove underline from link */
+            color: inherit; /* Inherit text color */
+        }
+
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            border-color: var(--hospital-blue);
+        }
+
+        .card-icon {
+            font-size: 48px;
+            color: var(--hospital-blue);
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-family: 'Raleway', sans-serif;
+            font-weight: 600;
+            font-size: 20px;
+            color: var(--hospital-dark);
+            margin-bottom: 0;
+        }
+
+        .footer {
+            margin-top: 40px;
+            font-size: 14px;
+            color: var(--secondary);
+        }
+
+        .footer-link {
+            color: var(--hospital-blue);
+            text-decoration: none;
+        }
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .selection-title {
+                font-size: 28px;
+            }
+            .selection-subtitle {
+                font-size: 16px;
+            }
+            .card {
+                width: 160px; /* Adjust card width for smaller screens */
+                padding: 20px;
+            }
+            .card-icon {
+                font-size: 40px;
+            }
+            .card-title {
+                font-size: 18px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .selection-container {
+                padding: 30px;
+            }
+            .card {
+                width: 140px; /* Even smaller width for very small screens */
+                padding: 15px;
+            }
+            .card-icon {
+                font-size: 36px;
+            }
+            .card-title {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="selection-container">
+        <h2 class="selection-title">User Registration</h2>
+        <p class="selection-subtitle">Please select the user type to proceed with their registration:</p>
+
+        <div class="user-type-cards">
+            {% for user_type in user_types %}
+                <a href="{% url user_type.url_name user_type=user_type.type_slug %}" class="card">
+                    <div class="card-icon">
+                        <i class="{{ user_type.icon }}"></i>
+                    </div>
+                    <h5 class="card-title">{{ user_type.name }}</h5>
+                </a>
+            {% endfor %}
+        </div>
+
+        <div class="footer">
+            <p> <a href="{% url 'login' %}" class="footer-link">Login here</a>.</p>
+            <p>&copy; 2025 Hospital Management System</p>
+        </div>
+    </div>
+</body>
+</html>

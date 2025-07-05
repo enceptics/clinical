@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
+                        url('https://images.unsplash.com/photo-1538108149393-fbbd81895907?q=80&w=1528&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D') no-repeat center center fixed;
+            background-size: cover;
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        form {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            animation: fadeIn 0.8s ease-in-out;
+        }
+
+        p {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 25px;
+            text-align: center;
+            color: #fff;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .containerOuter {
+            padding: 0;
+        }
+
+        .container {
+            position: relative;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .entry {
+            position: relative;
+            padding: 18px 20px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            z-index: 1;
+        }
+
+        .entry:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .circle {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            margin-right: 15px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .circle::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4facfe;
+            transition: all 0.3s ease;
+        }
+
+        input:checked + .entry {
+            background: rgba(79, 172, 254, 0.2);
+            border-color: rgba(79, 172, 254, 0.4);
+        }
+
+        input:checked + .entry .circle {
+            border-color: #4facfe;
+        }
+
+        input:checked + .entry .circle::after {
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .highlight {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            border-radius: 12px;
+            z-index: 0;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            opacity: 0.5;
+        }
+
+        .container input:nth-of-type(1):checked ~ .highlight {
+            transform: translateY(0);
+        }
+
+        .container input:nth-of-type(2):checked ~ .highlight {
+            transform: translateY(70px);
+        }
+
+        .container input:nth-of-type(3):checked ~ .highlight {
+            transform: translateY(140px);
+        }
+
+        .cssbuttons-io-button {
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            font-family: inherit;
+            padding: 0.8em 1.8em;
+            font-size: 1.1rem;
+            border-radius: 12px;
+            border: none;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 600;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .cssbuttons-io-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .cssbuttons-io-button:active {
+            transform: translateY(0);
+        }
+
+        .cssbuttons-io-button .icon {
+            width: 24px;
+            height: 24px;
+            transition: all 0.3s ease;
+        }
+
+        .cssbuttons-io-button:hover .icon {
+            transform: translateX(5px);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 600px) {
+            form {
+                padding: 30px 20px;
+            }
+            
+            p {
+                font-size: 1.3rem;
+            }
+            
+            .entry {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <form method="post">
+      <p>Select Your Nearest Hospital Location</p>
+        {% csrf_token %}
+    <div class="containerOuter">
+      <div class="container">
+        <input type="radio" class="hidden" id="input1" name="location" value='1' checked>
+        <label class="entry" for="input1"><div class="circle"></div><div class="entry-label">Mombasa</div></label>
+        <input type="radio" class="hidden" id="input2" name="location" value='2'>
+        <label class="entry" for="input2"><div class="circle"></div><div class="entry-label"> Nairobi </div></label>
+        <input type="radio" class="hidden" id="input3" name="location" value='3'>
+        <label class="entry" for="input3"><div class="circle"></div><div class="entry-label">Kisumu</div></label>
+        <div class="highlight"></div>
+      </div>
+    </div>
+    <br>
+    <div>
+        <button class="cssbuttons-io-button"> Get started
+            <div class="icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24"><path fill="none" d="M0 0h24v24H0z"></path><path fill="currentColor" d="M16.172 11l-5.364-5.364 1.414-1.414L20 12l-7.778 7.778-1.414-1.414L16.172 13H4v-2z"></path></svg>
+            </div>
+          </button>
+    </div>
+    </form>
+</body>
+</html>

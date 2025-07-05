@@ -1,0 +1,134 @@
+{% extends "clinical_app/base.html" %}
+
+{% block title %}{{ patient.user.get_full_name }} - Patient Details{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">Patient Details: {{ patient.user.get_full_name }} ({{ patient.patient_id }})</h1>
+
+    <div class="mb-4">
+        <a href="{% url 'patient_list' %}" class="btn btn-secondary btn-sm">Back to Patient List</a>
+        {% if user.user_type == 'admin' %}
+            <a href="{% url 'patient_update' patient.pk %}" class="btn btn-warning btn-sm">Edit Patient Info</a>
+        {% endif %}
+        {% if user.user_type == 'doctor' or user.user_type == 'nurse' %}
+            <a href="{% url 'encounter_create' %}?patient={{ patient.pk }}" class="btn btn-primary btn-sm">Start New Encounter</a>
+        {% endif %}
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">Patient Demographics</div>
+                <div class="card-body">
+                    <p><strong>Username:</strong> {{ patient.user.username }}</p>
+                    <p><strong>Full Name:</strong> {{ patient.user.get_full_name }}</p>
+                    <p><strong>Email:</strong> {{ patient.user.email|default:"N/A" }}</p>
+                    <p><strong>Phone Number:</strong> {{ patient.user.phone_number|default:"N/A" }}</p>
+                    <p><strong>Address:</strong> {{ patient.user.address|default:"N/A" }}</p>
+                    <p><strong>Date of Birth:</strong> {{ patient.user.date_of_birth|date:"M d, Y"|default:"N/A" }}</p>
+                    <p><strong>Gender:</strong> {{ patient.user.get_gender_display|default:"N/A" }}</p>
+                    <p><strong>Blood Group:</strong> {{ patient.blood_group|default:"N/A" }}</p>
+                    <p><strong>Emergency Contact:</strong> {{ patient.emergency_contact_name }} ({{ patient.emergency_contact_phone }})</p>
+                    <p><strong>Allergies:</strong> {{ patient.allergies|default:"None" }}</p>
+                    <p><strong>Pre-existing Conditions:</strong> {{ patient.pre_existing_conditions|default:"None" }}</p>
+                    <p><strong>Registration Date:</strong> {{ patient.registration_date|date:"M d, Y P" }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">Recent Vital Signs <a href="{% url 'encounter_create' %}?patient={{ patient.pk }}" class="btn btn-sm btn-light float-right">Add New Vitals</a></div>
+                <div class="card-body">
+                    {% if vitals %}
+                        <ul class="list-group list-group-flush">
+                            {% for vital in vitals %}
+                                <li class="list-group-item">
+                                    <strong>Date:</strong> {{ vital.timestamp|date:"M d, Y P" }}<br>
+                                    Temp: {{ vital.temperature|default:"N/A" }}°C, BP: {{ vital.blood_pressure_systolic|default:"N/A" }}/{{ vital.blood_pressure_diastolic|default:"N/A" }} mmHg,
+                                    HR: {{ vital.heart_rate|default:"N/A" }} bpm, RR: {{ vital.respiratory_rate|default:"N/A" }} rpm, SpO2: {{ vital.oxygen_saturation|default:"N/A" }}%
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No recent vital signs recorded for this patient.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header bg-success text-white">Recent Diagnoses</div>
+                <div class="card-body">
+                    {% if diagnoses %}
+                        <ul class="list-group list-group-flush">
+                            {% for diag in diagnoses %}
+                                <li class="list-group-item">
+                                    <strong>Date:</strong> {{ diag.diagnosis_date|date:"M d, Y" }}<br>
+                                    <strong>Diagnosis:</strong> {{ diag.diagnosis_text }} ({{ diag.icd10_code|default:"N/A" }})
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No recent diagnoses recorded for this patient.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+             <div class="card mb-4">
+                <div class="card-header bg-dark text-white">Consent Forms <a href="{% url 'consent_create' patient.pk %}" class="btn btn-sm btn-light float-right">Add New Consent</a></div>
+                <div class="card-body">
+                    {% if consent_forms %}
+                        <ul class="list-group list-group-flush">
+                            {% for consent in consent_forms %}
+                                <li class="list-group-item">
+                                    <strong>Type:</strong> {{ consent.consent_type }}<br>
+                                    <strong>Signed:</strong> {{ consent.is_signed|yesno:"Yes,No" }} on {{ consent.signed_date|date:"M d, Y P"|default:"N/A" }}<br>
+                                    {% if consent.document_file %}
+                                        <a href="{{ consent.document_file.url }}" target="_blank">View Document</a>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No consent forms recorded for this patient.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-white">Patient Encounters</div>
+        <div class="card-body">
+            {% if encounters %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Doctor</th>
+                                <th>Type</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for encounter in encounters %}
+                            <tr>
+                                <td>{{ encounter.encounter_date|date:"M d, Y P" }}</td>
+                                <td>{{ encounter.doctor.user.get_full_name|default:"N/A" }}</td>
+                                <td>{{ encounter.get_encounter_type_display }}</td>
+                                <td>
+                                    <a href="{% url 'encounter_detail' encounter.pk %}" class="btn btn-info btn-sm">View Encounter</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p>No encounters found for this patient.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

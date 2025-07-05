@@ -1,0 +1,453 @@
+{% extends "clinical_app/base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+    <style>
+        /* Custom CSS Variables for consistent theming */
+        :root {
+            --primary-color: #4A90E2; /* A vibrant blue */
+            --primary-color-rgb: 74, 144, 226; /* RGB for rgba use */
+            --secondary-color: #50E3C2; /* A complementary turquoise */
+            --accent-color: #F5A623; /* A warm orange for highlights */
+            --text-dark: #333;
+            --text-muted: #7f8c8d;
+            --bg-light: #f8f9fa;
+            --card-bg: #ffffff;
+            --border-color: #e0e0e0;
+            --shadow-light: rgba(0, 0, 0, 0.08);
+            --shadow-medium: rgba(0, 0, 0, 0.12);
+            --gradient-start: #4facfe;
+            --gradient-end: #00f2fe;
+            --hover-gradient-start: #6a85b6; /* A deeper blue-grey */
+            --hover-gradient-end: #bac8e0; /* A lighter blue-grey */
+            --custom-card-height: 160px; /* Smaller uniform height for custom styled cards */
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif; /* Main font */
+            background-color: var(--bg-light); /* Light grey background */
+            color: var(--text-dark); /* Dark text for readability */
+            /* Bootstrap handles min-height and padding via its layout */
+        }
+
+        /* --- Text and Font Enhancements --- */
+        h1.mb-4 {
+            font-family: 'Poppins', sans-serif; /* Maintain Poppins for main headings */
+            font-weight: 700; /* Bolder main heading */
+            color: var(--primary-color); /* Make dashboard title vibrant */
+            letter-spacing: -0.5px; /* Slight letter spacing for modern feel */
+        }
+
+        /* --- Custom Card Styles (for admin dashboard cards) --- */
+        .custom-styled-card {
+            background-color: var(--card-bg); /* White background for cards */
+            border: none;
+            border-radius: 1.25rem; /* Softer, more pronounced rounded corners */
+            box-shadow: 0 6px 20px var(--shadow-light); /* Subtle shadow */
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            text-decoration: none; /* Remove underline from link */
+            color: inherit; /* Inherit text color */
+            position: relative; /* For the pseudo-element gradient */
+            overflow: hidden; /* Hide the overflow of the pseudo-element */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: var(--custom-card-height); /* Uniform height for these cards */
+        }
+
+        /* Pseudo-element for the beautiful hover gradient overlay */
+        .custom-styled-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, var(--hover-gradient-start), var(--hover-gradient-end));
+            opacity: 0; /* Initially hidden */
+            transition: opacity 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            z-index: 1; /* Place behind the content */
+        }
+
+        .custom-styled-card:hover::before {
+            opacity: 1; /* Show gradient on hover */
+        }
+            
+        .custom-styled-card:hover {
+            transform: translateY(-8px); /* More pronounced lift effect */
+            box-shadow: 0 12px 40px var(--shadow-medium); /* Enhanced shadow on hover */
+            color: white; /* Change text color for better contrast on hover */
+        }
+
+        .custom-styled-card .card-body {
+            padding: 1.5rem; /* Reduced padding */
+            text-align: left; /* Align text to left */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%; /* Ensure body takes full height */
+            position: relative;
+            z-index: 2; /* Ensure content is above the pseudo-element */
+        }
+            
+        /* Container for the icon and text */
+        .custom-styled-card .card-content {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        /* The icon circle container, now positioned absolutely */
+        .custom-styled-card .icon-circle {
+            position: absolute;
+            bottom: 1.5rem; /* Initial position at bottom right */
+            right: 1.5rem; /* Initial position at bottom right */
+            width: 60px; /* Slightly smaller icon circle */
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--primary-color); /* Initial color for the icon circle */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); /* Subtle shadow for the circle */
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            z-index: 3; /* Ensure icon is on top */
+            overflow: hidden;
+        }
+
+        /* Icon styling */
+        .custom-styled-card .icon-circle i {
+            color: white !important; /* Icon white initially */
+            font-size: 2rem; /* Larger icon size */
+            transition: color 0.4s ease, transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            position: relative;
+            z-index: 4;
+        }
+
+        /* Text container */
+        .custom-styled-card .card-text-container {
+            transition: transform 0.4s ease, opacity 0.4s ease;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* Make card titles clearer */
+        .custom-styled-card .card-body h5 {
+            font-family: 'Roboto', sans-serif; /* Roboto for titles */
+            font-weight: 600; /* Bolder title */
+            color: var(--text-dark); /* Darker initial color for clarity */
+            margin-bottom: 0.25rem;
+            font-size: 1.1rem; /* Slightly larger title font */
+            transition: color 0.4s ease;
+            line-height: 1.2;
+        }
+            
+        /* Make admin card values even larger and more impactful */
+        .custom-styled-card .card-body h3.card-text-value { /* Specific class for value */
+            font-family: 'Poppins', sans-serif; /* Poppins for main text */
+            font-weight: 900; /* Ultra bold for data prominence */
+            color: var(--primary-color); /* Initial vibrant color */
+            font-size: 2.8rem; /* Significantly larger font size */
+            margin-bottom: 0;
+            line-height: 1.2;
+            transition: color 0.4s ease, transform 0.4s ease; /* Add transform for value animation */
+        }
+
+        /* Hover effect: Move text up, move icon to top left, change icon circle background */
+        .custom-styled-card:hover .card-text-container {
+            transform: translateY(-20px); /* Move the text up slightly on hover */
+            color: white; /* Text color change handled by overall card hover */
+        }
+            
+        .custom-styled-card:hover .card-body h5 {
+            color: rgba(255, 255, 255, 0.9); /* Lighter on hover, but still legible */
+        }
+            
+        /* On hover, ensure the values are truly white for contrast */
+        .custom-styled-card:hover .card-body h3.card-text-value {
+            color: white; /* White text on hover for contrast */
+            transform: translateY(-5px); /* Slight lift for the number itself */
+        }
+            
+        .custom-styled-card:hover .icon-circle {
+            bottom: unset; /* Reset bottom position */
+            right: unset; /* Reset right position */
+            top: 2rem; /* Move to top */
+            left: 2rem; /* Move to left */
+            transform: scale(1.05); /* Slight scale */
+            background: var(--card-bg); /* Change icon circle background to white */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .custom-styled-card:hover .icon-circle i {
+            color: var(--primary-color) !important; /* Change icon color to primary on hover */
+            transform: scale(1); /* Reset icon scale/rotation */
+        }
+
+        /* --- General Bootstrap Overrides/Adjustments --- */
+        /* For other cards that use Bootstrap's .card class */
+        .card {
+            border-radius: 0.75rem; /* Slightly more rounded than default Bootstrap */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); /* Subtle shadow for all cards */
+        }
+
+        .card-header {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            border-bottom: none; /* Remove default header border */
+            border-top-left-radius: 0.75rem !important;
+            border-top-right-radius: 0.75rem !important;
+            padding: 1rem 1.25rem; /* Slightly more padding */
+        }
+        /* Custom background colors for Bootstrap card headers */
+        .card-header.bg-info {
+            background-color: var(--primary-color) !important; /* Use primary color for info */
+            color: white !important;
+        }
+        .card-header.bg-success {
+            background-color: var(--secondary-color) !important; /* Use secondary color for success */
+            color: white !important;
+        }
+
+        /* List group item styling for doctor/patient views */
+        .list-group-item {
+            font-family: 'Roboto', sans-serif;
+            border-color: var(--border-color); /* Use custom border color */
+            padding: 1rem 1.25rem; /* Slightly more padding for list items */
+            margin-bottom: 0.5rem; /* Add space between list items */
+            border-radius: 0.5rem; /* Slightly rounded corners for list items */
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .list-group-item:hover {
+            background-color: rgba(var(--primary-color-rgb), 0.05); /* Very light hover background */
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* Subtle shadow on hover */
+        }
+        .list-group-item strong {
+            font-weight: 700; /* Make labels bolder */
+            color: var(--text-dark);
+        }
+        .list-group-item a {
+            color: var(--primary-color); /* Apply primary color to links in list items */
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        .list-group-item a:hover {
+            color: #367ac8; /* A darker shade on hover */
+            text-decoration: underline;
+        }
+
+        /* Highlight specific data within list items */
+        .list-group-item span.date-time {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--primary-color); /* Use primary color for dates */
+        }
+
+        .btn {
+            font-family: 'Roboto', sans-serif;
+            font-weight: 500;
+            border-radius: 0.5rem; /* More rounded buttons */
+            padding: 0.5rem 1.2rem; /* Consistent button padding */
+        }
+        .btn-primary {
+            background-color: var(--primary-color) !important;
+            border-color: var(--primary-color) !important;
+            background-image: linear-gradient(to right, var(--primary-color), #367ac8); /* Subtle gradient for primary buttons */
+            border: none;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #367ac8 !important;
+            border-color: #367ac8 !important;
+            background-image: linear-gradient(to right, #367ac8, var(--primary-color)); /* Reverse gradient on hover */
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
+        .btn-link {
+            color: var(--primary-color) !important;
+            font-weight: 500;
+        }
+        .btn-link:hover {
+            text-decoration: underline;
+        }
+        .btn-sm {
+            padding: 0.35rem 0.8rem; /* Adjust small button padding */
+            font-size: 0.875rem;
+        }
+
+        /* Specific styling for the 'p' tag within admin cards */
+        .custom-styled-card .card-body p.card-text {
+            color: var(--text-muted); /* Muted text color */
+            font-size: 0.95rem; /* Slightly larger description text */
+            margin-bottom: 0.5rem;
+            transition: color 0.4s ease;
+        }
+        .custom-styled-card:hover .card-body p.card-text {
+            color: rgba(255, 255, 255, 0.8); /* Lighter on hover */
+        }
+    </style>
+<div class="container-fluid">
+    <h1 class="mb-4">Welcome to Your Dashboard, {{ user.get_full_name|default:user.username }}!</h1>
+
+    {% if user.is_authenticated %}
+        {% if user_type == 'admin' %}
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card custom-styled-card"> {# Added custom-styled-card class #}
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>Total Patients</h5>
+                                <h3 class="card-text-value">{{ total_patients }}</h3> {# Changed class for value #}
+                                <p class="card-text">Registered patients in the system.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-user-injured"></i> {# Font Awesome icon #}
+                            </div>
+                            <a href="{% url 'patient_list' %}" class="btn btn-primary btn-sm mt-3">View All Patients</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card custom-styled-card"> {# Added custom-styled-card class #}
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>Total Doctors</h5>
+                                <h3 class="card-text-value">{{ total_doctors }}</h3> {# Changed class for value #}
+                                <p class="card-text">Medical professionals available.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-user-md"></i> {# Font Awesome icon #}
+                            </div>
+                            {# Link to doctor list when implemented #}
+                            <a href="#" class="btn btn-primary btn-sm mt-3 disabled">View All Doctors</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card custom-styled-card"> {# Added custom-styled-card class #}
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>Pending Appointments</h5>
+                                <h3 class="card-text-value">{{ pending_appointments }}</h3> {# Changed class for value #}
+                                <p class="card-text">Appointments scheduled but not completed.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-calendar-alt"></i> {# Font Awesome icon #}
+                            </div>
+                            {# Link to appointments when implemented #}
+                            <a href="#" class="btn btn-primary btn-sm mt-3 disabled">View Appointments</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {# Add more admin specific stats/widgets #}
+
+        {% elif user_type == 'doctor' %}
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card mb-4"> {# Retained Bootstrap card #}
+                        <div class="card-header bg-info text-white">Your Upcoming Appointments</div> {# Retained Bootstrap classes for header #}
+                        <div class="card-body">
+                            {% if my_appointments %}
+                                <ul class="list-group"> {# Retained Bootstrap list-group #}
+                                    {% for appt in my_appointments %}
+                                        <li class="list-group-item"> {# Retained Bootstrap list-group-item #}
+                                            <strong>Patient:</strong> <a href="{% url 'patient_detail' appt.patient.pk %}">{{ appt.patient.user.get_full_name }}</a><br>
+                                            <strong>Date:</strong> <span class="date-time">{{ appt.appointment_date|date:"F d, Y P" }}</span><br>
+                                            <strong>Reason:</strong> {{ appt.reason_for_visit|truncatechars:50 }}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p>No upcoming appointments.</p>
+                            {% endif %}
+                            <a href="#" class="btn btn-primary btn-sm mt-3 disabled">View All Appointments</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card mb-4"> {# Retained Bootstrap card #}
+                        <div class="card-header bg-success text-white">Your Recent Encounters</div> {# Retained Bootstrap classes for header #}
+                        <div class="card-body">
+                            {% if recent_encounters %}
+                                <ul class="list-group"> {# Retained Bootstrap list-group #}
+                                    {% for encounter in recent_encounters %}
+                                        <li class="list-group-item"> {# Retained Bootstrap list-group-item #}
+                                            <strong>Patient:</strong> <a href="{% url 'patient_detail' encounter.patient.pk %}">{{ encounter.patient.user.get_full_name }}</a><br>
+                                            <strong>Date:</strong> <span class="date-time">{{ encounter.encounter_date|date:"F d, Y P" }}</span><br>
+                                            <strong>Type:</strong> {{ encounter.get_encounter_type_display }}
+                                            <br><a href="{% url 'encounter_detail' encounter.pk %}" class="btn btn-link btn-sm">View Details</a>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p>No recent encounters.</p>
+                            {% endif %}
+                            <a href="{% url 'doctor_patient_list' %}" class="btn btn-primary btn-sm mt-3">View All My Patients</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {# Add more doctor specific stats/widgets #}
+
+        {% elif user_type == 'patient' %}
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card mb-4"> {# Retained Bootstrap card #}
+                        <div class="card-header bg-info text-white">Your Upcoming Appointments</div> {# Retained Bootstrap classes for header #}
+                        <div class="card-body">
+                            {% if my_appointments %}
+                                <ul class="list-group"> {# Retained Bootstrap list-group #}
+                                    {% for appt in my_appointments %}
+                                        <li class="list-group-item"> {# Retained Bootstrap list-group-item #}
+                                            <strong>Doctor:</strong> {{ appt.doctor.user.get_full_name }}<br>
+                                            <strong>Date:</strong> <span class="date-time">{{ appt.appointment_date|date:"F d, Y P" }}</span><br>
+                                            <strong>Reason:</strong> {{ appt.reason_for_visit|truncatechars:50 }}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p>No upcoming appointments.</p>
+                            {% endif %}
+                            <a href="#" class="btn btn-primary btn-sm mt-3 disabled">Schedule New Appointment</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card mb-4"> {# Retained Bootstrap card #}
+                        <div class="card-header bg-success text-white">Your Recent Encounters</div> {# Retained Bootstrap classes for header #}
+                        <div class="card-body">
+                            {% if my_recent_encounters %}
+                                <ul class="list-group"> {# Retained Bootstrap list-group #}
+                                    {% for encounter in my_recent_encounters %}
+                                        <li class="list-group-item"> {# Retained Bootstrap list-group-item #}
+                                            <strong>Date:</strong> <span class="date-time">{{ encounter.encounter_date|date:"F d, Y P" }}</span><br>
+                                            <strong>Doctor:</strong> {{ encounter.doctor.user.get_full_name }}<br>
+                                            <strong>Type:</strong> {{ encounter.get_encounter_type_display }}
+                                            <br><a href="{% url 'encounter_detail' encounter.pk %}" class="btn btn-link btn-sm">View Details</a>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p>No recent encounters.</p>
+                            {% endif %}
+                            <a href="#" class="btn btn-primary btn-sm mt-3 disabled">View Full History</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {# Add more patient specific stats/widgets #}
+
+        {% else %}
+            <p>Your dashboard content will appear here based on your role.</p>
+        {% endif %}
+    {% else %}
+        <p>Please <a href="{% url 'login' %}">log in</a> to access your dashboard.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,506 @@
+{% extends 'clinical_app/base.html' %} {# Assuming you have a base.html #}
+{% load static %} {# If you use static files like CSS #}
+{% load clinical_filters %} {# Add this line to load your custom filter! #}
+
+{% block title %}Activity Logs{% endblock %}
+
+{% block extra_head %}
+{# Link to your custom CSS file for specific styles #}
+<link rel="stylesheet" href="{% static 'clinical_app/css/activity_log_styles.css' %}">
+{% endblock %}
+
+{% block content %}
+<style>
+	/* clinical_app/static/clinical_app/css/activity_log_styles.css */
+
+/* --- General Styling --- */
+body {
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: #f8f9fa; /* Light background */
+    color: #343a40;
+}
+
+/* --- Hospital Theme Colors (Adjust these as needed for your specific brand) --- */
+:root {
+    --primary-blue: #007bff; /* Standard Bootstrap primary */
+    --primary-blue-light: #61affe;
+    --primary-blue-dark: #0056b3;
+    --secondary-gray: #6c757d;
+    --accent-green: #28a745;
+    --accent-red: #dc3545;
+    --accent-orange: #ffc107;
+    --light-bg: #e9ecef;
+    --white: #ffffff;
+    --dark-text: #343a40;
+    --border-color: #e0e0e0; /* Softer border color */
+}
+
+/* --- Section Title --- */
+.section-title {
+    color: #2c3e50; /* Darker blue/grey for titles */
+    font-weight: 600;
+    font-size: 2.2rem;
+    border-bottom: 3px solid var(--primary-blue-light);
+    display: inline-block;
+    padding-bottom: 0.5rem;
+    margin-bottom: 3rem !important;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.05);
+}
+.section-title i {
+    color: var(--primary-blue);
+}
+
+/* --- Cards --- */
+.card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); /* Softer, larger shadow */
+    overflow: hidden; /* Ensures rounded corners are respected */
+}
+
+.card-header {
+    border-bottom: none; /* Remove default Bootstrap border */
+    border-radius: 12px 12px 0 0 !important; /* Rounded top corners */
+    padding: 1rem 1.5rem;
+    font-weight: 500;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(135deg, var(--primary-blue), var(--primary-blue-light));
+    color: var(--white) !important;
+}
+
+/* --- Form Elements --- */
+.form-label-sm {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 0.25rem;
+}
+
+.form-control-sm,
+.form-select-sm {
+    border-radius: 8px; /* Slightly more rounded inputs */
+    border: 1px solid #ced4da;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+.form-control-sm:focus,
+.form-select-sm:focus {
+    border-color: var(--primary-blue-light);
+    box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.25);
+}
+
+.filter-card .btn-sm {
+    font-size: 0.8rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 8px;
+    font-weight: 500;
+}
+
+/* --- Table Styling --- */
+.table-card {
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+.activity-table {
+    margin-bottom: 0; /* Remove default table margin */
+    border-collapse: separate; /* Allow border-radius on cells */
+    border-spacing: 0;
+}
+
+.activity-table thead {
+    border-radius: 12px 12px 0 0; /* Rounded top for header */
+}
+
+.table-header-gradient {
+    background: linear-gradient(90deg, var(--primary-blue-dark), var(--primary-blue));
+    color: var(--white);
+}
+
+.activity-table th {
+    padding: 1rem 1.25rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.5px;
+    white-space: nowrap; /* Prevent headers from wrapping too much */
+}
+
+.activity-table tbody tr {
+    transition: background-color 0.2s ease-in-out;
+}
+
+.activity-table tbody tr:hover {
+    background-color: #eaf3fe; /* Lighter blue on hover */
+}
+
+.activity-table td {
+    padding: 0.8rem 1.25rem;
+    vertical-align: middle;
+    font-size: 0.9rem;
+    border-top: 1px solid var(--border-color); /* Softer border */
+}
+
+.activity-table tr:first-child td {
+    border-top: none; /* No top border for the first row */
+}
+
+
+/* --- Smaller Elements within Table Cells --- */
+.user-cell {
+    white-space: nowrap; /* Keep user name on one line */
+    font-weight: 500;
+    color: #3f51b5; /* A distinct blue for users */
+}
+.user-cell i {
+    color: #64b5f6; /* Lighter icon color */
+}
+
+.custom-badge {
+    padding: 0.4em 0.7em;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 0.35rem; /* Slightly larger rounded corners */
+    min-width: 80px; /* Give them a consistent width */
+    text-align: center;
+}
+
+/* Specific badge colors for action types */
+.bg-action-create { background: linear-gradient(45deg, #28a745, #218838) !important; } /* Green */
+.bg-action-update { background: linear-gradient(45deg, #007bff, #0056b3) !important; } /* Blue */
+.bg-action-delete { background: linear-gradient(45deg, #dc3545, #c82333) !important; } /* Red */
+.bg-action-login { background: linear-gradient(45deg, #ffc107, #e0a800) !important; } /* Yellow/Orange */
+.bg-action-logout { background: linear-gradient(45deg, #6c757d, #5a6268) !important; } /* Grey */
+.bg-action-view { background: linear-gradient(45deg, #17a2b8, #138496) !important; } /* Cyan/Info */
+.bg-action-password-change { background: linear-gradient(45deg, #6f42c1, #5a34a4) !important; } /* Purple */
+.bg-action-error { background: linear-gradient(45deg, #e74c3c, #c0392b) !important; } /* Darker Red for errors */
+/* Fallback for any other action types */
+.bg-action-default,
+.bg-secondary { /* Apply a default if no specific action type matches */
+    background: linear-gradient(45deg, #95a5a6, #7f8c8d) !important; /* Muted grey */
+}
+
+
+.model-badge {
+    padding: 0.3em 0.6em;
+    font-size: 0.7rem;
+    font-weight: 500;
+    border: 1px solid #dee2e6;
+    color: #495057 !important; /* Ensure text is dark */
+    background-color: #f0f2f5 !important;
+}
+
+
+/* --- Changes Button and JSON Display --- */
+.toggle-changes-btn {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 0.25rem;
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+}
+.toggle-changes-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0, 123, 255, 0.2);
+}
+
+.json-collapse {
+    max-height: 200px; /* Limit height */
+    overflow-y: auto; /* Enable scrolling if content exceeds max-height */
+    border: 1px solid #444;
+    border-radius: 8px;
+    margin-top: 0.5rem; /* Add some space */
+}
+
+.json-code {
+    background-color: #272c34 !important; /* Dark background for code */
+    color: #eaf3fe !important; /* Light text for code */
+    padding: 1rem !important;
+    font-family: 'Fira Code', 'Cascadia Code', 'Consolas', monospace; /* Modern monospace fonts */
+    font-size: 0.85rem;
+    border-radius: 8px;
+    white-space: pre-wrap; /* Ensure text wraps */
+    word-break: break-all;
+}
+
+/* --- Pagination Styling --- */
+.custom-pagination .page-item .page-link {
+    border-radius: 8px;
+    margin: 0 4px;
+    border: 1px solid var(--border-color);
+    color: var(--primary-blue);
+    transition: all 0.2s ease;
+    min-width: 40px; /* Ensure buttons have a consistent size */
+    text-align: center;
+}
+
+.custom-pagination .page-item .page-link:hover {
+    background-color: var(--primary-blue);
+    color: var(--white);
+    border-color: var(--primary-blue);
+}
+
+.custom-pagination .page-item.active .page-link {
+    background: linear-gradient(45deg, var(--primary-blue-dark), var(--primary-blue));
+    border-color: var(--primary-blue);
+    color: var(--white);
+    font-weight: 600;
+}
+
+.custom-pagination .page-item.disabled .page-link {
+    color: #6c757d;
+    background-color: #e9ecef;
+    border-color: var(--border-color);
+    cursor: not-allowed;
+}
+
+/* --- Responsive Adjustments (Mobile First) --- */
+@media (max-width: 767.98px) { /* Bootstrap's 'md' breakpoint */
+    .section-title {
+        font-size: 1.8rem;
+        text-align: center;
+        width: 100%;
+        margin-bottom: 2rem !important;
+    }
+    .filter-card .card-body.collapse:not(.show) {
+        display: none; /* Hide filter form on small screens when collapsed */
+    }
+    .filter-card .col-md-2 {
+        margin-top: 1rem; /* Add space for the button on small screens */
+    }
+    .table-responsive {
+        border: 1px solid var(--border-color); /* Add border to table on small screens */
+        border-radius: 12px;
+    }
+    .activity-table thead {
+        display: none; /* Hide table headers on small screens */
+    }
+    .activity-table, .activity-table tbody, .activity-table tr, .activity-table td {
+        display: block; /* Make table elements behave like blocks */
+        width: 100%;
+    }
+    .activity-table tr {
+        margin-bottom: 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        background-color: var(--white);
+        padding: 0.5rem 0; /* Add some vertical padding to the row cards */
+    }
+    .activity-table td {
+        text-align: right;
+        padding-left: 50%; /* Make space for the data-label */
+        position: relative;
+        border: none; /* Remove individual cell borders */
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+    .activity-table td::before {
+        content: attr(data-label);
+        position: absolute;
+        left: 0;
+        width: 50%;
+        padding-left: 1rem;
+        font-weight: 600;
+        text-align: left;
+        color: #555;
+    }
+    /* Mobile-specific adjustments for elements */
+    .user-cell, .custom-badge, .model-badge {
+        display: inline-block; /* Keep them inline but allow wrapping */
+        margin-left: auto; /* Push content to the right */
+    }
+    .custom-badge, .model-badge {
+        min-width: unset; /* Remove min-width on mobile to allow content to dictate size */
+    }
+    .json-collapse {
+        margin-top: 0.5rem;
+        max-height: 150px; /* Smaller height on mobile */
+    }
+}
+
+
+/* --- Font Awesome for Icons --- */
+/* Make sure you have Font Awesome linked in your base.html */
+/* e.g., <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"> */
+</style>
+<div class="container my-5">
+    <h2 class="section-title text-center mb-5 pb-2">
+        <i class="fas fa-clipboard-list me-2"></i> System Activity Logs
+    </h2>
+
+    <div class="card shadow-sm mb-4 filter-card">
+        <div class="card-header bg-gradient-primary text-white d-flex align-items-center justify-content-between">
+            <h5 class="mb-0"><i class="fas fa-filter me-2"></i> Filter Logs</h5>
+            <button class="btn btn-sm btn-light d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target="#filterCollapse" aria-expanded="false" aria-controls="filterCollapse">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+        <div class="card-body collapse show" id="filterCollapse">
+            <form method="GET" class="row g-3 align-items-end">
+                <div class="col-md-4 col-sm-12">
+                    <label for="id_q" class="form-label form-label-sm">Search (Description, User, IP)</label>
+                    <input type="text" class="form-control form-control-sm" id="id_q" name="q" value="{{ request.GET.q }}" placeholder="Search activities...">
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <label for="id_action_type" class="form-label form-label-sm">Action Type</label>
+                    <select class="form-select form-select-sm" id="id_action_type" name="action_type">
+                        <option value="">All Types</option>
+                        {% for type in action_types %}
+                            <option value="{{ type }}" {% if request.GET.action_type == type %}selected{% endif %}>{{ type|title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 col-sm-6">
+                    <label for="id_model_name" class="form-label form-label-sm">Model Name</label>
+                    <select class="form-select form-select-sm" id="id_model_name" name="model_name">
+                        <option value="">All Models</option>
+                        {% for model in model_names %}
+                            <option value="{{ model }}" {% if request.GET.model_name == model %}selected{% endif %}>{{ model|title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 col-sm-12">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="fas fa-search me-1"></i> Apply Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if activity_logs %}
+        <div class="card shadow-sm table-card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm activity-table">
+                        <thead class="table-header-gradient text-white">
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>User</th>
+                                <th>Action Type</th>
+                                <th>Description</th>
+                                <th>Model</th>
+                                <th>Object ID</th>
+                                <th>IP Address</th>
+                                <th>Changes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in activity_logs %}
+                                <tr>
+                                    <td data-label="Timestamp:">
+                                        <small>{{ log.timestamp|date:"Y-m-d" }}</small><br>
+                                        <small class="text-muted">{{ log.timestamp|date:"H:i:s" }}</small>
+                                    </td>
+                                    <td data-label="User:">
+                                        <div class="user-cell">
+                                            <i class="fas fa-user-circle me-1"></i>
+                                            {{ log.user.get_full_name|default:log.user.username|default:"Anonymous" }}
+                                        </div>
+                                    </td>
+                                    <td data-label="Action Type:">
+                                        <span class="badge rounded-pill bg-action-{{ log.action_type|lower|slugify }} text-white custom-badge">
+                                            {{ log.action_type|title }}
+                                        </span>
+                                    </td>
+                                    <td data-label="Description:">{{ log.description }}</td>
+                                    <td data-label="Model:">
+                                        <span class="badge bg-light text-dark model-badge">
+                                            {{ log.model_name|default:"N/A" }}
+                                        </span>
+                                    </td>
+                                    <td data-label="Object ID:"><small>{{ log.object_id|default:"N/A" }}</small></td>
+                                    <td data-label="IP Address:"><small>{{ log.ip_address|default:"N/A" }}</small></td>
+                                    <td data-label="Changes:">
+                                        {% if log.changes %}
+                                            <button class="btn btn-sm btn-outline-info toggle-changes-btn" type="button" data-bs-toggle="collapse" data-bs-target="#collapseChanges{{ log.pk }}" aria-expanded="false" aria-controls="collapseChanges{{ log.pk }}">
+                                                <i class="fas fa-code me-1"></i> View
+                                            </button>
+                                            <div class="collapse mt-2 json-collapse" id="collapseChanges{{ log.pk }}">
+                                                <pre class="bg-dark text-white p-2 rounded small json-code">{{ log.changes|json_pretty }}</pre>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {# Pagination Controls #}
+                {% if is_paginated %}
+                    <nav aria-label="Page navigation" class="mt-4">
+                        <ul class="pagination justify-content-center custom-pagination">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.action_type %}&action_type={{ request.GET.action_type }}{% endif %}{% if request.GET.model_name %}&model_name={{ request.GET.model_name }}{% endif %}" aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span> Previous
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">&laquo; Previous</span></li>
+                            {% endif %}
+
+                            {% for i in paginator.page_range %}
+                                {% if page_obj.number == i %}
+                                    <li class="page-item active"><a class="page-link" href="#">{{ i }}</a></li>
+                                {% else %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ i }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.action_type %}&action_type={{ request.GET.action_type }}{% endif %}{% if request.GET.model_name %}&model_name={{ request.GET.model_name }}{% endif %}">{{ i }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.action_type %}&action_type={{ request.GET.action_type }}{% endif %}{% if request.GET.model_name %}&model_name={{ request.GET.model_name }}{% endif %}" aria-label="Next">
+                                        Next <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link">Next &raquo;</span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-info text-center shadow-sm" role="alert">
+            <i class="fas fa-info-circle me-2"></i> No activity logs found matching your criteria.
+        </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+{# Ensure you have Bootstrap's JS bundle loaded in base.html for collapse to work #}
+{# Example: <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> #}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const toggleButtons = document.querySelectorAll('.toggle-changes-btn');
+        toggleButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const icon = this.querySelector('i');
+                // Toggle between 'fa-code' and 'fa-code-branch' or other relevant icons
+                if (icon.classList.contains('fa-code')) {
+                    icon.classList.remove('fa-code');
+                    icon.classList.add('fa-compress-alt'); // Example: show less code icon
+                } else {
+                    icon.classList.remove('fa-compress-alt');
+                    icon.classList.add('fa-code'); // Example: show code icon
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

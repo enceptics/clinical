@@ -1,0 +1,592 @@
+{% extends 'clinical_app/base.html' %}
+{% load static %}
+{% block body_block %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clinical Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        /* Custom CSS Variables for consistent theming */
+        :root {
+            --primary-color: #4A90E2; /* A vibrant blue */
+            --secondary-color: #50E3C2; /* A complementary turquoise */
+            --accent-color: #F5A623; /* A warm orange for highlights */
+            --text-dark: #333;
+            --text-muted: #7f8c8d;
+            --bg-light: #f8f9fa;
+            --card-bg: #ffffff;
+            --border-color: #e0e0e0;
+            --shadow-light: rgba(0, 0, 0, 0.08);
+            --shadow-medium: rgba(0, 0, 0, 0.12);
+            --gradient-start: #4facfe;
+            --gradient-end: #00f2fe;
+            --hover-gradient-start: #6a85b6; /* A deeper blue-grey */
+            --hover-gradient-end: #bac8e0; /* A lighter blue-grey */
+            --card-height: 160px; /* Smaller uniform height for cards */
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif; /* Main font */
+            background-color: var(--bg-light); /* Light grey background */
+            color: var(--text-dark); /* Dark text for readability */
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 0 !important; /* Override default body padding */
+        }
+
+        .page-wrapper {
+            flex-grow: 1;
+            padding: 2rem 0; /* Add vertical padding to the content area */
+        }
+
+        .content {
+            padding: 0 1rem; /* Horizontal padding for content */
+        }
+
+        .dashboard-content {
+            padding-top: 2rem;
+            padding-bottom: 2rem;
+        }
+
+        .box-outer {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center; /* Center cards horizontally */
+            align-items: stretch; /* Ensure cards have equal height */
+            gap: 1rem; /* Reduced space between cards */
+        }
+
+        .box.card {
+            background-color: var(--card-bg); /* White background for cards */
+            border: none;
+            border-radius: 1.25rem; /* Softer, more pronounced rounded corners */
+            box-shadow: 0 6px 20px var(--shadow-light); /* Subtle shadow */
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            text-decoration: none; /* Remove underline from link */
+            color: inherit; /* Inherit text color */
+            position: relative; /* For the pseudo-element gradient */
+            overflow: hidden; /* Hide the overflow of the pseudo-element */
+            flex: 1 1 calc(25% - 1rem); /* 4 cards per row on large screens */
+            max-width: 280px; /* Smaller max-width for each card */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: var(--card-height); /* Uniform height for all cards */
+        }
+
+        /* Pseudo-element for the beautiful hover gradient overlay */
+        .box.card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, var(--hover-gradient-start), var(--hover-gradient-end));
+            opacity: 0; /* Initially hidden */
+            transition: opacity 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            z-index: 1; /* Place behind the content */
+        }
+
+        .box.card:hover::before {
+            opacity: 1; /* Show gradient on hover */
+        }
+            
+        .box.card:hover {
+            transform: translateY(-8px); /* More pronounced lift effect */
+            box-shadow: 0 12px 40px var(--shadow-medium); /* Enhanced shadow on hover */
+            color: white; /* Change text color for better contrast on hover */
+        }
+
+        .box.card a {
+            text-decoration: none !important; /* Force no underline for links */
+            color: inherit;
+            position: relative; /* Position the link content above the pseudo-element */
+            z-index: 2; /* Ensure content is on top */
+            display: block;
+            height: 100%;
+        }
+
+        .card-body {
+            padding: 1.5rem; /* Reduced padding */
+            text-align: left; /* Align text to left */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%; /* Ensure body takes full height */
+            position: relative;
+            z-index: 2; /* Ensure content is above the pseudo-element */
+        }
+        
+        /* Container for the icon and text */
+        .card-content {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        /* The icon circle container, now positioned absolutely */
+        .icon-circle {
+            position: absolute;
+            top: 1.5rem; /* Initial position */
+            right: 1.5rem; /* Initial position */
+            width: 60px; /* Slightly smaller icon circle */
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--card-bg); /* Solid white background for the icon circle */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); /* Subtle shadow for the circle */
+            transition: all 0.4s ease;
+            z-index: 3; /* Ensure icon is on top */
+            overflow: hidden;
+        }
+
+        /* Icon styling */
+        .icon-circle i {
+            color: var(--primary-color); /* Use primary color for the icon */
+            font-size: 2rem; /* Larger icon size */
+            transition: color 0.4s ease, transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            position: relative;
+            z-index: 4;
+        }
+
+        /* Text container */
+        .card-text-container {
+            transition: transform 0.4s ease, opacity 0.4s ease;
+            position: relative;
+            z-index: 2;
+        }
+
+        .card-body h5 {
+            font-family: 'Roboto', sans-serif; /* Roboto for titles */
+            font-weight: 500;
+            color: var(--text-muted); /* Muted text for titles */
+            margin-bottom: 0.25rem;
+            font-size: 1rem; /* Smaller title font */
+            transition: color 0.4s ease;
+            line-height: 1.2;
+        }
+            
+        .card-body h3.card-text {
+            font-family: 'Poppins', sans-serif; /* Poppins for main text */
+            font-weight: 700; /* Bolder for values */
+            color: var(--text-dark); /* Dark text for values */
+            font-size: 1.8rem; /* Large font size for values */
+            margin-bottom: 0;
+            line-height: 1.2;
+            transition: color 0.4s ease;
+        }
+
+        /* Hover effect: Move text to top left, move icon to bottom right */
+        .box.card:hover .card-text-container {
+            transform: translateY(0);
+            opacity: 1;
+            color: white;
+        }
+
+        .box.card:hover .card-body h5 {
+            color: rgba(255, 255, 255, 0.8); /* Lighter text on hover */
+        }
+        
+        .box.card:hover .card-body h3.card-text {
+            color: white; /* White text on hover for contrast */
+        }
+        
+        .box.card:hover .icon-circle {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(1.1); /* Center and enlarge the icon circle on hover */
+            background: linear-gradient(45deg, var(--gradient-start), var(--gradient-end)); /* Add gradient to the icon circle */
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+        
+        .box.card:hover .icon-circle i {
+            color: white !important; /* Make icon white on hover */
+            transform: scale(1.2) rotate(10deg); /* Slightly enlarge and rotate the icon */
+        }
+
+        /*
+            For the hover effect, we'll swap the text and icon positions.
+            The icon will move to the center and the text will be the main
+            content.
+        */
+        .card-body .d-flex.flex-column {
+            position: relative;
+            height: 100%;
+        }
+
+        .d-flex.w-100 {
+            transition: transform 0.4s ease, opacity 0.4s ease;
+        }
+
+        .box.card:hover .d-flex.w-100 {
+            transform: translateY(-20px); /* Move the text up slightly on hover */
+        }
+        
+        /* The icon's initial position is at the bottom right. */
+        .card-body > .d-flex.flex-column > .d-flex.w-100 {
+            order: 2; /* Place text block second initially */
+        }
+
+        .icon-circle {
+            position: absolute;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            top: unset;
+            left: unset;
+            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            background-color: var(--primary-color);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .icon-circle i {
+            color: white !important;
+        }
+        
+        .box.card:hover .icon-circle {
+            bottom: unset;
+            right: unset;
+            top: 2rem;
+            left: 2rem;
+            transform: scale(1.05); /* No translation, just slight scale */
+            background: var(--card-bg);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .box.card:hover .icon-circle i {
+            color: var(--primary-color) !important;
+            transform: scale(1);
+        }
+        
+        .box.card .card-body h5 {
+            color: var(--text-muted);
+            transition: color 0.4s ease;
+        }
+        
+        .box.card .card-body h3.card-text {
+            color: var(--text-dark);
+            transition: color 0.4s ease;
+        }
+        
+        .box.card:hover .card-body h5,
+        .box.card:hover .card-body h3.card-text {
+            color: white;
+        }
+
+        /* Responsive adjustments for a 4-column layout */
+        @media (min-width: 1400px) {
+            .box.card {
+                flex: 1 1 calc(25% - 1rem); /* 4 cards on large screens */
+            }
+        }
+        
+        @media (max-width: 1399px) and (min-width: 992px) {
+            .box.card {
+                flex: 1 1 calc(33.33% - 1rem); /* 3 cards per row on medium-large screens */
+            }
+        }
+
+        @media (max-width: 991px) and (min-width: 768px) {
+            .box.card {
+                flex: 1 1 calc(50% - 1rem); /* 2 cards per row on tablets */
+            }
+        }
+
+        @media (max-width: 767px) {
+            .box.card {
+                flex: 1 1 100%; /* 1 card per row on mobile */
+                max-width: 400px; /* Restrict max-width for better centering on small screens */
+            }
+            .box-outer {
+                gap: 1rem; /* Consistent gap on mobile */
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="page-wrapper">
+        <div class="content">
+            <div class="row justify-content-center">
+                <div class="col-12">
+
+                    <div class="container-fluid dashboard-content">
+                      <div class="  mb-3 mx-4">
+    <h4 style="
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        color: rgba(44, 62, 80, 0.4);
+        text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.05);
+        font-size: 1,7rem;
+        letter-spacing: 0.5px;
+    ">
+        Clinical Operations Overview
+    </h4>
+
+</div>
+                        <div class="ecommerce-widget">
+                            <input type="hidden" name="screen_id" value="SCR0036">
+                            <input type="hidden" name="message_id" value="MSG0036">
+                            <div class="box-outer">
+                                <div class="box text-center card">
+                                    <a href="/appointment_table" class="d-block h-100">
+                                        <div class="card-body">
+                                            <div class="d-flex flex-column align-items-start h-100 justify-content-between">
+                                                <div class="d-flex w-100 justify-content-between align-items-start">
+                                                    <div>
+                                                        <h5 class="card-title">Appointment</h5>
+                                                        <h3 class="card-text">5</h3>
+                                                    </div>
+                                                </div>
+                                                <div class="icon-circle">
+                                                    <i class="fa-solid fa-calendar-check"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="box text-center card">
+                                    <a href="patient_search" class="d-block h-100">
+                                        <div class="card-body">
+                                            <div class="d-flex flex-column align-items-start h-100 justify-content-between">
+                                                <div class="d-flex w-100 justify-content-between align-items-start">
+                                                    <div>
+                                                        <h5 class="card-title">Patient Registration</h5>
+                                                        <h3 class="card-text">250</h3>
+                                                    </div>
+                                                </div>
+                                                <div class="icon-circle">
+                                                    <i class="fa-solid fa-user-plus"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="box text-center card">
+                                    <a href="get_list_patient" class="d-block h-100">
+                                        <div class="card-body">
+                                            <div class="d-flex flex-column align-items-start h-100 justify-content-between">
+                                                <div class="d-flex w-100 justify-content-between align-items-start">
+                                                    <div>
+                                                        <h5 class="card-title">OPD Advance</h5>
+                                                        <h3 class="card-text">$1,200</h3>
+                                                    </div>
+                                                </div>
+                                                <div class="icon-circle">
+                                                    <i class="fa-solid fa-money-bill-wave"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="box text-center card">
+                                    <a href="opd_billing_search" class="d-block h-100">
+                                        <div class="card-body">
+                                            <div class="d-flex flex-column align-items-start h-100 justify-content-between">
+                                                <div class="d-flex w-100 justify-content-between align-items-start">
+                                                    <div>
+                                                        <h5 class="card-title">OPD Billing</h5>
+                                                        <h3 class="card-text">$5,000</h3>
+                                                    </div>
+                                                </div>
+                                                <div class="icon-circle">
+                                                    <i class="fa-solid fa-file-invoice-dollar"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="box text-center card">
+                                    <a href="credit_bill" class="d-block h-100">
+                                        <div class="card-body">
+                                            <div class="d-flex flex-column align-items-start h-100 justify-content-between">
+                                                <div class="d-flex w-100 justify-content-between align-items-start">
+                                                    <div>
+                                                        <h5 class="card-title">OPD Billing Settlement</h5>
+                                                        <h3 class="card-text">$3,800</h3>
+                                                    </div>
+                                                </div>
+                                                <div class="icon-circle">
+                                                    <i class="fa-solid fa-handshake"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="box text-center card">
+                                    <a href="token_master_configuration" class="d-block h-100">
+                                        <div class="card-body">
+                                            <div class="d-flex flex-column align-items-start h-100 justify-content-between">
+                                                <div class="d-flex w-100 justify-content-between align-items-start">
+                                                    <div>
+                                                        <h5 class="card-title">QMS</h5>
+                                                        <h3 class="card-text">12</h3>
+                                                    </div>
+                                                </div>
+                                                <div class="icon-circle">
+                                                    <i class="fa-solid fa-ticket-alt"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="box text-center card">
+                                    <a href="doctor_accounting" class="d-block h-100">
+                                        <div class="card-body">
+                                            <div class="d-flex flex-column align-items-start h-100 justify-content-between">
+                                                <div class="d-flex w-100 justify-content-between align-items-start">
+                                                    <div>
+                                                        <h5 class="card-title">Doctor Accounting</h5>
+                                                        <h3 class="card-text">$15,000</h3>
+                                                    </div>
+                                                </div>
+                                                <div class="icon-circle">
+                                                    <i class="fa-solid fa-calculator"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="box text-center card">
+                                    <a href="nurse_dashboard" class="d-block h-100">
+                                        <div class="card-body">
+                                            <div class="d-flex flex-column align-items-start h-100 justify-content-between">
+                                                <div class="d-flex w-100 justify-content-between align-items-start">
+                                                    <div>
+                                                        <h5 class="card-title">Clinical Managements</h5>
+                                                        <h3 class="card-text">45</h3>
+                                                    </div>
+                                                </div>
+                                                <div class="icon-circle">
+                                                    <i class="fa-solid fa-hospital-user"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="box text-center card">
+                                    <a href="title_master" class="d-block h-100">
+                                        <div class="card-body">
+                                            <div class="d-flex flex-column align-items-start h-100 justify-content-between">
+                                                <div class="d-flex w-100 justify-content-between align-items-start">
+                                                    <div>
+                                                        <h5 class="card-title">Master</h5>
+                                                        <h3 class="card-text">20</h3>
+                                                    </div>
+                                                </div>
+                                                <div class="icon-circle">
+                                                    <i class="fa-solid fa-cogs"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="box text-center card">
+                                    <a href="/create_userprofile" class="d-block h-100">
+                                        <div class="card-body">
+                                            <div class="d-flex flex-column align-items-start h-100 justify-content-between">
+                                                <div class="d-flex w-100 justify-content-between align-items-start">
+                                                    <div>
+                                                        <h5 class="card-title">User Management</h5>
+                                                        <h3 class="card-text">50</h3>
+                                                    </div>
+                                                </div>
+                                                <div class="icon-circle">
+                                                    <i class="fa-solid fa-users"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="box text-center card">
+                                    <a href="/pharmacy_dashboard" class="d-block h-100">
+                                        <div class="card-body">
+                                            <div class="d-flex flex-column align-items-start h-100 justify-content-between">
+                                                <div class="d-flex w-100 justify-content-between align-items-start">
+                                                    <div>
+                                                        <h5 class="card-title">Pharmacy</h5>
+                                                        <h3 class="card-text">80</h3>
+                                                    </div>
+                                                </div>
+                                                <div class="icon-circle">
+                                                    <i class="fa-solid fa-pills"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="box text-center card">
+                                    <a href="/inventory_itemmaster" class="d-block h-100">
+                                        <div class="card-body">
+                                            <div class="d-flex flex-column align-items-start h-100 justify-content-between">
+                                                <div class="d-flex w-100 justify-content-between align-items-start">
+                                                    <div>
+                                                        <h5 class="card-title">Inventory</h5>
+                                                        <h3 class="card-text">120</h3>
+                                                    </div>
+                                                </div>
+                                                <div class="icon-circle">
+                                                    <i class="fa-solid fa-boxes"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="box text-center card">
+                                    <a href="/medical_equipment" class="d-block h-100">
+                                        <div class="card-body">
+                                            <div class="d-flex flex-column align-items-start h-100 justify-content-between">
+                                                <div class="d-flex w-100 justify-content-between align-items-start">
+                                                    <div>
+                                                        <h5 class="card-title">Medical Equipments</h5>
+                                                        <h3 class="card-text">15</h3>
+                                                    </div>
+                                                </div>
+                                                <div class="icon-circle">
+                                                    <i class="fa-solid fa-medkit"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                                <div class="box text-center card">
+                                    <a href="/estimate" class="d-block h-100">
+                                        <div class="card-body">
+                                            <div class="d-flex flex-column align-items-start h-100 justify-content-between">
+                                                <div class="d-flex w-100 justify-content-between align-items-start">
+                                                    <div>
+                                                        <h5 class="card-title">Estimate Bill</h5>
+                                                        <h3 class="card-text">$750</h3>
+                                                    </div>
+                                                </div>
+                                                <div class="icon-circle">
+                                                    <i class="fa-solid fa-file-invoice"></i>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" crossorigin="anonymous"></script>
+</body>
+</html>
+{% endblock body_block %}

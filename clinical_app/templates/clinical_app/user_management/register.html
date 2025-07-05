@@ -1,0 +1,529 @@
+{# clinical_app/registration/register.html #}
+{% load static %}
+{% load form_filters %}
+{% load custom_filters %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management System | Register</title>
+    <link rel="stylesheet" href="{% static 'assets/css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Modern Hospital Theme CSS */
+
+        :root {
+            --primary-hospital-blue: #007bff; /* A standard, professional blue */
+            --dark-hospital-blue: #0056b3;
+            --hospital-green: #28a745;
+            --hospital-light-gray: #f8f9fa;
+            --hospital-medium-gray: #e9ecef;
+            --hospital-dark-text: #343a40;
+            --hospital-light-text: #6c757d;
+            --input-border-color: #ced4da;
+            --input-focus-shadow: rgba(0, 123, 255, 0.25);
+            --card-border-radius: 1rem; /* More rounded corners for modern feel */
+            --transition-speed: 0.3s;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)),
+                        url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGZufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1953&q=80') no-repeat center center fixed;
+            background-size: cover;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--hospital-dark-text); /* Default text color for form section */
+            padding: 20px 0;
+        }
+
+        .registration-container {
+            display: flex;
+            width: 1100px; /* Slightly wider for more spacious layout */
+            max-width: 95%;
+            background: #ffffff; /* Opaque white background for a clean look */
+            border-radius: var(--card-border-radius);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1); /* Lighter shadow */
+            flex-wrap: wrap;
+            overflow: hidden;
+            position: relative; /* For the subtle patterns */
+        }
+
+        @media (max-width: 992px) {
+            .registration-container {
+                width: 90%;
+                flex-direction: column;
+            }
+            .brand-section {
+                border-radius: var(--card-border-radius) var(--card-border-radius) 0 0;
+                padding-bottom: 30px; /* Adjust padding for mobile */
+            }
+            .form-section {
+                border-radius: 0 0 var(--card-border-radius) var(--card-border-radius);
+                padding-top: 30px; /* Adjust padding for mobile */
+            }
+        }
+
+        .brand-section {
+            flex: 1;
+            min-width: 400px; /* Slightly larger brand section */
+            background: linear-gradient(135deg, var(--primary-hospital-blue), var(--dark-hospital-blue));
+            padding: 50px;
+            display: flex;
+            flex-direction: column;
+            /*justify-content: center;*/
+            position: relative;
+            overflow: hidden;
+            color: #fff;
+            border-radius: var(--card-border-radius) 0 0 var(--card-border-radius);
+            box-shadow: inset -5px 0 15px rgba(0, 0, 0, 0.1); /* Subtle inner shadow */
+        }
+
+        .brand-section::before,
+        .brand-section::after {
+            content: "";
+            position: absolute;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 50%;
+            z-index: 0;
+        }
+        .brand-section::before {
+            width: 150px;
+            height: 150px;
+            top: -50px;
+            left: -50px;
+        }
+        .brand-section::after {
+            width: 200px;
+            height: 200px;
+            bottom: -80px;
+            right: -80px;
+            opacity: 0.7;
+        }
+
+        .logo-container {
+            text-align: center;
+            margin-bottom: 40px;
+            z-index: 1;
+        }
+
+        .logo-container img {
+            height: 80px; /* Slightly larger logo */
+            margin-bottom: 15px;
+            filter: drop-shadow(0 5px 10px rgba(0,0,0,0.2));
+        }
+
+        .brand-title {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 800;
+            font-size: 32px; /* Larger title */
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 8px;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+        }
+
+        .brand-subtitle {
+            font-size: 17px; /* Slightly larger subtitle */
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 40px;
+            line-height: 1.5;
+        }
+
+        .features {
+            margin-top: 30px;
+            z-index: 1;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px; /* More space between features */
+        }
+
+        .feature-icon {
+            width: 55px; /* Larger icons */
+            height: 55px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 20px;
+            font-size: 22px; /* Larger icon font size */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .feature-text {
+            font-size: 15px; /* Slightly larger feature text */
+            color: rgba(255, 255, 255, 0.95);
+            line-height: 1.4;
+        }
+
+        .form-section {
+            flex: 2;
+            min-width: 500px; /* Wider form section */
+            padding: 50px 60px; /* More internal padding */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            color: var(--hospital-dark-text);
+            border-radius: 0 var(--card-border-radius) var(--card-border-radius) 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .welcome-title {
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            font-size: 30px; /* Slightly smaller for balance */
+            margin-bottom: 8px;
+            color: var(--primary-hospital-blue);
+            text-align: center;
+        }
+
+        .welcome-subtitle {
+            font-size: 15px; /* Smaller subtitle text */
+            color: var(--hospital-light-text);
+            margin-bottom: 35px;
+            text-align: center;
+        }
+
+        .registration-form .form-group {
+            margin-bottom: 18px; /* Slightly smaller margin for denser form */
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px; /* Reduced space between label and input */
+            font-size: 13px; /* Smaller label text */
+            font-weight: 500;
+            color: var(--hospital-dark-text);
+        }
+
+        .form-control {
+            height: 45px; /* Slightly smaller input height */
+            border-radius: 8px; /* Slightly less rounded inputs */
+            border: 1px solid var(--input-border-color);
+            font-size: 14px; /* Smaller input text */
+            padding: 0.375rem 0.75rem; /* Bootstrap default padding for smaller size */
+            padding-left: 45px; /* Space for icon */
+            transition: all var(--transition-speed) ease;
+            background-color: #fff;
+            color: var(--hospital-dark-text);
+            width: 100%;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-hospital-blue);
+            box-shadow: 0 0 0 0.2rem var(--input-focus-shadow);
+            outline: none;
+        }
+
+        textarea.form-control {
+            min-height: 90px; /* Slightly smaller textarea */
+            padding-top: 12px; /* Adjust top padding for textarea */
+            resize: vertical;
+        }
+
+        select.form-control {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 16px 12px;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--primary-hospital-blue);
+            font-size: 16px; /* Smaller icon size */
+            z-index: 2;
+            pointer-events: none;
+        }
+        /* Adjust icon position for multiline textareas */
+        .form-group textarea + .input-icon {
+            top: 15px;
+            transform: translateY(0);
+        }
+        /* Adjust icon position for labels with padding-top */
+        .form-group label + .input-icon {
+            top: calc(50% + 10px); /* Adjust based on label height and margin */
+        }
+        /* For checkbox input, adjust icon to be relative to the input itself, not the label */
+        .form-check .input-icon {
+            position: static; /* Reset positioning for checkbox icons */
+            transform: none;
+            margin-right: 8px; /* Space between icon and checkbox */
+        }
+
+
+        .btn-register {
+            background: linear-gradient(to right, var(--primary-hospital-blue), var(--hospital-green));
+            border: none;
+            color: white;
+            height: 48px; /* Slightly smaller button height */
+            border-radius: 8px;
+            font-size: 16px; /* Smaller button text */
+            font-weight: 600;
+            transition: all var(--transition-speed) ease;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 25px; /* Adjusted margin */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            letter-spacing: 0.5px;
+            box-shadow: 0 5px 15px rgba(0, 123, 255, 0.2); /* Softer shadow */
+        }
+
+        .btn-register:hover {
+            transform: translateY(-2px); /* Smaller lift effect */
+            box-shadow: 0 8px 20px rgba(0, 123, 255, 0.3);
+        }
+
+        .btn-register::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent); /* Softer shimmer */
+            transition: 0.6s;
+        }
+
+        .btn-register:hover::after {
+            left: 100%;
+        }
+
+        .alert-container {
+            margin-top: 20px;
+        }
+        .alert {
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 13px; /* Smaller alert text */
+            margin-bottom: 10px;
+        }
+        .alert-info { background-color: #dbeeff; border-color: #a7d9ff; color: #004085; }
+        .alert-success { background-color: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .alert-warning { background-color: #fff3cd; border-color: #ffeeba; color: #856404; }
+        .alert-danger { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+
+
+        .footer {
+            margin-top: 30px; /* More space above footer */
+            text-align: center;
+            font-size: 13px; /* Smaller footer text */
+            color: var(--hospital-light-text);
+        }
+
+        .footer-link {
+            color: var(--primary-hospital-blue);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate {
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+
+        @media (max-width: 576px) {
+            .registration-container {
+                width: 95%;
+                padding: 0; /* Remove padding from container to let sections handle it */
+            }
+            .brand-section, .form-section {
+                padding: 30px 25px; /* Adjust internal padding for smaller screens */
+                min-width: unset; /* Remove min-width on small screens */
+            }
+            .brand-title, .welcome-title {
+                font-size: 26px; /* Adjust font size for smaller screens */
+            }
+            .brand-subtitle, .welcome-subtitle {
+                font-size: 14px;
+            }
+            .feature-text {
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="registration-container">
+        <div class="brand-section">
+            <div class="logo-container animate">
+                <img src="{% static 'assets/img/logo.png' %}" alt="Hospital Logo"> {# Ensure your logo path is correct #}
+                <h1 class="brand-title">MediCare Hub</h1>
+            </div>
+            <p class="brand-subtitle animate" style="animation-delay: 0.2s;">
+                Your Health, Our Priority. Providing seamless and efficient healthcare solutions.
+            </p>
+            <div class="features">
+                <div class="feature-item animate" style="animation-delay: 0.4s;">
+                    <div class="feature-icon"><i class="fas fa-user-md"></i></div>
+                    <div class="feature-text">Dedicated Professionals</div>
+                </div>
+                <div class="feature-item animate" style="animation-delay: 0.6s;">
+                    <div class="feature-icon"><i class="fas fa-notes-medical"></i></div>
+                    <div class="feature-text">Comprehensive Patient Records</div>
+                </div>
+                <div class="feature-item animate" style="animation-delay: 0.8s;">
+                    <div class="feature-icon"><i class="fas fa-shield-alt"></i></div>
+                    <div class="feature-text">Secure & Private Data Management</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div>
+                <h2 class="welcome-title animate">Register User Account</h2>
+                <p class="welcome-subtitle animate" style="animation-delay: 0.2s;">
+                    {% if user_type %}
+                        Register {{ user_type|underscore_to_space }}
+                    {% else %}
+                        Create a new account
+                    {% endif %}
+                </p>
+
+                <form method="post" class="registration-form">
+                    {% csrf_token %}
+
+                    <div class="row">
+                        {# Loop through form fields #}
+                        {% for field in form %}
+                            <div class="{% if field.field.widget.input_type == 'textarea' or field.name == 'allergies' or field.name == 'pre_existing_conditions' or field.name == 'address' %}col-12{% else %}col-md-6{% endif %}">
+                                <div class="form-group animate" style="animation-delay: {{ forloop.counter|multiply:0.1 }}s;">
+                                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+
+                                    {# Conditionally add icon based on field name #}
+                                    {% if field.name == 'username' %}
+                                        <i class="input-icon fas fa-user"></i>
+                                    {% elif field.name == 'password' or field.name == 'password2' %}
+                                        <i class="input-icon fas fa-lock"></i>
+                                    {% elif field.name == 'email' %}
+                                        <i class="input-icon fas fa-envelope"></i>
+                                    {% elif field.name == 'first_name' %}
+                                        <i class="input-icon fas fa-signature"></i>
+                                    {% elif field.name == 'last_name' %}
+                                        <i class="input-icon fas fa-signature"></i>
+                                    {% elif field.name == 'phone_number' or field.name == 'emergency_contact_phone' %}
+                                        <i class="input-icon fas fa-phone"></i>
+                                    {% elif field.name == 'address' %}
+                                        <i class="input-icon fas fa-map-marker-alt"></i>
+                                    {% elif field.name == 'date_of_birth' %}
+                                        <i class="input-icon fas fa-calendar-alt"></i>
+                                    {% elif field.name == 'gender' %}
+                                        <i class="input-icon fas fa-venus-mars"></i>
+                                    {% elif field.name == 'specialization' %}
+                                        <i class="input-icon fas fa-stethoscope"></i>
+                                    {% elif field.name == 'medical_license_number' %}
+                                        <i class="input-icon fas fa-id-card"></i>
+                                    {% elif field.name == 'department' %}
+                                        <i class="input-icon fas fa-hospital"></i>
+                                    {% elif field.name == 'blood_group' %}
+                                        <i class="input-icon fas fa-tint"></i>
+                                    {% elif field.name == 'emergency_contact_name' %}
+                                        <i class="input-icon fas fa-user-friends"></i>
+                                    {% elif field.name == 'allergies' or field.name == 'pre_existing_conditions' %}
+                                        <i class="input-icon fas fa-notes-medical"></i>
+                                    {% elif field.name == 'pharmacy_license_number' %}
+                                        <i class="input-icon fas fa-prescription-bottle-alt"></i>
+                                    {% elif field.name == 'years_of_experience' %}
+                                        <i class="input-icon fas fa-hourglass-half"></i>
+                                    {% elif field.name == 'employee_id' %}
+                                        <i class="input-icon fas fa-id-badge"></i>
+                                    {% else %}
+                                        <i class="input-icon fas fa-info-circle"></i>
+                                    {% endif %}
+
+                                    {# Render the field, applying Bootstrap classes #}
+                                    {% if field.field.widget.input_type == 'checkbox' %}
+                                        <div class="form-check">
+                                            {{ field.tag|add_class:"form-check-input" }}
+                                            <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                        </div>
+                                    {% else %}
+                                        {{ field|add_class:"form-control" }}
+                                    {% endif %}
+
+                                    {% if field.help_text %}
+                                        <small class="form-text text-muted">{{ field.help_text }}</small>
+                                    {% endif %}
+                                    {% for error in field.errors %}
+                                        <div class="alert alert-danger mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div> {# End Bootstrap row #}
+
+                    <button type='submit' class="btn btn-register btn-block animate" style="animation-delay: {{ form|length|multiply:0.1|add:0.2 }}s;">
+                        <span class="button__text">Register Account</span>
+                    </button>
+
+                    <div class="alert-container">
+                        {% if messages %}
+                        <div class="alert alert-info animate" style="animation-delay: {{ form|length|multiply:0.1|add:0.4 }}s;">
+                            {% for message in messages %}
+                            <p class="{{ message.tags }}"><b>{{ message }}</b></p>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </form>
+
+                <div class="footer animate" style="animation-delay: {{ form|length|multiply:0.1|add:0.6 }}s;">
+                    <p><a href="{% url 'login' %}" class="footer-link">Login here</a>.</p>
+                    <p>&copy; 2025 Hospital Management System</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{% static 'assets/js/jquery-3.6.0.min.js' %}"></script>
+    <script src="{% static 'assets/js/bootstrap.bundle.min.js' %}"></script>
+
+    <script>
+        $(document).ready(function() {
+            // Alert timeout
+            window.setTimeout(function() {
+                $(".alert").fadeTo(500, 0).slideUp(500, function() {
+                    $(this).hide();
+                });
+            }, 5000);
+        });
+    </script>
+</body>
+</html>

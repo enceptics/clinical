@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+{% load static %}
+{% load form_filters %} {# Add this line to load your custom filters #}
+
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Management System | Login</title>
+    <link rel="stylesheet" href="{% static 'assets/css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Raleway:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0d6efd;
+            --primary-dark: #0b5ed7;
+            --secondary: #6c757d;
+            --success: #198754;
+            --hospital-blue: #1a73e8;
+            --hospital-green: #34a853;
+            --hospital-light: #f8f9fa;
+            --hospital-dark: #212529;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)),
+                        url('https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1953&q=80') no-repeat center center fixed;
+            background-size: cover;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-container {
+            display: flex;
+            width: 900px;
+            height: 550px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+        }
+
+        .brand-section {
+            flex: 1;
+            background: linear-gradient(135deg, var(--hospital-blue), #0d47a1);
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .brand-section::before {
+            content: "";
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+            transform: rotate(30deg);
+        }
+
+        .logo-container {
+            text-align: center;
+            margin-bottom: 30px;
+            z-index: 1;
+        }
+
+        .logo-container img {
+            height: 70px;
+            margin-bottom: 15px;
+        }
+
+        .brand-title {
+            font-family: 'Raleway', sans-serif;
+            font-weight: 800;
+            font-size: 28px;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .brand-subtitle {
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.85);
+            margin-bottom: 30px;
+        }
+
+        .features {
+            margin-top: 30px;
+            z-index: 1;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .feature-icon {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 20px;
+        }
+
+        .feature-text {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .form-section {
+            flex: 1;
+            padding: 50px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            color: var(--hospital-dark);
+        }
+
+        .welcome-title {
+            font-family: 'Raleway', sans-serif;
+            font-weight: 700;
+            font-size: 28px;
+            margin-bottom: 5px;
+            color: var(--hospital-blue);
+        }
+
+        .welcome-subtitle {
+            font-size: 16px;
+            color: var(--secondary);
+            margin-bottom: 30px;
+        }
+
+        .login-form .form-group {
+            margin-bottom: 25px;
+            position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--hospital-blue);
+            font-size: 18px;
+            /* Adjust top and transform for fields that aren't single-line inputs */
+        }
+
+        .form-control {
+            height: 50px;
+            border-radius: 10px;
+            padding-left: 45px;
+            border: 2px solid #e9ecef;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .form-control:focus {
+            border-color: var(--hospital-blue);
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+
+        .btn-login {
+            background: linear-gradient(to right, var(--hospital-blue), var(--hospital-green));
+            border: none;
+            color: white;
+            height: 50px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            width: 100%; /* Make button full width */
+        }
+
+        .btn-login:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-login::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            transition: 0.5s;
+        }
+
+        .btn-login:hover::after {
+            left: 100%;
+        }
+
+        .alert {
+            border-radius: 10px;
+            padding: 10px 15px;
+            margin-top: 20px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: var(--secondary);
+        }
+
+        .footer-logo {
+            height: 40px;
+            margin-top: 15px;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate {
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 992px) {
+            .login-container {
+                width: 90%;
+                height: auto;
+                flex-direction: column;
+            }
+            
+            .brand-section {
+                padding: 30px;
+            }
+            
+            .form-section {
+                padding: 40px 30px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .login-container {
+                width: 95%;
+            }
+            
+            .brand-title {
+                font-size: 24px;
+            }
+            
+            .welcome-title {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="brand-section">
+            <div class="logo-container animate">
+                <h1 class="brand-title">Advanced Hospital Management System</h1>
+            </div>
+            
+            <div class="features">
+                <div class="feature-item animate" style="animation-delay: 0.2s;">
+                    <div class="feature-icon">
+                        <i class="fas fa-user-md"></i>
+                    </div>
+                    <p class="feature-text">Comprehensive patient management</p>
+                </div>
+                
+                <div class="feature-item animate" style="animation-delay: 0.4s;">
+                    <div class="feature-icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <p class="feature-text">Efficient appointment scheduling</p>
+                </div>
+                
+                <div class="feature-item animate" style="animation-delay: 0.6s;">
+                    <div class="feature-icon">
+                        <i class="fas fa-pills"></i>
+                    </div>
+                    <p class="feature-text">Integrated pharmacy management</p>
+                </div>
+                
+                <div class="feature-item animate" style="animation-delay: 0.8s;">
+                    <div class="feature-icon">
+                        <i class="fas fa-file-medical"></i>
+                    </div>
+                    <p class="feature-text">Secure electronic health records</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-section">
+            <div>
+                <h2 class="welcome-title animate">Welcome Back</h2>
+                <p class="welcome-subtitle animate" style="animation-delay: 0.2s;">Sign in to access your account</p>
+                
+                <form method="post" class="login-form">
+                    {% csrf_token %}
+                    {% for field in form %}
+                        <div class="form-group animate" style="animation-delay: {% if forloop.first %}0.4s{% else %}0.6s{% endif %};">
+                            {# Add icon based on field name #}
+                            {% if field.name == 'username' %}
+                                <i class="input-icon fas fa-user"></i>
+                                {# Apply class and placeholder using the custom filter #}
+                                {{ field|add_attributes:"form-control,Username" }}
+                            {% elif field.name == 'password' %}
+                                <i class="input-icon fas fa-lock"></i>
+                                {# Apply class and placeholder using the custom filter #}
+                                {{ field|add_attributes:"form-control,Password" }}
+                            {% else %}
+                                {# Fallback for other fields if any, just apply class #}
+                                {{ field|add_class:"form-control" }}
+                            {% endif %}
+
+                            {% if field.help_text %}
+                                <small class="form-text text-muted">{{ field.help_text }}</small>
+                            {% endif %}
+                            {% for error in field.errors %}
+                                <div class="alert alert-danger mt-1">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                    
+                    <button type='submit' class="btn btn-login btn-block animate" style="animation-delay: 0.8s;">
+                        <span class="button__text">Login to Dashboard</span>
+                    </button>
+                    
+                    <div class="alert-container">
+                        {% if messages %}
+                        <div class="alert alert-danger animate" style="animation-delay: 1s;">
+                            {% for message in messages %}
+                            <p class="{{ message.tags }}"><b>{{ message }}</b></p>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </form>
+                
+                <div class="footer animate" style="animation-delay: 1.2s;">
+                    <p>Don't have an account? <a href="{% url 'select_user_type' %}" style="color: var(--hospital-blue); text-decoration: none;">Register here</a>.</p>
+                    <p>© 2025 Hospital Management System</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <script src="{% static 'assets/js/jquery-3.6.0.min.js' %}"></script>
+    <script src="{% static 'assets/js/bootstrap.bundle.min.js' %}"></script>
+    
+    <script>
+        $(document).ready(function() {
+            // Alert timeout
+            window.setTimeout(function() {
+                $(".alert").fadeTo(500, 0).slideUp(500, function() {
+                    $(this).hide();
+                });
+            }, 5000);
+            
+            // Add animation to form elements on focus
+            // Note: The 'input-icon' and 'form-control' styles already handle most visual aspects.
+            // This 'focused' class addition might be for additional visual feedback if you define CSS for it.
+            $('.form-control').focus(function() {
+                $(this).parent().addClass('focused');
+            }).blur(function() {
+                $(this).parent().removeClass('focused');
+            });
+        });
+    </script>
+</body>
+</html>
