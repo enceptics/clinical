@@ -31,7 +31,7 @@
         }
 
         /* --- Text and Font Enhancements --- */
-        h1.mb-4 {
+        h3.mb-4 {
             font-family: 'Poppins', sans-serif; /* Maintain Poppins for main headings */
             font-weight: 700; /* Bolder main heading */
             color: var(--primary-color); /* Make dashboard title vibrant */
@@ -323,7 +323,7 @@
         }
     </style>
 <div class="container-fluid py-4"> {# Added py-4 for vertical padding #}
-    <h1 class="mb-4 text-center text-md-start">Welcome to Your Dashboard, {{ user.get_full_name|default:user.username }}!</h1>
+    <h3 class="mb-4 text-center text-md-start">Welcome, {{ user.get_full_name|default:user.username }}!</h3>
 
     {% if user.is_authenticated %}
         {% if user_type == 'admin' %}
@@ -370,8 +370,149 @@
                         </div>
                     </a>
                 </div>
+                {# New Admin Metrics based on your View #}
+                <div class="col-md-4">
+                    <a href="#" class="card custom-styled-card disabled" aria-label="Total Active Staff Card">
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>Total Active Staff</h5>
+                                <h3 class="card-text-value">{{ total_active_staff }}</h3>
+                                <p class="card-text">All active users except patients.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-users" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-4">
+                    <a href="#" class="card custom-styled-card disabled" aria-label="Available Beds Card">
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>Available Beds</h5>
+                                <h3 class="card-text-value">{{ available_beds }}</h3>
+                                <p class="card-text">Currently unoccupied hospital beds.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-bed" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-4">
+                    <a href="#" class="card custom-styled-card disabled" aria-label="Total Departments Card">
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>Total Departments</h5>
+                                <h3 class="card-text-value">{{ total_departments }}</h3>
+                                <p class="card-text">Number of hospital departments.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-building" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-4">
+                    <a href="#" class="card custom-styled-card disabled" aria-label="Lab Tests Last 30 Days Card">
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>Lab Tests (Last 30 Days)</h5>
+                                <h3 class="card-text-value">{{ total_lab_tests_performed_last_30_days }}</h3>
+                                <p class="card-text">Tests performed in the past month.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-flask" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-4">
+                    <a href="#" class="card custom-styled-card disabled" aria-label="Imaging Scans Last 30 Days Card">
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>Imaging Scans (Last 30 Days)</h5>
+                                <h3 class="card-text-value">{{ total_imaging_scans_performed_last_30_days }}</h3>
+                                <p class="card-text">Scans performed in the past month.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-x-ray" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-4">
+                    <a href="#" class="card custom-styled-card disabled" aria-label="Medications Low in Stock Card">
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>Medications Low in Stock</h5>
+                                <h3 class="card-text-value">{{ medications_low_in_stock }}</h3>
+                                <p class="card-text">Items below reorder level.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-pills" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                 <div class="col-md-4">
+                    <a href="#" class="card custom-styled-card disabled" aria-label="Unreported Cancer Reports Card">
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>Unreported Cancer Reports (Last Year)</h5>
+                                <h3 class="card-text-value">{{ cancer_reports_unreported }}</h3>
+                                <p class="card-text">Pending reports to national registry from last year.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-disease" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-4">
+                    <a href="#" class="card custom-styled-card disabled" aria-label="Cancer Reports Submitted (Last 30 Days) Card">
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>Cancer Reports Submitted (Last 30 Days)</h5>
+                                <h3 class="card-text-value">{{ cancer_reports_submitted_last_30_days }}</h3>
+                                <p class="card-text">Reports sent to registry in the past month.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-file-medical" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-4">
+                    <a href="#" class="card custom-styled-card disabled" aria-label="New Births Today Card">
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>New Births Today</h5>
+                                <h3 class="card-text-value">{{ new_births_today }}</h3>
+                                <p class="card-text">Babies born in the facility today.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-baby" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-4">
+                    <a href="#" class="card custom-styled-card disabled" aria-label="New Mortalities Today Card">
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>New Mortalities Today</h5>
+                                <h3 class="card-text-value">{{ new_mortalities_today }}</h3>
+                                <p class="card-text">Recorded deaths in the facility today.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-cross" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
             </div>
-            
+
             <hr class="my-4"> {# Separator #}
 
             <div class="row mt-4">
@@ -382,6 +523,99 @@
                     <a href="#" class="btn btn-primary disabled mb-2" aria-disabled="true">View System Logs</a>
                 </div>
             </div>
+
+            <!-- charts -->
+            <div class="row mt-4">
+    <div class="col-lg-8 offset-lg-2"> {# Center the graph a bit #}
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Patient Registrations (Monthly)</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="patientRegistrationsChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Store data safely for JavaScript #}
+{{ patient_reg_labels|json_script:"patient-reg-labels" }}
+{{ patient_reg_data|json_script:"patient-reg-data" }}
+<!-- end charts -->
+
+            {% if recent_activity_logs %}
+    <h4 class="mt-5 mb-3">Recent System Activity <small class="text-muted">(Last 5 logs)</small></h4>
+    <div class="row">
+        {% for log in recent_activity_logs %}
+            <div class="col-lg-6 col-md-12 mb-3"> {# Each log gets its own column, adjusting for screen size #}
+                <div class="card card-log-item shadow-sm"> {# Using card for a well-like appearance, with a subtle shadow #}
+                    <div class="card-body p-3"> {# Smaller padding inside the card #}
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            {# Action Type Badge #}
+                            {% if log.action_type == 'CREATE' %}
+                                <span class="badge bg-success">CREATE</span>
+                            {% elif log.action_type == 'UPDATE' %}
+                                <span class="badge bg-warning text-dark">UPDATE</span>
+                            {% elif log.action_type == 'DELETE' %}
+                                <span class="badge bg-danger">DELETE</span>
+                            {% elif log.action_type == 'LOGIN' %}
+                                <span class="badge bg-primary">LOGIN</span>
+                            {% elif log.action_type == 'LOGOUT' %}
+                                <span class="badge bg-secondary">LOGOUT</span>
+                            {% elif log.action_type == 'VIEW' %}
+                                <span class="badge bg-info text-dark">VIEW</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark">{{ log.action_type }}</span>
+                            {% endif %}
+                            {# Timestamp on the right, smaller font #}
+                            <small class="text-muted">{{ log.timestamp|date:"M d, Y H:i" }}</small>
+                        </div>
+
+                        <p class="mb-1">
+                            <i class="fas fa-user-circle me-1 text-primary"></i>
+                            <strong>User:</strong> {{ log.user.get_full_name|default:log.user.username|default:"System" }}
+                            {% if log.ip_address %}
+                                <span class="text-muted small ms-2">(IP: {{ log.ip_address }})</span>
+                            {% endif %}
+                        </p>
+
+                        {% if log.model_name %}
+                            <p class="mb-1 small">
+                                <i class="fas fa-cube me-1 text-info"></i>
+                                <strong>Model:</strong> {{ log.model_name }}
+                                {% if log.object_id %}<span class="text-muted ms-1">(ID: {{ log.object_id }})</span>{% endif %}
+                            </p>
+                        {% endif %}
+
+                        {% if log.description %}
+                            <p class="text-muted small mb-1">
+                                <i class="fas fa-file-alt me-1 text-secondary"></i>
+                                {{ log.description|truncatechars:100 }}
+                            </p>
+                        {% endif %}
+
+                        {% if log.changes %}
+                            <div class="mt-2 p-2 bg-light border rounded small"> {# Light background, border, rounded corners for changes #}
+                                <i class="fas fa-history me-1 text-warning"></i>
+                                <strong>Changes:</strong>
+                                <ul class="list-unstyled mb-0 ms-3">
+                                    {% for key, value in log.changes.items %}
+                                        <li><small><strong>{{ key }}:</strong> {{ value }}</small></li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="alert alert-info mt-5" role="alert">
+        <i class="fas fa-info-circle me-2"></i> No recent activity logs found.
+    </div>
+{% endif %}
+
 
         {% elif user_type == 'doctor' %}
             <div class="row">
@@ -394,7 +628,7 @@
                                     {% for appt in my_appointments %}
                                         <li class="list-group-item">
                                             <div>
-                                                <strong>Patient:</strong> <a href="{% url 'patient_detail' appt.patient.pk %}" aria-label="View patient details for {{ appt.patient.user.get_full_name }}">{{ appt.patient.user.get_full_name }}</a>
+                                                <strong>Patient:</strong> <a href="{% url 'patient_detail' appt.patient.pk %}" aria-label="View patient details for {{ appt.patient.user.get_full_name }}">{{ appt.patient.user.get_full_name|default:appt.patient.user.username }}</a>
                                             </div>
                                             <div>
                                                 <strong>Date:</strong> <span class="date-time">{{ appt.appointment_date|date:"F d, Y P" }}</span>
@@ -424,7 +658,7 @@
                                     {% for encounter in recent_encounters %}
                                         <li class="list-group-item">
                                             <div>
-                                                <strong>Patient:</strong> <a href="{% url 'patient_detail' encounter.patient.pk %}" aria-label="View patient details for {{ encounter.patient.user.get_full_name }}">{{ encounter.patient.user.get_full_name }}</a>
+                                                <strong>Patient:</strong> <a href="{% url 'patient_detail' encounter.patient.pk %}" aria-label="View patient details for {{ encounter.patient.user.get_full_name }}">{{ encounter.patient.user.get_full_name|default:encounter.patient.user.username }}</a>
                                             </div>
                                             <div>
                                                 <strong>Date:</strong> <span class="date-time">{{ encounter.encounter_date|date:"F d, Y P" }}</span>
@@ -446,6 +680,24 @@
                     </div>
                 </div>
             </div>
+            {# Doctor Specific Stats #}
+            <div class="row mt-4">
+                <div class="col-md-6">
+                     <a href="#" class="card custom-styled-card disabled" aria-label="My Total Patients Card">
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>My Total Patients</h5>
+                                <h3 class="card-text-value">{{ my_patients }}</h3>
+                                <p class="card-text">Patients you have treated or have appointments with.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-user-injured" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
 
         {% elif user_type == 'patient' %}
             <div class="row">
@@ -458,7 +710,7 @@
                                     {% for appt in my_appointments %}
                                         <li class="list-group-item">
                                             <div>
-                                                <strong>Doctor:</strong> {{ appt.doctor.user.get_full_name }}
+                                                <strong>Doctor:</strong> {{ appt.doctor.user.get_full_name|default:appt.doctor.user.username }}
                                             </div>
                                             <div>
                                                 <strong>Date:</strong> <span class="date-time">{{ appt.appointment_date|date:"F d, Y P" }}</span>
@@ -491,7 +743,7 @@
                                                 <strong>Date:</strong> <span class="date-time">{{ encounter.encounter_date|date:"F d, Y P" }}</span>
                                             </div>
                                             <div>
-                                                <strong>Doctor:</strong> {{ encounter.doctor.user.get_full_name }}
+                                                <strong>Doctor:</strong> {{ encounter.doctor.user.get_full_name|default:encounter.doctor.user.username }}
                                             </div>
                                             <div>
                                                 <strong>Type:</strong> {{ encounter.get_encounter_type_display }}
@@ -505,6 +757,320 @@
                                     <i class="fas fa-exclamation-triangle me-2"></i> No recent encounters recorded for you.
                                 </div>
                                 <a href="#" class="btn btn-primary mt-3 disabled" aria-disabled="true">View Full History</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        {% elif user_type == 'pharmacist' %}
+            <div class="row">
+                <div class="col-md-6">
+                    <a href="#" class="card custom-styled-card disabled" aria-label="Pending Prescriptions Card">
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>Pending Prescriptions</h5>
+                                <h3 class="card-text-value">{{ pending_prescriptions }}</h3>
+                                <p class="card-text">Prescriptions awaiting dispensation.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-file-prescription" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-6">
+                    <a href="#" class="card custom-styled-card disabled" aria-label="Medications Low in Stock Card">
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>Medications Low in Stock</h5>
+                                <h3 class="card-text-value">{{ low_stock_meds_pharmacist }}</h3>
+                                <p class="card-text">Medications that need reordering.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-pills" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">Your Recent Dispensations</div>
+                        <div class="card-body">
+                            {% if recent_dispensations %}
+                                <ul class="list-group list-group-flush">
+                                    {% for prescription in recent_dispensations %}
+                                        <li class="list-group-item">
+                                            <div><strong>Patient:</strong> {{ prescription.patient.user.get_full_name|default:prescription.patient.user.username }}</div>
+                                            <div><strong>Medication:</strong> {{ prescription.medication.name }} ({{ prescription.quantity }} units)</div>
+                                            <div><strong>Date:</strong> <span class="date-time">{{ prescription.dispensed_date|date:"F d, Y P" }}</span></div>
+                                            <a href="{% url 'prescription_detail' prescription.pk %}" class="btn btn-link btn-sm mt-2">View Details</a>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <div class="alert alert-info" role="alert">
+                                    <i class="fas fa-info-circle me-2"></i> No recent dispensations recorded.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        {% elif user_type == 'lab_tech' %}
+            <div class="row">
+                <div class="col-md-6">
+                    <a href="#" class="card custom-styled-card disabled" aria-label="Pending Lab Requests Card">
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>Pending Lab Requests</h5>
+                                <h3 class="card-text-value">{{ pending_lab_requests }}</h3>
+                                <p class="card-text">New tests awaiting processing.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-vials" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">Your Recent Lab Results</div>
+                        <div class="card-body">
+                            {% if recent_lab_results %}
+                                <ul class="list-group list-group-flush">
+                                    {% for result in recent_lab_results %}
+                                        <li class="list-group-item">
+                                            <div><strong>Patient:</strong> {{ result.patient.user.get_full_name|default:result.patient.user.username }}</div>
+                                            <div><strong>Test:</strong> {{ result.test_type }}</div>
+                                            <div><strong>Result:</strong> {{ result.result_summary|truncatechars:70 }}</div>
+                                            <div><strong>Date:</strong> <span class="date-time">{{ result.result_date|date:"F d, Y P" }}</span></div>
+                                            <a href="{% url 'lab_test_result_detail' result.pk %}" class="btn btn-link btn-sm mt-2">View Details</a>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <div class="alert alert-info" role="alert">
+                                    <i class="fas fa-info-circle me-2"></i> No recent lab results recorded by you.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        {% elif user_type == 'radiologist' %}
+            <div class="row">
+                <div class="col-md-6">
+                    <a href="#" class="card custom-styled-card disabled" aria-label="Pending Imaging Reports Card">
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>Pending Imaging Reports</h5>
+                                <h3 class="card-text-value">{{ pending_imaging_reports }}</h3>
+                                <p class="card-text">Scans awaiting your interpretation.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-radiation" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">Your Recent Imaging Results</div>
+                        <div class="card-body">
+                            {% if recent_imaging_results %}
+                                <ul class="list-group list-group-flush">
+                                    {% for result in recent_imaging_results %}
+                                        <li class="list-group-item">
+                                            <div><strong>Patient:</strong> {{ result.patient.user.get_full_name|default:result.patient.user.username }}</div>
+                                            <div><strong>Type:</strong> {{ result.imaging_type }}</div>
+                                            <div><strong>Status:</strong> {{ result.status }}</div>
+                                            <div><strong>Date:</strong> <span class="date-time">{{ result.report_date|date:"F d, Y P" }}</span></div>
+                                            <a href="{% url 'imaging_result_detail' result.pk %}" class="btn btn-link btn-sm mt-2">View Report</a>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <div class="alert alert-info" role="alert">
+                                    <i class="fas fa-info-circle me-2"></i> No recent imaging results recorded by you.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        {% elif user_type == 'receptionist' %}
+            <div class="row">
+                <div class="col-md-6">
+                    <a href="#" class="card custom-styled-card disabled" aria-label="Today's Appointments Card">
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>Today's Appointments</h5>
+                                <h3 class="card-text-value">{{ today_appointments }}</h3>
+                                <p class="card-text">Total appointments for today.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-calendar-check" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-md-6">
+                    <a href="#" class="card custom-styled-card disabled" aria-label="New Patient Registrations Today Card">
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>New Patient Registrations Today</h5>
+                                <h3 class="card-text-value">{{ new_patient_registrations_today }}</h3>
+                                <p class="card-text">New patients added today.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-user-plus" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">Recent Appointments</div>
+                        <div class="card-body">
+                            {% if recent_appointments_reception %}
+                                <ul class="list-group list-group-flush">
+                                    {% for appt in recent_appointments_reception %}
+                                        <li class="list-group-item">
+                                            <div><strong>Patient:</strong> {{ appt.patient.user.get_full_name|default:appt.patient.user.username }}</div>
+                                            <div><strong>Doctor:</strong> {{ appt.doctor.user.get_full_name|default:appt.doctor.user.username }}</div>
+                                            <div><strong>Status:</strong> {{ appt.status }}</div>
+                                            <div><strong>Date:</strong> <span class="date-time">{{ appt.appointment_date|date:"F d, Y P" }}</span></div>
+                                            <a href="{% url 'appointment_detail' appt.pk %}" class="btn btn-link btn-sm mt-2">View Details</a>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <div class="alert alert-info" role="alert">
+                                    <i class="fas fa-info-circle me-2"></i> No recent appointments to display.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        {% elif user_type == 'nurse' %}
+            <div class="row">
+                <div class="col-md-6">
+                    <a href="#" class="card custom-styled-card disabled" aria-label="Assigned Beds Card">
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>Assigned Beds (Occupied)</h5>
+                                <h3 class="card-text-value">{{ assigned_beds }}</h3>
+                                <p class="card-text">Currently occupied beds assigned to you.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-bed-pulse" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">Your Recent Patient Vitals</div>
+                        <div class="card-body">
+                            {% if recent_patient_vitals %}
+                                <ul class="list-group list-group-flush">
+                                    {% for vital in recent_patient_vitals %}
+                                        <li class="list-group-item">
+                                            <div><strong>Patient:</strong> {{ vital.patient.user.get_full_name|default:vital.patient.user.username }}</div>
+                                            <div><strong>Temp:</strong> {{ vital.temperature }}°C</div>
+                                            <div><strong>BP:</strong> {{ vital.blood_pressure }} mmHg</div>
+                                            <div><strong>Date:</strong> <span class="date-time">{{ vital.timestamp|date:"F d, Y P" }}</span></div>
+                                            <a href="{% url 'vital_sign_detail' vital.pk %}" class="btn btn-link btn-sm mt-2">View All Vitals</a> {# Assuming a vital_sign_detail URL #}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <div class="alert alert-info" role="alert">
+                                    <i class="fas fa-info-circle me-2"></i> No recent patient vitals recorded by you.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">Recent Encounters Assisted</div>
+                        <div class="card-body">
+                            {% if recent_encounters_assisted %}
+                                <ul class="list-group list-group-flush">
+                                    {% for encounter in recent_encounters_assisted %}
+                                        <li class="list-group-item">
+                                            <div><strong>Patient:</strong> {{ encounter.patient.user.get_full_name|default:encounter.patient.user.username }}</div>
+                                            <div><strong>Doctor:</strong> {{ encounter.doctor.user.get_full_name|default:encounter.doctor.user.username }}</div>
+                                            <div><strong>Chief Complaint:</strong> {{ encounter.chief_complaint|truncatechars:70 }}</div>
+                                            <div><strong>Date:</strong> <span class="date-time">{{ encounter.encounter_date|date:"F d, Y P" }}</span></div>
+                                            <a href="{% url 'encounter_detail' encounter.pk %}" class="btn btn-link btn-sm mt-2">View Encounter</a>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <div class="alert alert-info" role="alert">
+                                    <i class="fas fa-info-circle me-2"></i> No recent encounters where you assisted.
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        {% elif user_type == 'procurement_officer' %}
+            <div class="row">
+                <div class="col-md-6">
+                    <a href="#" class="card custom-styled-card disabled" aria-label="Low Stock Items Card">
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>Low Stock Items</h5>
+                                <h3 class="card-text-value">{{ low_stock_items_procurement }}</h3>
+                                <p class="card-text">Items below reorder level across all categories.</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-boxes" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">Recent Purchase Orders</div>
+                        <div class="card-body">
+                            {% if recent_purchase_orders %}
+                                <ul class="list-group list-group-flush">
+                                    {% for po in recent_purchase_orders %}
+                                        <li class="list-group-item">
+                                            <div><strong>Supplier:</strong> {{ po.supplier.name }}</div> {# Assuming 'supplier' field #}
+                                            <div><strong>Total:</strong> ${{ po.total_amount|floatformat:2 }}</div> {# Assuming 'total_amount' field #}
+                                            <div><strong>Date:</strong> <span class="date-time">{{ po.order_date|date:"F d, Y" }}</span></div> {# Assuming 'order_date' field #}
+                                            <a href="{% url 'purchase_order_detail' po.pk %}" class="btn btn-link btn-sm mt-2">View Order</a>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <div class="alert alert-info" role="alert">
+                                    <i class="fas fa-info-circle me-2"></i> No recent purchase orders to display.
+                                </div>
                             {% endif %}
                         </div>
                     </div>
@@ -552,4 +1118,60 @@
             });
         });
     </script>
+
+    <!-- Charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const labelsElement = document.getElementById('patient-reg-labels');
+        const dataElement = document.getElementById('patient-reg-data');
+
+        if (labelsElement && dataElement) {
+            const labels = JSON.parse(labelsElement.textContent);
+            const data = JSON.parse(dataElement.textContent);
+
+            const ctx = document.getElementById('patientRegistrationsChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'New Patients',
+                        data: data,
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                        },
+                        title: {
+                            display: false, // Title already in card header
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Patients'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Month'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    });
+</script>
 {% endblock %}

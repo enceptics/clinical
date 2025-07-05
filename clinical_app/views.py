@@ -10,6 +10,7 @@ from django.contrib import messages
 from django import forms
 from datetime import date, timedelta
 from django.utils import timezone
+from django.db.models.functions import TruncMonth 
 
 from .models import (
     User, Patient, Doctor, Pharmacist, Appointment, Encounter, VitalSign, MedicalHistory,
@@ -106,7 +107,7 @@ class IsMedicalStaffMixin(UserPassesTestMixin):
 # --- Dashboard/Home Views ---
 
 class HomeView(LoginRequiredMixin, TemplateView):
-    template_name = 'clinical_app/dashboard.html' # Changed to dashboard.html for clarity
+    template_name = 'clinical_app/home.html' # Changed to dashboard.html for clarity
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -162,6 +163,20 @@ class HomeView(LoginRequiredMixin, TemplateView):
                 ).count()
 
                 context['recent_activity_logs'] = ActivityLog.objects.select_related('user').order_by('-timestamp')[:5]
+                # Patient Registrations over the last 12 months for Chart
+                patient_registrations_monthly = Patient.objects.annotate(
+                    month=TruncMonth('registration_date')
+                ).values('month').annotate(
+                    count=Count('pk') 
+                ).order_by('month')
+
+                reg_labels = [entry['month'].strftime('%b %Y') for entry in patient_registrations_monthly]
+                reg_data = [entry['count'] for entry in patient_registrations_monthly]
+
+                context['patient_reg_labels'] = reg_labels
+                context['patient_reg_data'] = reg_data
+
+
 
             elif user.user_type == 'doctor':
                 try:
@@ -926,7 +941,7 @@ class DoctorPatientListView(LoginRequiredMixin, IsDoctorMixin, ListView):
         # Override the 'patients' context variable with our new list
         context['patients'] = patients_with_latest_encounter
         return context
-        
+
 # --- Encounter Views (for Doctors/Nurses) ---
 
 class EncounterDetailView(LoginRequiredMixin, IsMedicalStaffMixin, DetailView):
@@ -1981,26 +1996,36 @@ class MortalityRecordsListView(LoginRequiredMixin, UserPassesTestMixin, ListView
         return context
 
 # --- Activity Log (Admin Only) ---
-class ActivityLogListView(LoginRequiredMixin, IsAdminMixin, ListView):
+class ActivityLogListView(LoginRequiredMixin, IsMedicalStaffMixin, ListView):
     model = ActivityLog
-    template_name = 'clinical_app/activity_log_list.html'
-    context_object_name = 'logs'
-    paginate_by = 50
-    ordering = ['-timestamp']
+    template_name = 'logs/activity_log_list.html' # We'll create this template
+    context_object_name = 'activity_logs'
+    paginate_by = 20 # Show 20 logs per page
+    ordering = ['-timestamp'] # Order by most recent first
 
     def get_queryset(self):
-        queryset = super().get_queryset().select_related('user')
+        queryset = super().get_queryset()
         query = self.request.GET.get('q')
+        action_type = self.request.GET.get('action_type')
+        model_name = self.request.GET.get('model_name')
+
         if query:
             queryset = queryset.filter(
-                Q(action_type__icontains=query) |
                 Q(description__icontains=query) |
                 Q(user__username__icontains=query) |
-                Q(model_name__icontains=query)
+                Q(model_name__icontains=query) |
+                Q(ip_address__icontains=query)
             )
+        if action_type:
+            queryset = queryset.filter(action_type=action_type)
+        if model_name:
+            queryset = queryset.filter(model_name=model_name)
+
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['title'] = 'System Activity Log'
+        # Add options for filtering
+        context['action_types'] = ActivityLog.objects.order_by().values_list('action_type', flat=True).distinct()
+        context['model_names'] = ActivityLog.objects.order_by().values_list('model_name', flat=True).distinct()
         return context
