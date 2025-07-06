@@ -3,6 +3,7 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView, D
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth import login
+from django.core.exceptions import ValidationError
 from django.db import transaction # For atomic operations
 from django.db.models import Q, Count, F # Import F for F expressions
 from django import template
@@ -11,6 +12,12 @@ from django import forms
 from datetime import date, timedelta
 from django.utils import timezone
 from django.db.models.functions import TruncMonth 
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from django.core.mail import send_mail
+from django.conf import settings 
+import logging
+logger = logging.getLogger(__name__)
 
 from .models import (
     User, Patient, Doctor, Pharmacist, Appointment, Encounter, VitalSign, MedicalHistory,
@@ -25,7 +32,7 @@ from .forms import (
     CustomUserCreationForm, PatientRegistrationForm, AppointmentForm, VitalSignForm,
     MedicalHistoryForm, PhysicalExaminationForm, DiagnosisForm, TreatmentPlanForm,
     LabTestRequestForm, LabTestResultForm, ImagingRequestForm, ImagingResultForm,
-    PrescriptionForm, ConsentFormForm, DoctorForm, PatientRegistrationForm, DoctorRegistrationForm,
+    PrescriptionForm, ConsentFormForm, DoctorForm, DoctorRegistrationForm,
     NurseRegistrationForm, PharmacistRegistrationForm, ProcurementOfficerRegistrationForm,
     CustomUserChangeForm, ReceptionistRegistrationForm, LabTechnicianRegistrationForm, 
     RadiologistRegistrationForm 
@@ -303,11 +310,29 @@ def select_user_type(request):
     return render(request, 'clinical_app/user_management/select_user_type.html', context)
 
 # --- GENERAL USER REGISTRATION VIEW ---
+USER_TYPE_PREFIXES = {
+    'patient': 'PT',
+    'doctor': 'DR',
+    'nurse': 'NS',
+    'pharmacist': 'PH',
+    'lab_tech': 'LT',
+    'radiologist': 'RD',
+    'receptionist': 'RC',
+    'procurement_officer': 'PO',
+    'admin': 'AD', # For admin users
+    # Add other user types as needed
+}
+
 class UserRegistrationView(CreateView):
     template_name = 'clinical_app/user_management/register.html'
-    success_url = reverse_lazy('login')
+    success_url = reverse_lazy('login') # User needs to log in with new credentials
 
     def get_form_class(self):
+        """
+        Dynamically returns the appropriate form class based on the 'user_type'
+        URL parameter. Ensures all registration forms use the CustomUserCreationForm
+        as their base to handle password auto-generation and hiding.
+        """
         user_type = self.kwargs.get('user_type', None)
 
         if user_type == 'patient':
@@ -320,171 +345,208 @@ class UserRegistrationView(CreateView):
             return PharmacistRegistrationForm
         elif user_type == 'procurement_officer':
             return ProcurementOfficerRegistrationForm
-        elif user_type == 'receptionist': # Added
+        elif user_type == 'receptionist':
             return ReceptionistRegistrationForm
-        elif user_type == 'lab_tech': # Added
+        elif user_type == 'lab_tech':
             return LabTechnicianRegistrationForm
-        elif user_type == 'radiologist': # Added
+        elif user_type == 'radiologist':
             return RadiologistRegistrationForm
-        elif user_type == 'admin': # Admin can use CustomUserCreationForm directly
+        elif user_type == 'admin':
+            # This is typically for superusers or staff, might not have a specific profile model
             return CustomUserCreationForm
         else:
-            messages.error(self.request, "Invalid or unsupported user type for registration.")
-            return CustomUserCreationForm
+            messages.error(self.request, "Invalid or unsupported user type for registration. Please choose a valid type.")
+            # Fallback to CustomUserCreationForm for general or unrecognized types
+            return CustomUserCreationForm 
+
+    def get_form_kwargs(self):
+        """
+        Passes the 'user_type' from URL kwargs to the form's __init__ method.
+        This is crucial if your forms use 'user_type' to dynamically add/remove fields
+        or set placeholders/initial data, although for password handling, the inheritance
+        from CustomUserCreationForm is the primary mechanism.
+        """
+        kwargs = super().get_form_kwargs()
+        kwargs['user_type'] = self.kwargs.get('user_type', None)
+        return kwargs
 
     def get_context_data(self, **kwargs):
+        """
+        Adds user_type and a display-friendly version to the template context.
+        """
         context = super().get_context_data(**kwargs)
-        context['user_type'] = self.kwargs.get('user_type', 'general')
+        user_type = self.kwargs.get('user_type', 'general')
+        context['user_type'] = user_type
+        context['display_user_type'] = user_type.replace('_', ' ').title()
         return context
 
     def form_valid(self, form):
-        with transaction.atomic():
-            user = form.save(commit=False)
-            user_type = self.kwargs.get('user_type', 'patient')
-            user.user_type = user_type
-            user.save()
+        """
+        Handles valid form submissions:
+        1. Creates the User instance with an auto-generated username and password.
+        2. Retrieves the temporary raw password for communication.
+        3. Creates the specific profile (Patient, Doctor, etc.) based on user_type.
+        4. Logs the activity.
+        5. Sends an email with credentials (best practice).
+        6. Displays a temporary message with credentials (for development only).
+        """
+        user_type = self.kwargs.get('user_type', 'general')
+        
+        # Use a transaction to ensure atomic creation of user and profile.
+        # If any step fails, the entire transaction is rolled back.
+        try:
+            with transaction.atomic():
+                # Step 1: Save the user instance.
+                # The form's save method (from CustomUserCreationForm) handles:
+                # - Auto-generating username based on prefix.
+                # - Auto-generating a secure raw password.
+                # - Hashing the password.
+                # - Setting the user.user_type field.
+                user = form.save(commit=True, user_type=user_type)
 
-            profile_message = ""
-            if user_type == 'patient':
-                patient_profile = Patient.objects.create(
-                    user=user,
-                    blood_group=form.cleaned_data.get('blood_group'),
-                    emergency_contact_name=form.cleaned_data.get('emergency_contact_name'),
-                    emergency_contact_phone=form.cleaned_data.get('emergency_contact_phone'),
-                    allergies=form.cleaned_data.get('allergies'),
-                    pre_existing_conditions=form.cleaned_data.get('pre_existing_conditions'),
-                )
-                profile_message = f"Patient profile for {user.username} created."
-                log_activity(
-                    self.request.user,
-                    'CREATE',
-                    f'Registered new patient: {user.get_full_name()} (ID: {patient_profile.pk})',
-                    model_name='Patient',
-                    object_id=patient_profile.pk,
-                    ip_address=get_client_ip(self.request)
-                )
-            elif user_type == 'doctor':
-                department = form.cleaned_data.get('department')
-
-                if not department:
-                    messages.error(self.request, "Department is required for Doctors.")
+                # Step 2: Retrieve the raw password.
+                # It's temporarily stored on the user object by CustomUserCreationForm's save method.
+                raw_password = getattr(user, '_raw_password', None)
+                if raw_password is None:
+                    logger.error(f"form.save() for {user.username} did not set _raw_password. User creation rolled back.")
+                    # Add a non-field error to the form to trigger form_invalid.
+                    form.add_error(None, "An internal error occurred: password could not be generated. Please try again.")
                     return self.form_invalid(form)
 
-                doctor_profile = Doctor.objects.create(
-                    user=user,
-                    specialization=form.cleaned_data['specialization'],
-                    medical_license_number=form.cleaned_data['medical_license_number'],
-                    department=department,
-                )
-                profile_message = f"Doctor profile for {user.username} created."
+                # Step 3: Create specific profile based on user type and cleaned data.
+                profile_instance = None 
+
+                if user_type == 'patient':
+                    profile_instance = Patient.objects.create(
+                        user=user,
+                        blood_group=form.cleaned_data.get('blood_group'),
+                        emergency_contact_name=form.cleaned_data.get('emergency_contact_name'),
+                        emergency_contact_phone=form.cleaned_data.get('emergency_contact_phone'),
+                        allergies=form.cleaned_data.get('allergies'),
+                        pre_existing_conditions=form.cleaned_data.get('pre_existing_conditions'),
+                    )
+                elif user_type == 'doctor':
+                    # Assuming 'department' is a required field in DoctorRegistrationForm and validated there.
+                    profile_instance = Doctor.objects.create(
+                        user=user,
+                        specialization=form.cleaned_data['specialization'],
+                        medical_license_number=form.cleaned_data['medical_license_number'],
+                        department=form.cleaned_data['department'], 
+                        years_of_experience=form.cleaned_data.get('years_of_experience'),
+                    )
+                elif user_type == 'nurse':
+                    profile_instance = Nurse.objects.create(
+                        user=user,
+                        shift_info=form.cleaned_data.get('shift_info'),
+                        assigned_ward=form.cleaned_data.get('assigned_ward'),
+                    )
+                elif user_type == 'pharmacist':
+                    profile_instance = Pharmacist.objects.create(
+                        user=user,
+                        pharmacy_license_number=form.cleaned_data.get('pharmacy_license_number'),
+                        employee_id=form.cleaned_data.get('employee_id'),
+                    )
+                elif user_type == 'procurement_officer':
+                    profile_instance = ProcurementOfficer.objects.create(
+                        user=user,
+                        employee_id=form.cleaned_data.get('employee_id'),
+                        department=form.cleaned_data.get('department'),
+                    )
+                elif user_type == 'receptionist':
+                    profile_instance = Receptionist.objects.create(
+                        user=user,
+                        shift_info=form.cleaned_data.get('shift_info'),
+                        assigned_desk=form.cleaned_data.get('assigned_desk'),
+                    )
+                elif user_type == 'lab_tech':
+                    profile_instance = LabTechnician.objects.create(
+                        user=user,
+                        license_number=form.cleaned_data.get('license_number'),
+                        specialization=form.cleaned_data.get('specialization'),
+                        shift_info=form.cleaned_data.get('shift_info'),
+                        lab_section_assigned=form.cleaned_data.get('lab_section_assigned'),
+                        qualifications=form.cleaned_data.get('qualifications'),
+                        status=form.cleaned_data.get('status'),
+                    )
+                elif user_type == 'radiologist':
+                    profile_instance = Radiologist.objects.create(
+                        user=user,
+                        medical_license_number=form.cleaned_data.get('medical_license_number'),
+                        sub_specialization=form.cleaned_data.get('sub_specialization'),
+                        date_hired=form.cleaned_data.get('date_hired'),
+                        on_call_status=form.cleaned_data.get('on_call_status'),
+                        preferred_modalities=form.cleaned_data.get('preferred_modalities'),
+                        qualifications=form.cleaned_data.get('qualifications'),
+                        status=form.cleaned_data.get('status'),
+                    )
+                
+                # Step 4: Log successful user and profile creation.
                 log_activity(
-                    self.request.user,
+                    self.request.user if self.request.user.is_authenticated else None,
                     'CREATE',
-                    f'Registered new doctor: {user.get_full_name()} (License: {doctor_profile.medical_license_number})',
-                    model_name='Doctor',
-                    object_id=doctor_profile.pk,
-                    ip_address=get_client_ip(self.request)
-                )
-            elif user_type == 'nurse':
-                nurse_profile = Nurse.objects.create(
-                    user=user,
-                    # Add nurse-specific fields here if you have them in NurseRegistrationForm
-                )
-                profile_message = f"Nurse profile for {user.username} created."
-                log_activity(
-                    self.request.user,
-                    'CREATE',
-                    f'Registered new nurse: {user.get_full_name()}',
-                    model_name='Nurse',
-                    object_id=nurse_profile.pk,
-                    ip_address=get_client_ip(self.request)
-                )
-            elif user_type == 'pharmacist':
-                pharmacist_profile = Pharmacist.objects.create(
-                    user=user,
-                    # Add pharmacist-specific fields here
-                )
-                profile_message = f"Pharmacist profile for {user.username} created."
-                log_activity(
-                    self.request.user,
-                    'CREATE',
-                    f'Registered new pharmacist: {user.get_full_name()}',
-                    model_name='Pharmacist',
-                    object_id=pharmacist_profile.pk,
-                    ip_address=get_client_ip(self.request)
-                )
-            elif user_type == 'procurement_officer':
-                proc_officer_profile = ProcurementOfficer.objects.create(
-                    user=user,
-                    # Add procurement officer specific fields here
-                )
-                profile_message = f"Procurement Officer profile for {user.username} created."
-                log_activity(
-                    self.request.user,
-                    'CREATE',
-                    f'Registered new procurement officer: {user.get_full_name()}',
-                    model_name='ProcurementOfficer',
-                    object_id=proc_officer_profile.pk,
-                    ip_address=get_client_ip(self.request)
-                )
-            elif user_type == 'receptionist': # Added
-                receptionist_profile = Receptionist.objects.create(
-                    user=user,
-                    # Add receptionist-specific fields here
-                )
-                profile_message = f"Receptionist profile for {user.username} created."
-                log_activity(
-                    self.request.user,
-                    'CREATE',
-                    f'Registered new receptionist: {user.get_full_name()}',
-                    model_name='Receptionist',
-                    object_id=receptionist_profile.pk,
-                    ip_address=get_client_ip(self.request)
-                )
-            elif user_type == 'lab_tech': # Added
-                lab_tech_profile = LabTechnician.objects.create(
-                    user=user,
-                    # Add lab_tech-specific fields here
-                )
-                profile_message = f"Lab Technician profile for {user.username} created."
-                log_activity(
-                    self.request.user,
-                    'CREATE',
-                    f'Registered new lab technician: {user.get_full_name()}',
-                    model_name='LabTechnician',
-                    object_id=lab_tech_profile.pk,
-                    ip_address=get_client_ip(self.request)
-                )
-            elif user_type == 'radiologist': # Added
-                radiologist_profile = Radiologist.objects.create(
-                    user=user,
-                    # Add radiologist-specific fields here
-                )
-                profile_message = f"Radiologist profile for {user.username} created."
-                log_activity(
-                    self.request.user,
-                    'CREATE',
-                    f'Registered new radiologist: {user.get_full_name()}',
-                    model_name='Radiologist',
-                    object_id=radiologist_profile.pk,
-                    ip_address=get_client_ip(self.request)
-                )
-            else:
-                profile_message = f"{user_type.replace('_', ' ').title()} user {user.username} created without specific profile."
-                log_activity(
-                    self.request.user,
-                    'CREATE',
-                    f'Registered new user: {user.get_full_name()} (Type: {user_type})',
+                    f'Registered new {user_type} user: {user.get_full_name()} (Username: {user.username})',
                     model_name='User',
                     object_id=user.pk,
                     ip_address=get_client_ip(self.request)
                 )
+                if profile_instance:
+                    log_activity(
+                        self.request.user if self.request.user.is_authenticated else None,
+                        'CREATE',
+                        f'Created {user_type} profile for {user.username}',
+                        model_name=profile_instance.__class__.__name__,
+                        object_id=profile_instance.pk,
+                        ip_address=get_client_ip(self.request)
+                    )
 
-            messages.success(self.request, f"{user_type.replace('_', ' ').title()} registered successfully! Please log in. {profile_message}")
-            return super().form_valid(form)
+                # Step 5: Send email with credentials.
+                # This is the most secure way to provide credentials.
+                try:
+                    subject = f"Your New {user_type.replace('_', ' ').title()} Account at {getattr(settings, 'HOSPITAL_NAME', 'Our Hospital')}"
+                    html_message = render_to_string('clinical_app/emails/new_user_credentials.html', {
+                        'user': user,
+                        'username': user.username,
+                        'password': raw_password, 
+                        'login_url': self.request.build_absolute_uri(reverse_lazy('login')),
+                        'hospital_name': getattr(settings, 'HOSPITAL_NAME', 'Our Hospital')
+                    })
+                    plain_message = strip_tags(html_message)
+                    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'webmaster@localhost')
+                    to_email = user.email
+
+                    send_mail(subject, plain_message, from_email, [to_email], html_message=html_message)
+                    messages.success(self.request, f"{user_type.replace('_', ' ').title()} registered successfully! Credentials sent to {user.email}.")
+                except Exception as e:
+                    messages.warning(self.request, f"User registered, but failed to send credentials email to {user.email}. Please notify them manually. Error: {e}")
+                    logger.error(f"Failed to send email to {user.email} for new {user_type} user {user.username}: {e}", exc_info=True)
+
+                # Step 6: Display temporary password (for development/testing ONLY).
+                # REMOVE this in a production environment for security!
+                messages.info(self.request,
+                              f"New User: <strong>{user.username}</strong>, Temporary Password: <strong><span class='text-danger'>{raw_password}</span></strong>. "
+                              f"Please ensure the user logs in and changes their password immediately. "
+                              f"This message is for development purposes and will be removed in production.")
+
+        except ValidationError as e:
+            # Catch ValidationErrors explicitly raised within the atomic block for a cleaner message.
+            messages.error(self.request, f"Registration failed: {e.message}")
+            return self.form_invalid(form)
+        except Exception as e:
+            # Catch any other unexpected errors during the transaction.
+            logger.exception(f"An unexpected error occurred during {user_type} user registration for {form.cleaned_data.get('email')}: {e}")
+            messages.error(self.request, "An unexpected error occurred during registration. Please contact support.")
+            return self.form_invalid(form)
+
+        # If everything within the atomic block succeeded without raising an exception,
+        # proceed to the success_url.
+        return super().form_valid(form)
 
     def form_invalid(self, form):
-        messages.error(self.request, "Please correct the errors below.")
+        """
+        Handles invalid form submissions by adding a general error message
+        and re-rendering the form with specific field errors.
+        """
+        messages.error(self.request, "Please correct the errors below to register the account.")
         return super().form_invalid(form)
 
 class ConsentFormCreateView(LoginRequiredMixin, IsMedicalStaffMixin, CreateView):
@@ -552,45 +614,53 @@ class PatientDetailView(LoginRequiredMixin, IsMedicalStaffMixin, DetailView):
 
 class PatientCreateView(LoginRequiredMixin, IsAdminMixin, CreateView):
     model = Patient
-    form_class = PatientRegistrationForm
+    form_class = PatientRegistrationForm # This form already contains all necessary fields
     template_name = 'clinical_app/patient_form.html'
     success_url = reverse_lazy('patient_list')
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['user_form'] = CustomUserCreationForm(prefix='user')
-        return context
+    # No need to override get_context_data to add 'user_form'
+    # No need to create two form instances in post()
 
-    def post(self, request, *args, **kwargs):
-        user_form = CustomUserCreationForm(request.POST, prefix='user')
-        patient_form = PatientRegistrationForm(request.POST)
+    def form_valid(self, form):
+        # The 'form' argument here is an instance of PatientRegistrationForm
+        with transaction.atomic():
+            user = form.save(commit=False) # This saves the User part of PatientRegistrationForm
+            user.user_type = 'patient'
+            user.save()
 
-        if user_form.is_valid() and patient_form.is_valid():
-            with transaction.atomic():
-                user = user_form.save(commit=False)
-                user.user_type = 'patient'
-                user.save()
+            # The Patient-specific fields are directly on the 'form'
+            patient_profile = Patient.objects.create(
+                user=user,
+                blood_group=form.cleaned_data.get('blood_group'),
+                emergency_contact_name=form.cleaned_data.get('emergency_contact_name'),
+                emergency_contact_phone=form.cleaned_data.get('emergency_contact_phone'),
+                allergies=form.cleaned_data.get('allergies'),
+                pre_existing_conditions=form.cleaned_data.get('pre_existing_conditions'),
+            )
 
-                patient = patient_form.save(commit=False)
-                patient.user = user
-                patient.save()
+            log_activity(
+                self.request.user,
+                'CREATE',
+                f'Admin created new patient: {user.get_full_name()} (ID: {patient_profile.pk})',
+                model_name='Patient',
+                object_id=patient_profile.pk,
+                ip_address=get_client_ip(self.request)
+            )
+            messages.success(self.request, f"Patient {user.get_full_name()} created successfully.")
+            return super().form_valid(form) # This will redirect to success_url
 
-                log_activity(
-                    request.user,
-                    'CREATE',
-                    f'Admin created new patient: {user.get_full_name()} (ID: {patient.pk})',
-                    model_name='Patient',
-                    object_id=patient.pk,
-                    ip_address=get_client_ip(request)
-                )
-            messages.success(request, f"Patient {user.get_full_name()} created successfully.")
-            return redirect(self.get_success_url())
-        else:
-            messages.error(request, "Error creating patient. Please check the forms.")
-            context = self.get_context_data()
-            context['user_form'] = user_form
-            context['form'] = patient_form
-            return render(request, self.template_name, context)
+    def form_invalid(self, form):
+        messages.error(self.request, "Error creating patient. Please correct the errors below.")
+        # When form is invalid, CreateView's default behavior is to re-render the template
+        # with the invalid form, which is exactly what we want.
+        # We also need to define 'user_form_fields' for the template
+        user_form_fields = [
+            'username', 'first_name', 'last_name', 'email', 'phone_number',
+            'address', 'date_of_birth', 'gender', 'password', 'password2'
+        ]
+        context = self.get_context_data() # Gets default context from CreateView
+        context['user_form_fields'] = user_form_fields
+        return self.render_to_response(context)
 
 class PatientUpdateView(LoginRequiredMixin, IsAdminMixin, UpdateView):
     model = Patient
@@ -792,110 +862,6 @@ class PatientDetailView(LoginRequiredMixin, IsMedicalStaffMixin, DetailView):
             ip_address=get_client_ip(self.request)
         )
         return context
-
-class PatientCreateView(LoginRequiredMixin, IsAdminMixin, CreateView):
-    model = Patient
-    form_class = PatientRegistrationForm
-    template_name = 'clinical_app/patient_form.html'
-    success_url = reverse_lazy('patient_list')
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['user_form'] = CustomUserCreationForm(prefix='user')
-        return context
-
-    def post(self, request, *args, **kwargs):
-        user_form = CustomUserCreationForm(request.POST, prefix='user')
-        patient_form = PatientRegistrationForm(request.POST)
-
-        if user_form.is_valid() and patient_form.is_valid():
-            with transaction.atomic():
-                user = user_form.save(commit=False)
-                user.user_type = 'patient'
-                user.save()
-
-                patient = patient_form.save(commit=False)
-                patient.user = user
-                patient.save()
-
-                log_activity(
-                    request.user,
-                    'CREATE',
-                    f'Admin created new patient: {user.get_full_name()} (ID: {patient.pk})',
-                    model_name='Patient',
-                    object_id=patient.pk,
-                    ip_address=get_client_ip(request)
-                )
-            messages.success(request, f"Patient {user.get_full_name()} created successfully.")
-            return redirect(self.get_success_url())
-        else:
-            messages.error(request, "Error creating patient. Please check the forms.")
-            context = self.get_context_data()
-            context['user_form'] = user_form
-            context['form'] = patient_form
-            return render(request, self.template_name, context)
-
-class PatientUpdateView(LoginRequiredMixin, IsAdminMixin, UpdateView):
-    model = Patient
-    form_class = PatientRegistrationForm
-    template_name = 'clinical_app/patient_form.html'
-    context_object_name = 'patient'
-
-    def get_object(self, queryset=None):
-        return get_object_or_404(Patient, pk=self.kwargs['pk'])
-
-    def get_success_url(self):
-        return reverse_lazy('patient_detail', kwargs={'pk': self.object.pk})
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        patient_user = self.get_object().user
-        context['user_form'] = CustomUserChangeForm(instance=patient_user, prefix='user')
-        return context
-
-    def post(self, request, *args, **kwargs):
-        self.object = self.get_object()
-        patient_form = PatientRegistrationForm(request.POST, instance=self.object)
-        user_form = CustomUserChangeForm(request.POST, instance=self.object.user, prefix='user')
-
-        if patient_form.is_valid() and user_form.is_valid():
-            with transaction.atomic():
-                # Capture old data before saving
-                old_patient_data = {field.name: getattr(self.object, field.name) for field in self.object._meta.fields}
-                old_user_data = {field.name: getattr(self.object.user, field.name) for field in self.object.user._meta.fields}
-
-                user = user_form.save()
-                patient = patient_form.save()
-
-                # Compare old and new data to find specific changes
-                detected_changes = {}
-                for field, old_value in old_patient_data.items():
-                    new_value = getattr(patient, field)
-                    if str(old_value) != str(new_value):
-                        detected_changes[f'patient_{field}'] = {'old': str(old_value), 'new': str(new_value)}
-
-                for field, old_value in old_user_data.items():
-                    new_value = getattr(user, field)
-                    if str(old_value) != str(new_value):
-                        detected_changes[f'user_{field}'] = {'old': str(old_value), 'new': str(new_value)}
-
-                log_activity(
-                    request.user,
-                    'UPDATE',
-                    f'Updated patient record and/or user details for {patient.user.get_full_name()} (ID: {patient.pk})',
-                    model_name='Patient',
-                    object_id=patient.pk,
-                    ip_address=get_client_ip(request),
-                    changes=detected_changes if detected_changes else None
-                )
-            messages.success(request, f"Patient {patient.user.get_full_name()} updated successfully.")
-            return redirect(self.get_success_url())
-        else:
-            messages.error(request, "Error updating patient. Please correct the errors.")
-            context = self.get_context_data()
-            context['form'] = patient_form
-            context['user_form'] = user_form
-            return render(request, self.template_name, context)
 
 class DoctorPatientListView(LoginRequiredMixin, IsDoctorMixin, ListView):
     model = Patient

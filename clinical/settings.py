@@ -57,6 +57,17 @@ DATABASES = {
     }
 }
 
+HOSPITAL_NAME='Hospital Management'
+EMAIL_HOST='smtp.gmail.com'
+EMAIL_PORT=587
+EMAIL_HOST_USER= 'intellima.tech@gmail.com'
+EMAIL_HOST_PASSWORD= 'ofmxdzynhnligoxy'
+EMAIL_USE_TLS=True
+SESSION_EXPIRE_SECONDS = 86400
+SESSION_EXPIRE_AFTER_LAST_ACTIVITY = True
+SESSION_EXPIRE_AFTER_LAST_ACTIVITY_GRACE_PERIOD = 1440
+
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',

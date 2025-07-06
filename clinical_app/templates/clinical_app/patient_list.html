@@ -11,7 +11,7 @@
     </form>
 
     {% if user.user_type == 'admin' %}
-        <a href="{% url 'patient_create' %}" class="btn btn-primary mb-3">Register New Patient</a>
+        <a href="{% url 'register_by_type' user_type='patient' %}" class="btn btn-primary mb-3">Register New Patient</a>
     {% endif %}
 
     {% if patients %}

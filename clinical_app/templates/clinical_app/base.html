@@ -4,89 +4,533 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Hospital System{% endblock %}</title>
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-{% block extra_head %}{% endblock %} 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    {% block extra_head %}{% endblock %}
+<style>
+    :root {
+        --navbar-height: 56px;
+        --sidebar-collapsed-width: 80px; /* Width when only icons are visible */
+        --sidebar-expanded-width: 250px; /* Width when text is visible */
+        --primary-color: #007bff; /* Bootstrap primary blue, can be customized */
+        --secondary-color: #6c757d; /* Bootstrap secondary gray */
+        --accent-color: #28a745; /* Green for success/highlight */
+        --text-color: #343a40;
+        --light-bg: #f8f9fa;
+        --dark-bg: #343a40;
+        --hover-bg: rgba(0, 123, 255, 0.1); /* Light blue for hover */
+        --active-bg: var(--primary-color);
+        --active-text: #fff;
+    }
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <style>
-        body { padding-top: 56px; } /* For fixed navbar */
+    body {
+        padding-top: var(--navbar-height);
+        font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        background-color: #f0f2f5; /* A slightly softer background */
+        color: var(--text-color);
+    }
+
+    /* --- Navbar Styling --- */
+    .navbar {
+        background: linear-gradient(to right, #0056b3, #007bff); /* Deep blue gradient */
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        z-index: 1030; /* Ensure navbar is on top */
+    }
+
+    .navbar-brand {
+        font-weight: 700;
+        font-size: 1.5rem;
+        color: #fff !important;
+        display: flex;
+        align-items: center;
+        transition: color 0.3s ease;
+    }
+
+    .navbar-brand:hover {
+        color: rgba(255, 255, 255, 0.8) !important;
+    }
+
+    .navbar-brand i {
+        margin-right: 8px;
+        font-size: 1.2em;
+    }
+
+    .navbar-nav .nav-link {
+        color: rgba(255, 255, 255, 0.8) !important;
+        font-weight: 500;
+        padding: 0.5rem 1rem;
+        transition: color 0.3s ease, background-color 0.3s ease;
+        border-radius: 5px;
+    }
+
+    .navbar-nav .nav-link:hover {
+        color: #fff !important;
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .navbar-toggler {
+        border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    .navbar-toggler-icon {
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.5%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+    }
+
+    /* --- Sidebar Styling --- */
+    .sidebar {
+        height: calc(100vh - var(--navbar-height)); /* Full height minus navbar */
+        position: fixed;
+        top: var(--navbar-height);
+        left: 0;
+        width: var(--sidebar-collapsed-width); /* Initial collapsed width */
+        background-color: #fff; /* Clean white background */
+        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+        padding-top: 20px;
+        transition: width 0.3s ease-in-out, margin-left 0.3s ease-in-out; /* Smooth animation */
+        overflow-x: hidden; /* Hide horizontal scrollbar */
+        z-index: 1020; /* Below navbar */
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start; /* Align items to start for expansion */
+    }
+
+    .sidebar:hover {
+        width: var(--sidebar-expanded-width); /* Expanded width on hover */
+    }
+
+    /* Sidebar Header (Logo and Name) */
+    .sidebar-header {
+        display: flex;
+        align-items: center;
+        padding: 10px 15px;
+        margin-bottom: 20px;
+        white-space: nowrap; /* Prevent wrapping */
+        overflow: hidden; /* Hide overflow content initially */
+        transition: padding 0.3s ease-in-out, justify-content 0.3s ease-in-out;
+        width: 100%; /* Take full width for alignment */
+        justify-content: center; /* Center content when collapsed */
+    }
+
+    .sidebar:hover .sidebar-header {
+        padding: 10px 20px; /* Adjust padding on hover */
+        justify-content: flex-start; /* Align to start on hover */
+    }
+
+    .sidebar-logo {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-right: 0px; /* No margin when collapsed */
+        transition: margin-right 0.3s ease-in-out;
+    }
+
+    .sidebar:hover .sidebar-logo {
+        margin-right: 15px; /* Margin when expanded */
+    }
+
+    .sidebar-hospital-name {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--text-color);
+        opacity: 0; /* Hidden initially */
+        transition: opacity 0.3s ease-in-out;
+        pointer-events: none; /* Prevent interaction when hidden */
+    }
+
+    .sidebar:hover .sidebar-hospital-name {
+        opacity: 1; /* Visible on hover */
+        pointer-events: auto; /* Allow interaction on hover */
+    }
+
+    /* Sidebar Navigation Links */
+    .sidebar .nav-item {
+        width: 100%; /* Ensure items take full width */
+    }
+
+    .sidebar .nav-link {
+        display: flex;
+        align-items: center;
+        padding: 12px 20px;
+        color: var(--text-color);
+        font-weight: 500;
+        transition: all 0.3s ease-in-out;
+        border-radius: 8px; /* Slightly rounded corners */
+        margin: 5px 10px; /* Spacing between links */
+        white-space: nowrap; /* Prevent text wrapping */
+        overflow: hidden;
+    }
+
+    .sidebar .nav-link i {
+        font-size: 1.2rem;
+        width: 30px; /* Fixed width for icons for alignment */
+        text-align: center;
+        margin-right: 0px; /* No margin when collapsed */
+        transition: margin-right 0.3s ease-in-out, color 0.3s ease;
+        color: var(--primary-color); /* Icon color */
+    }
+
+    .sidebar:hover .nav-link i {
+        margin-right: 15px; /* Margin when expanded */
+    }
+
+    .sidebar .nav-link .nav-text {
+        opacity: 0; /* Hidden initially */
+        transition: opacity 0.3s ease-in-out;
+        pointer-events: none; /* Prevent interaction when hidden */
+    }
+
+    .sidebar:hover .nav-link .nav-text {
+        opacity: 1; /* Visible on hover */
+        pointer-events: auto; /* Allow interaction on hover */
+    }
+
+    .sidebar .nav-link:hover {
+        background-color: var(--hover-bg);
+        color: var(--primary-color);
+        transform: translateX(5px); /* Subtle slide effect */
+    }
+
+    .sidebar .nav-link.active {
+        background-color: var(--active-bg);
+        color: var(--active-text);
+        box-shadow: 0 4px 8px rgba(0, 123, 255, 0.2);
+    }
+
+    .sidebar .nav-link.active i {
+        color: var(--active-text);
+    }
+
+    /* --- Main Content Styling --- */
+    .main-content {
+        margin-left: var(--sidebar-collapsed-width); /* Adjust for collapsed sidebar */
+        padding: 20px;
+        transition: margin-left 0.3s ease-in-out;
+        flex-grow: 1;
+        background-color: #f0f2f5; /* Light background for content area */
+        min-height: calc(100vh - var(--navbar-height));
+    }
+
+    /* Cards in main content */
+    .card {
+        border: none;
+        border-radius: 12px;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-body {
+        padding: 25px;
+    }
+
+    .card-title {
+        font-weight: 600;
+        margin-top: 15px;
+        color: var(--primary-color);
+    }
+
+    .card-text {
+        color: var(--secondary-color);
+    }
+
+    .btn-outline-primary {
+        color: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+
+    .btn-outline-primary:hover {
+        background-color: var(--primary-color);
+        color: #fff;
+    }
+
+    /* --- Responsive Adjustments --- */
+    @media (max-width: 992px) {
         .sidebar {
-            height: 100vh;
-            position: fixed;
-            top: 56px;
-            left: 0;
-            width: 250px;
-            background-color: #f8f9fa;
-            padding-top: 20px;
-            border-right: 1px solid #dee2e6;
+            width: 0; /* Fully collapsed on smaller screens by default */
+            padding-top: 0;
+            left: -300px; /* Off-screen initially */
+            transition: width 0.3s ease-in-out, left 0.3s ease-in-out;
         }
+
+        .sidebar.show {
+            width: var(--sidebar-expanded-width); /* Open sidebar on smaller screens */
+            left: 0; /* Slide in */
+            padding-top: 20px; /* Restore padding when open */
+        }
+
+        .sidebar-header {
+            justify-content: flex-start; /* Always show full header when open */
+            padding: 10px 20px;
+        }
+
+        .sidebar-logo {
+            margin-right: 15px;
+        }
+
+        .sidebar-hospital-name {
+            opacity: 1; /* Always visible when sidebar is open on small screens */
+            pointer-events: auto;
+        }
+
+        .sidebar .nav-link i {
+            margin-right: 15px; /* Always visible when sidebar is open on small screens */
+        }
+
+        .sidebar .nav-link .nav-text {
+            opacity: 1; /* Always visible when sidebar is open on small screens */
+            pointer-events: auto;
+        }
+
         .main-content {
-            margin-left: 250px;
-            padding: 20px;
+            margin-left: 0; /* Content takes full width on small screens */
         }
-    </style>
+
+        .navbar-collapse {
+            background-color: var(--dark-bg); /* Dark background for mobile menu */
+            padding: 15px;
+            border-radius: 0 0 8px 8px;
+        }
+
+        .navbar-nav .nav-link {
+            padding: 8px 0; /* Adjust padding for vertical menu */
+        }
+    }
+</style>
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
-        <a class="navbar-brand" href="{% url 'home' %}">Hospital System</a>
-        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ml-auto">
-                {% if user.is_authenticated %}
-                    <li class="nav-item">
-                        <span class="nav-link">Welcome, {{ user.get_full_name|default:user.username }}! ({{ user.user_type|title }})</span>
-                    </li>
-                    <li class="nav-item">
-                    <form action="{% url 'logout' %}" method="post" style="display: inline;">
-                        {% csrf_token %} {# IMPORTANT: Add the CSRF token #}
-                        <button type="submit" class="nav-link btn btn-link" style="color: inherit; text-decoration: none; padding: 0;">Logout</button>
-                    </form>
-                </li>
-                {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'login' %}">Login</a>
-                    </li>
-                   
-                {% endif %}
-            </ul>
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top" id="mainNavbar">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'home' %}">
+                <i class="fas fa-hospital-alt me-2"></i>HospitalConnect
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    {% if user.is_authenticated %}
+                        <li class="nav-item d-flex align-items-center">
+                            <span class="nav-link text-white-50">Welcome, {{ user.get_full_name|default:user.username }}! ({{ user.user_type|title }})</span>
+                        </li>
+                        <li class="nav-item">
+                            <form action="{% url 'logout' %}" method="post" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="nav-link btn btn-link text-white-50">Logout</button>
+                            </form>
+                        </li>
+                    {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'login' %}">Login</a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </div>
         </div>
     </nav>
 
     <div class="d-flex">
         {% if user.is_authenticated %}
-        <div class="sidebar">
-            <ul class="nav flex-column">
-                <li class="nav-item"><a class="nav-link" href="{% url 'home' %}">Dashboard</a></li>
+        <div class="sidebar d-flex flex-column" id="sidebar">
+            <div class="sidebar-header">
+                <img src="https://via.placeholder.com/40" alt="Hospital Logo" class="sidebar-logo">
+                <span class="sidebar-hospital-name">HospitalConnect</span>
+            </div>
+            <ul class="nav flex-column flex-grow-1">
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'home' %}">
+                        <i class="fas fa-tachometer-alt fa-fw"></i>
+                        <span class="nav-text">Dashboard</span>
+                    </a>
+                </li>
                 {% if user.user_type == 'admin' or user.user_type == 'receptionist' or user.user_type == 'doctor' or user.user_type == 'nurse' %}
-                    <li class="nav-item"><a class="nav-link" href="{% url 'patient_list' %}">Patients</a></li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'patient_list' %}">
+                            <i class="fas fa-user-injured fa-fw"></i>
+                            <span class="nav-text">Patients</span>
+                        </a>
+                    </li>
                     {% if user.user_type == 'admin' %}
-                        <li class="nav-item"><a class="nav-link" href="{% url 'patient_create' %}">Add New Patient</a></li>
-                        <li class="nav-item"><a class="nav-link" href="{% url 'activity_log_list' %}">Activity Logs</a></li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'register_by_type' user_type='patient' %}">
+                                <i class="fas fa-user-plus fa-fw"></i>
+                                <span class="nav-text">Add New Patient</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'activity_log_list' %}">
+                                <i class="fas fa-clipboard-list fa-fw"></i>
+                                <span class="nav-text">Activity Logs</span>
+                            </a>
+                        </li>
                     {% endif %}
                 {% endif %}
                 {% if user.user_type == 'doctor' %}
-                    <li class="nav-item"><a class="nav-link" href="{% url 'doctor_patient_list' %}">My Patients</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{% url 'encounter_create' %}">New Encounter</a></li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'doctor_patient_list' %}">
+                            <i class="fas fa-user-md fa-fw"></i>
+                            <span class="nav-text">My Patients</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'encounter_create' %}">
+                            <i class="fas fa-notes-medical fa-fw"></i>
+                            <span class="nav-text">New Encounter</span>
+                        </a>
+                    </li>
                 {% endif %}
-                {# Add more links based on user roles #}
+                {# Add more links based on user roles here #}
             </ul>
         </div>
         {% endif %}
 
         <div class="main-content flex-grow-1">
             {% block content %}
+            <div class="container mt-4">
+                <h1>Welcome to HospitalConnect</h1>
+                <p>This is a modern and responsive hospital management system. Use the sidebar to navigate through various modules.</p>
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-body text-center">
+                                <i class="fas fa-users fa-3x text-primary mb-3"></i>
+                                <h5 class="card-title">Patient Management</h5>
+                                <p class="card-text">Efficiently manage patient records, appointments, and medical history.</p>
+                                <a href="{% url 'patient_list' %}" class="btn btn-outline-primary">View Patients</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-body text-center">
+                                <i class="fas fa-calendar-alt fa-3x text-success mb-3"></i>
+                                <h5 class="card-title">Appointment Scheduling</h5>
+                                <p class="card-text">Streamline appointment booking and reduce waiting times.</p>
+                                <a href="#" class="btn btn-outline-success">Schedule Appointment</a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card shadow-sm mb-4">
+                            <div class="card-body text-center">
+                                <i class="fas fa-file-medical fa-3x text-info mb-3"></i>
+                                <h5 class="card-title">Medical Records</h5>
+                                <p class="card-text">Securely store and retrieve comprehensive patient medical records.</p>
+                                <a href="#" class="btn btn-outline-info">Access Records</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             {% endblock %}
         </div>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     {% block extra_js %}{% endblock %}
+    <script>
+        // JavaScript for sidebar functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.querySelector('.main-content');
+            const navItems = sidebar.querySelectorAll('.nav-item');
+            const sidebarHeader = sidebar.querySelector('.sidebar-header');
+
+            function applySidebarState() {
+                if (window.innerWidth > 992) { // Apply on large screens
+                    sidebar.classList.remove('collapsed');
+                    sidebar.style.width = 'var(--sidebar-collapsed-width)';
+                    mainContent.style.marginLeft = 'var(--sidebar-collapsed-width)';
+                    sidebarHeader.style.justifyContent = 'center';
+                } else {
+                    sidebar.classList.add('collapsed');
+                    sidebar.style.width = '0';
+                    mainContent.style.marginLeft = '0';
+                }
+            }
+
+            // Initial state
+            applySidebarState();
+
+            // Handle hover for large screens only
+            if (window.innerWidth > 992) {
+                sidebar.addEventListener('mouseenter', () => {
+                    sidebar.style.width = 'var(--sidebar-expanded-width)';
+                    mainContent.style.marginLeft = 'var(--sidebar-expanded-width)';
+                    sidebar.classList.remove('collapsed');
+                    sidebarHeader.style.justifyContent = 'flex-start';
+                });
+
+                sidebar.addEventListener('mouseleave', () => {
+                    sidebar.style.width = 'var(--sidebar-collapsed-width)';
+                    mainContent.style.marginLeft = 'var(--sidebar-collapsed-width)';
+                    sidebar.classList.add('collapsed');
+                    sidebarHeader.style.justifyContent = 'center';
+                });
+            }
+
+            // Responsive behavior for smaller screens using Bootstrap's offcanvas-like approach
+            const navbarToggler = document.querySelector('.navbar-toggler');
+            if (navbarToggler) {
+                navbarToggler.addEventListener('click', () => {
+                    if (window.innerWidth <= 992) {
+                        if (sidebar.classList.contains('show')) {
+                            sidebar.classList.remove('show');
+                            sidebar.style.width = '0';
+                        } else {
+                            sidebar.classList.add('show');
+                            sidebar.style.width = 'var(--sidebar-expanded-width)'; // Or a suitable mobile width
+                        }
+                    }
+                });
+            }
+
+            // Close sidebar when clicking outside on small screens
+            document.addEventListener('click', function(event) {
+                if (window.innerWidth <= 992 && sidebar.classList.contains('show') &&
+                    !sidebar.contains(event.target) && !navbarToggler.contains(event.target)) {
+                    sidebar.classList.remove('show');
+                    sidebar.style.width = '0';
+                }
+            });
+
+            // Adjust sidebar on window resize
+            window.addEventListener('resize', applySidebarState);
+
+            // Hide nav-text initially for collapsed state
+            if (window.innerWidth > 992) {
+                 sidebar.querySelectorAll('.nav-text').forEach(text => {
+                    text.style.display = 'none';
+                });
+            }
+
+            sidebar.addEventListener('mouseenter', () => {
+                if (window.innerWidth > 992) {
+                    sidebar.querySelectorAll('.nav-text').forEach(text => {
+                        text.style.display = 'inline';
+                    });
+                }
+            });
+
+            sidebar.addEventListener('mouseleave', () => {
+                if (window.innerWidth > 992) {
+                    sidebar.querySelectorAll('.nav-text').forEach(text => {
+                        text.style.display = 'none';
+                    });
+                }
+            });
+
+            // Ensure correct state on page load for large screens
+            if (window.innerWidth > 992 && !sidebar.classList.contains('collapsed')) {
+                sidebar.querySelectorAll('.nav-text').forEach(text => {
+                    text.style.display = 'none';
+                });
+            }
+        });
+    </script>
 </body>
 </html>

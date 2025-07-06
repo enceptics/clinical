@@ -121,6 +121,8 @@ class Doctor(models.Model):
     specialization = models.CharField(max_length=100)
     medical_license_number = models.CharField(max_length=50, unique=True)
     department = models.ForeignKey('Department', on_delete=models.SET_NULL, null=True, blank=True)
+    years_of_experience = models.IntegerField(default=0, null=True, blank=True, help_text="Years of experience as a doctor.")
+
     # Add more doctor-specific fields like availability, schedule, etc.
 
     def __str__(self):
@@ -128,6 +130,7 @@ class Doctor(models.Model):
 
 class Nurse(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True, limit_choices_to={'user_type': 'nurse'})
+    nursing_license_number = models.CharField(max_length=50, unique=True, null=True, blank=True)
     # Add nurse-specific fields if any
 
     def __str__(self):

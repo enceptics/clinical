@@ -518,7 +518,7 @@
             <div class="row mt-4">
                 <div class="col-12 text-center">
                     <h4 class="text-muted">Admin Quick Actions</h4>
-                    <a href="{% url 'patient_create' %}" class="btn btn-primary me-2 mb-2">Register New Patient</a>
+                    <a href="{% url 'register_by_type' user_type='patient' %}" class="btn btn-primary me-2 mb-2">Register New Patient</a>
                     <a href="#" class="btn btn-primary disabled me-2 mb-2" aria-disabled="true">Manage Doctors</a>
                     <a href="#" class="btn btn-primary disabled mb-2" aria-disabled="true">View System Logs</a>
                 </div>
@@ -571,13 +571,18 @@
                             <small class="text-muted">{{ log.timestamp|date:"M d, Y H:i" }}</small>
                         </div>
 
-                        <p class="mb-1">
-                            <i class="fas fa-user-circle me-1 text-primary"></i>
-                            <strong>User:</strong> {{ log.user.get_full_name|default:log.user.username|default:"System" }}
-                            {% if log.ip_address %}
-                                <span class="text-muted small ms-2">(IP: {{ log.ip_address }})</span>
-                            {% endif %}
-                        </p>
+                               <p class="mb-1">
+                                <i class="fas fa-user-circle me-1 text-primary"></i>
+                                <strong>User:</strong>
+                                {% if log.user %}
+                                    {{ log.user.get_full_name|default:log.user.username }}
+                                {% else %}
+                                    System / Anonymous
+                                {% endif %}
+                                {% if log.ip_address %}
+                                    <span class="text-muted small ms-2">(IP: {{ log.ip_address }})</span>
+                                {% endif %}
+                            </p>
 
                         {% if log.model_name %}
                             <p class="mb-1 small">

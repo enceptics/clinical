@@ -9,7 +9,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hospital Management System | Register</title>
+    <title>Hospital Management System | Register {% if user_type %}{{ user_type|underscore_to_space|title }}{% endif %}</title>
     <link rel="stylesheet" href="{% static 'assets/css/bootstrap.min.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
@@ -392,15 +392,15 @@
             </p>
             <div class="features">
                 <div class="feature-item animate" style="animation-delay: 0.4s;">
-                    <div class="feature-icon"><i class="fas fa-user-md"></i></div>
+                    <div class="feature-icon" aria-hidden="true"><i class="fas fa-user-md"></i></div>
                     <div class="feature-text">Dedicated Professionals</div>
                 </div>
                 <div class="feature-item animate" style="animation-delay: 0.6s;">
-                    <div class="feature-icon"><i class="fas fa-notes-medical"></i></div>
+                    <div class="feature-icon" aria-hidden="true"><i class="fas fa-notes-medical"></i></div>
                     <div class="feature-text">Comprehensive Patient Records</div>
                 </div>
                 <div class="feature-item animate" style="animation-delay: 0.8s;">
-                    <div class="feature-icon"><i class="fas fa-shield-alt"></i></div>
+                    <div class="feature-icon" aria-hidden="true"><i class="fas fa-shield-alt"></i></div>
                     <div class="feature-text">Secure & Private Data Management</div>
                 </div>
             </div>
@@ -411,61 +411,73 @@
                 <h2 class="welcome-title animate">Register User Account</h2>
                 <p class="welcome-subtitle animate" style="animation-delay: 0.2s;">
                     {% if user_type %}
-                        Register {{ user_type|underscore_to_space }}
+                        Register {{ user_type|underscore_to_space|title }}
                     {% else %}
                         Create a new account
                     {% endif %}
                 </p>
 
-                <form method="post" class="registration-form">
+                <form method="post" class="registration-form" novalidate>
                     {% csrf_token %}
 
+                    {# Display non-field errors at the top if any #}
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger animate" style="animation-delay: 0.3s;">
+                            {% for error in form.non_field_errors %}
+                                <p>{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
                     <div class="row">
-                        {# Loop through form fields #}
                         {% for field in form %}
                             <div class="{% if field.field.widget.input_type == 'textarea' or field.name == 'allergies' or field.name == 'pre_existing_conditions' or field.name == 'address' %}col-12{% else %}col-md-6{% endif %}">
                                 <div class="form-group animate" style="animation-delay: {{ forloop.counter|multiply:0.1 }}s;">
-                                    <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                    {% if field.field.widget.input_type != 'checkbox' %}
+                                        <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                                    {% endif %}
 
                                     {# Conditionally add icon based on field name #}
+                                    {% comment %}
+                                        If you're using django-crispy-forms, you can remove this manual icon logic and let crispy forms handle it,
+                                        or you can use custom crispy form templates to insert icons.
+                                    {% endcomment %}
                                     {% if field.name == 'username' %}
-                                        <i class="input-icon fas fa-user"></i>
+                                        <i class="input-icon fas fa-user" aria-hidden="true"></i>
                                     {% elif field.name == 'password' or field.name == 'password2' %}
-                                        <i class="input-icon fas fa-lock"></i>
+                                        <i class="input-icon fas fa-lock" aria-hidden="true"></i>
                                     {% elif field.name == 'email' %}
-                                        <i class="input-icon fas fa-envelope"></i>
-                                    {% elif field.name == 'first_name' %}
-                                        <i class="input-icon fas fa-signature"></i>
-                                    {% elif field.name == 'last_name' %}
-                                        <i class="input-icon fas fa-signature"></i>
+                                        <i class="input-icon fas fa-envelope" aria-hidden="true"></i>
+                                    {% elif field.name == 'first_name' or field.name == 'last_name' %}
+                                        <i class="input-icon fas fa-signature" aria-hidden="true"></i>
                                     {% elif field.name == 'phone_number' or field.name == 'emergency_contact_phone' %}
-                                        <i class="input-icon fas fa-phone"></i>
+                                        <i class="input-icon fas fa-phone" aria-hidden="true"></i>
                                     {% elif field.name == 'address' %}
-                                        <i class="input-icon fas fa-map-marker-alt"></i>
+                                        <i class="input-icon fas fa-map-marker-alt" aria-hidden="true"></i>
                                     {% elif field.name == 'date_of_birth' %}
-                                        <i class="input-icon fas fa-calendar-alt"></i>
+                                        <i class="input-icon fas fa-calendar-alt" aria-hidden="true"></i>
                                     {% elif field.name == 'gender' %}
-                                        <i class="input-icon fas fa-venus-mars"></i>
+                                        <i class="input-icon fas fa-venus-mars" aria-hidden="true"></i>
                                     {% elif field.name == 'specialization' %}
-                                        <i class="input-icon fas fa-stethoscope"></i>
+                                        <i class="input-icon fas fa-stethoscope" aria-hidden="true"></i>
                                     {% elif field.name == 'medical_license_number' %}
-                                        <i class="input-icon fas fa-id-card"></i>
+                                        <i class="input-icon fas fa-id-card" aria-hidden="true"></i>
                                     {% elif field.name == 'department' %}
-                                        <i class="input-icon fas fa-hospital"></i>
+                                        <i class="input-icon fas fa-hospital" aria-hidden="true"></i>
                                     {% elif field.name == 'blood_group' %}
-                                        <i class="input-icon fas fa-tint"></i>
+                                        <i class="input-icon fas fa-tint" aria-hidden="true"></i>
                                     {% elif field.name == 'emergency_contact_name' %}
-                                        <i class="input-icon fas fa-user-friends"></i>
+                                        <i class="input-icon fas fa-user-friends" aria-hidden="true"></i>
                                     {% elif field.name == 'allergies' or field.name == 'pre_existing_conditions' %}
-                                        <i class="input-icon fas fa-notes-medical"></i>
+                                        <i class="input-icon fas fa-notes-medical" aria-hidden="true"></i>
                                     {% elif field.name == 'pharmacy_license_number' %}
-                                        <i class="input-icon fas fa-prescription-bottle-alt"></i>
+                                        <i class="input-icon fas fa-prescription-bottle-alt" aria-hidden="true"></i>
                                     {% elif field.name == 'years_of_experience' %}
-                                        <i class="input-icon fas fa-hourglass-half"></i>
+                                        <i class="input-icon fas fa-hourglass-half" aria-hidden="true"></i>
                                     {% elif field.name == 'employee_id' %}
-                                        <i class="input-icon fas fa-id-badge"></i>
+                                        <i class="input-icon fas fa-id-badge" aria-hidden="true"></i>
                                     {% else %}
-                                        <i class="input-icon fas fa-info-circle"></i>
+                                        <i class="input-icon fas fa-info-circle" aria-hidden="true"></i>
                                     {% endif %}
 
                                     {# Render the field, applying Bootstrap classes #}
@@ -479,33 +491,46 @@
                                     {% endif %}
 
                                     {% if field.help_text %}
-                                        <small class="form-text text-muted">{{ field.help_text }}</small>
+                                        <div id="{{ field.id_for_label }}-help" class="form-text text-muted">{{ field.help_text }}</div>
                                     {% endif %}
                                     {% for error in field.errors %}
-                                        <div class="alert alert-danger mt-1">{{ error }}</div>
+                                        <div class="alert alert-danger mt-1" role="alert">{{ error }}</div>
                                     {% endfor %}
                                 </div>
                             </div>
                         {% endfor %}
                     </div> {# End Bootstrap row #}
 
-                    <button type='submit' class="btn btn-register btn-block animate" style="animation-delay: {{ form|length|multiply:0.1|add:0.2 }}s;">
+                    <button type="submit" class="btn btn-register btn-block animate" style="animation-delay: {{ form|length|multiply:0.1|add:0.2 }}s;">
                         <span class="button__text">Register Account</span>
                     </button>
 
                     <div class="alert-container">
                         {% if messages %}
-                        <div class="alert alert-info animate" style="animation-delay: {{ form|length|multiply:0.1|add:0.4 }}s;">
-                            {% for message in messages %}
-                            <p class="{{ message.tags }}"><b>{{ message }}</b></p>
-                            {% endfor %}
-                        </div>
+                            <div class="alert alert-info animate" style="animation-delay: {{ form|length|multiply:0.1|add:0.4 }}s;" role="alert">
+                                {% for message in messages %}
+                                    <p class="{{ message.tags }}"><b>{{ message }}</b></p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        {# If there are general form errors (not tied to specific fields) #}
+                        {% if form.errors and not form.non_field_errors %}
+                            <div class="alert alert-danger animate" style="animation-delay: {{ form|length|multiply:0.1|add:0.4 }}s;" role="alert">
+                                <p>Please correct the errors below:</p>
+                                {% for field in form %}
+                                    {% if field.errors %}
+                                        {% for error in field.errors %}
+                                            <p><strong>{{ field.label }}:</strong> {{ error }}</p>
+                                        {% endfor %}
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
                         {% endif %}
                     </div>
                 </form>
 
                 <div class="footer animate" style="animation-delay: {{ form|length|multiply:0.1|add:0.6 }}s;">
-                    <p><a href="{% url 'login' %}" class="footer-link">Login here</a>.</p>
+                    <p>Already have an account? <a href="{% url 'login' %}" class="footer-link">Login here</a>.</p>
                     <p>&copy; 2025 Hospital Management System</p>
                 </div>
             </div>

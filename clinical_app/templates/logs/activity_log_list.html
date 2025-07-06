@@ -12,8 +12,6 @@
 {% block content %}
 <style>
 	/* clinical_app/static/clinical_app/css/activity_log_styles.css */
-
-/* --- General Styling --- */
 body {
     font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     background-color: #f8f9fa; /* Light background */
@@ -324,7 +322,6 @@ body {
     }
 }
 
-
 /* --- Font Awesome for Icons --- */
 /* Make sure you have Font Awesome linked in your base.html */
 /* e.g., <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"> */
@@ -399,11 +396,18 @@ body {
                                         <small class="text-muted">{{ log.timestamp|date:"H:i:s" }}</small>
                                     </td>
                                     <td data-label="User:">
-                                        <div class="user-cell">
-                                            <i class="fas fa-user-circle me-1"></i>
-                                            {{ log.user.get_full_name|default:log.user.username|default:"Anonymous" }}
-                                        </div>
-                                    </td>
+                                <td data-label="User:">
+                                    <div class="user-cell">
+                                        <i class="fas fa-user-circle me-1"></i>
+                                        {% if log.user %}
+                                            {# If log.user exists, try get_full_name, then username #}
+                                            {{ log.user.get_full_name|default:log.user.username }}
+                                        {% else %}
+                                            {# If log.user is None, display "System" or "Anonymous" #}
+                                            Anonymous / System
+                                        {% endif %}
+                                    </div>
+                                </td>
                                     <td data-label="Action Type:">
                                         <span class="badge rounded-pill bg-action-{{ log.action_type|lower|slugify }} text-white custom-badge">
                                             {{ log.action_type|title }}
