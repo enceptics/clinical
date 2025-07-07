@@ -5,6 +5,7 @@ from django.contrib.auth.models import AbstractUser
 from datetime import date, timedelta # Import timedelta for date calculations
 import uuid
 from django.urls import reverse # Import reverse for get_absolute_url
+from decimal import Decimal, InvalidOperation, DivisionByZero,ROUND_HALF_UP
 
 # -----------------------------------------------------------------------------
 # User and Staff Management (Custom User Model)
@@ -459,6 +460,7 @@ class Encounter(models.Model):
     def __str__(self):
         return f"Encounter for {self.patient} on {self.encounter_date.strftime('%Y-%m-%d')}"
 
+
 class VitalSign(models.Model):
     encounter = models.ForeignKey(Encounter, on_delete=models.CASCADE, related_name='vital_signs')
     recorded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True) # Nurse or Doctor
@@ -477,11 +479,26 @@ class VitalSign(models.Model):
         return f"Vitals for {self.encounter.patient} on {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
 
     def save(self, *args, **kwargs):
-        if self.weight_kg and self.height_cm:
-            height_m = self.height_cm / 100
-            if height_m > 0:
-                self.bmi = self.weight_kg / (height_m ** 2)
+        if self.weight_kg is None or self.height_cm is None:
+            self.bmi = None
+        else:
+            try:
+                weight = Decimal(self.weight_kg)
+                height = Decimal(self.height_cm) / Decimal('100')
+                if height > 0:
+                    bmi = weight / (height ** 2)
+                    bmi = bmi.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    if bmi < Decimal('1000'):
+                        self.bmi = bmi
+                    else:
+                        self.bmi = None
+                else:
+                    self.bmi = None
+            except (InvalidOperation, TypeError):
+                self.bmi = None
+
         super().save(*args, **kwargs)
+
 
 class MedicalHistory(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='medical_history_entries')

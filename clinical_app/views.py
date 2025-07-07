@@ -755,35 +755,6 @@ class EncounterDetailView(LoginRequiredMixin, IsMedicalStaffMixin, DetailView):
         )
         return context
 
-class EncounterCreateView(LoginRequiredMixin, IsMedicalStaffMixin, CreateView):
-    model = Encounter
-    fields = ['patient', 'doctor', 'appointment', 'encounter_type', 'admission_date', 'discharge_date', 'ward', 'bed']
-    template_name = 'clinical_app/encounter_form.html'
-    success_url = reverse_lazy('home')
-
-    def get_form(self, form_class=None):
-        form = super().get_form(form_class)
-        if self.request.user.user_type == 'doctor' and hasattr(self.request.user, 'doctor'):
-            form.fields['doctor'].initial = self.request.user.doctor
-            form.fields['doctor'].widget = forms.HiddenInput()
-        return form
-
-    def form_valid(self, form):
-        if not form.cleaned_data.get('doctor') and self.request.user.user_type == 'doctor' and hasattr(self.request.user, 'doctor'):
-            form.instance.doctor = self.request.user.doctor
-
-        response = super().form_valid(form) # Save the form and get the instance
-
-        log_activity(
-            self.request.user,
-            'CREATE',
-            f'Created new encounter for patient {form.instance.patient.user.get_full_name()} (Encounter ID: {form.instance.pk})',
-            model_name='Encounter',
-            object_id=form.instance.pk,
-            ip_address=get_client_ip(self.request)
-        )
-        messages.success(self.request, f"Encounter for {form.instance.patient.user.get_full_name()} created successfully.")
-        return response
 
 # --- Sub-form Views (e.g., adding vitals to an encounter) ---
 
@@ -946,43 +917,60 @@ class EncounterCreateView(LoginRequiredMixin, IsMedicalStaffMixin, CreateView):
 
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
+
         # Prefill doctor if current user is a doctor
         if self.request.user.user_type == 'doctor' and hasattr(self.request.user, 'doctor'):
             form.fields['doctor'].initial = self.request.user.doctor
             form.fields['doctor'].widget = forms.HiddenInput() # Hide the field
 
         # Filter patients to only show active ones, if applicable
+        # This line assumes your Patient model has an 'is_active' field
+        # If Patient model is directly your User model, then user__is_active applies
         # form.fields['patient'].queryset = Patient.objects.filter(is_active=True)
+        # If Patient links to User:
+        # form.fields['patient'].queryset = Patient.objects.filter(user__is_active=True)
 
         # Filter doctors to only show active ones
         form.fields['doctor'].queryset = Doctor.objects.filter(user__is_active=True)
 
         # Filter wards and beds
         form.fields['ward'].queryset = Ward.objects.all()
-        # Initializing bed choices based on selected ward (might need JS for dynamic update)
+
+        # Handle bed queryset for CreateView
+        # On initial GET request, 'ward' won't be in self.request.POST,
+        # so beds should typically be empty or filtered by a default ward
+        # If it's a POST request (form submission), we try to filter beds based on the submitted ward
         if 'ward' in self.request.POST:
             try:
                 ward_id = int(self.request.POST.get('ward'))
                 form.fields['bed'].queryset = Bed.objects.filter(ward_id=ward_id, is_occupied=False)
             except (ValueError, TypeError):
+                # Fallback if ward_id is invalid
                 form.fields['bed'].queryset = Bed.objects.none()
-        elif self.instance.pk: # For update view if instance exists
-            form.fields['bed'].queryset = Bed.objects.filter(Q(ward=self.instance.ward) | Q(is_occupied=False))
         else:
-            form.fields['bed'].queryset = Bed.objects.none() # No ward selected initially
+            # For the initial GET request to display the form, or if no ward is selected
+            # You generally want to start with an empty bed queryset for dynamic loading via JS
+            form.fields['bed'].queryset = Bed.objects.none()
+
+        # Removed the 'elif self.instance.pk:' part because CreateView doesn't have self.instance.pk
+        # This logic is typically for an UpdateView
 
         return form
 
     def form_valid(self, form):
+        # Set the doctor BEFORE saving the form if it's not already set
         if not form.cleaned_data.get('doctor') and self.request.user.user_type == 'doctor' and hasattr(self.request.user, 'doctor'):
             form.instance.doctor = self.request.user.doctor
 
         with transaction.atomic():
-            response = super().form_valid(form) # Save the form and get the instance
+            # Call super().form_valid(form) FIRST to save the instance
+            # At this point, form.instance will be populated with the new Encounter object
+            response = super().form_valid(form)
 
             # If a bed was assigned, mark it as occupied
             if form.instance.bed:
                 bed = form.instance.bed
+                # Check if the bed was already occupied to avoid redundant updates and logs
                 if not bed.is_occupied:
                     bed.is_occupied = True
                     bed.save()
@@ -1006,7 +994,7 @@ class EncounterCreateView(LoginRequiredMixin, IsMedicalStaffMixin, CreateView):
             )
         messages.success(self.request, f"Encounter for {form.instance.patient.user.get_full_name()} created successfully.")
         return response
-
+        
 class EncounterUpdateView(LoginRequiredMixin, IsMedicalStaffMixin, UpdateView): # Added Update View for Encounter
     model = Encounter
     fields = ['patient', 'doctor', 'appointment', 'encounter_type', 'admission_date', 'discharge_date', 'ward', 'bed']

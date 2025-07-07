@@ -1,21 +1,166 @@
 {% extends "clinical_app/base.html" %}
+{% load custom_filters %} {# Make sure custom_filters is loaded! #}
 
 {% block title %}{% if object %}Edit Encounter{% else %}Create New Encounter{% endif %}{% endblock %}
 
+{% block extra_head %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
+
+    <style>
+        /* Custom Styles for Modern Form (No changes needed here unless you want to tweak date picker specific styles) */
+        .card {
+            border: none;
+            border-radius: 1rem;
+            box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        .card-header {
+            background-color: #007bff;
+            color: #fff;
+            padding: 1.5rem;
+            border-bottom: none;
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-header h3 {
+            margin-bottom: 0;
+            line-height: 1;
+        }
+
+        .card-body {
+            padding: 2.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-control {
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            border: 1px solid #ced4da;
+            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+
+        .form-control:focus {
+            border-color: #80bdff;
+            box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.25);
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        input[type="hidden"].form-control {
+            display: none;
+        }
+
+        .alert-danger {
+            font-size: 0.875rem;
+            padding: 0.5rem 1rem;
+            margin-top: 0.5rem;
+            border-radius: 0.5rem;
+            background-color: #f8d7da;
+            color: #721c24;
+            border-color: #f5c6cb;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            font-size: 1.1rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease-in-out;
+            margin-right: 0.75rem;
+        }
+
+        .btn-success {
+            background-color: #28a745;
+            border-color: #28a745;
+        }
+
+        .btn-success:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(40, 167, 69, 0.2);
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            border-color: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
+            border-color: #545b62;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(108, 117, 125, 0.2);
+        }
+
+        /* Specific styles for Flatpickr input */
+        /* Make sure the actual input field is visible and styled */
+        .flatpickr-input {
+            background-color: #fff;
+            cursor: pointer;
+            width: 100%; /* Ensure it takes full width of parent */
+            box-sizing: border-box; /* Include padding and border in the element's total width and height */
+        }
+        /* Style the hidden input if altInput is true (Flatpickr creates a new visible input) */
+        .flatpickr-input[readonly] {
+            background-color: #f8f9fa; /* Slightly different background for readonly input */
+            cursor: pointer;
+        }
+    </style>
+{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center mt-5">
-    <div class="col-md-8">
-        <div class="card">
+<div class="row justify-content-center mt-5 mb-5">
+    <div class="col-md-8 col-lg-7">
+        <div class="card shadow-lg">
             <div class="card-header">
-                <h3>{% if object %}Edit Encounter{% else %}Create New Encounter{% endif %}</h3>
+                <h3>
+                    <i class="fas {% if object %}fa-edit{% else %}fa-plus-circle{% endif %} me-2"></i>
+                    {% if object %}Edit Encounter{% else %}Create New Encounter{% endif %}
+                </h3>
             </div>
             <div class="card-body">
-                <form method="post">
+                <form method="post" id="encounter-form">
                     {% csrf_token %}
                     {% for field in form %}
-                        <div class="form-group">
+                        <div class="form-group mb-3">
                             {{ field.label_tag }}
-                            {{ field }}
+                            {% if field.name == 'ward' %}
+                                <select name="{{ field.name }}" id="{{ field.id_for_label }}" class="form-select">
+                                    <option value="">Select Ward</option>
+                                    {% for value, text in field.field.choices %}
+                                        <option value="{{ value }}" {% if field.value == value %}selected{% endif %}>{{ text }}</option>
+                                    {% endfor %}
+                                </select>
+                            {% elif field.name == 'bed' %}
+                                <select name="{{ field.name }}" id="{{ field.id_for_label }}" class="form-select">
+                                    <option value="">Select Bed</option>
+                                    {% if object and object.bed %} {# Simplified this check #}
+                                        <option value="{{ object.bed.pk }}" selected>{{ object.bed }}</option>
+                                    {% endif %}
+                                </select>
+                            {% elif field.name == 'admission_date' or field.name == 'discharge_date' %}
+                                {# Ensure date fields have type="date" or "datetime-local" if they are not already #}
+                                {# Use add_attr to force the type, if Django's default widget isn't setting it #}
+                                {{ field|add_attr:"type:date,class:form-control" }}
+                                {# If these are DateTimeFields and you want time picker too, use type:datetime-local #}
+                                {# {{ field|add_attr:"type:datetime-local,class:form-control" }} #}
+                            {% else %}
+                                {{ field|add_class:"form-control" }}
+                            {% endif %}
                             {% if field.help_text %}
                                 <small class="form-text text-muted">{{ field.help_text }}</small>
                             {% endif %}
@@ -24,11 +169,97 @@
                             {% endfor %}
                         </div>
                     {% endfor %}
-                    <button type="submit" class="btn btn-success">{% if object %}Save Changes{% else %}Create Encounter{% endif %}</button>
-                    <a href="{% url 'home' %}" class="btn btn-secondary">Cancel</a>
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas {% if object %}fa-save{% else %}fa-plus{% endif %} me-2"></i>
+                            {% if object %}Save Changes{% else %}Create Encounter{% endif %}
+                        </button>
+                        <a href="{% url 'home' %}" class="btn btn-secondary">
+                            <i class="fas fa-times-circle me-2"></i> Cancel
+                        </a>
+                    </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Flatpickr for date fields (e.g., admission_date, discharge_date)
+            // Target input elements that should act as date pickers
+            flatpickr("input[name='admission_date'], input[name='discharge_date']", {
+                dateFormat: "Y-m-d", // Date format for backend (YYYY-MM-DD)
+                altInput: true,      // Show a user-friendly date format
+                altFormat: "F j, Y", // User-friendly format (e.g., July 7, 2025)
+                allowInput: true,    // Allow direct typing into the field
+                // Add icon for calendar if desired (requires a button next to input)
+                // If you want a clear button:
+                // wrap: true, // Wraps input and button in a div
+                // clickOpens: false, // Don't open on input click if you have a button
+                // defaultDate: "today" // To set default date to today
+            });
+
+            // If you have fields that are DateTimeFields in your model and you want time picker too:
+            // flatpickr("input[name='appointment']", { // Example for an 'appointment' field
+            //     enableTime: true,
+            //     dateFormat: "Y-m-dTH:i", // ISO format for datetime-local
+            //     altInput: true,
+            //     altFormat: "F j, Y h:i K", // e.g., July 7, 2025 10:19 AM
+            //     allowInput: true,
+            // });
+
+            // --- Dynamic Bed Loading (AJAX) ---
+            const wardSelect = document.getElementById('id_ward');
+            const bedSelect = document.getElementById('id_bed');
+
+            if (wardSelect && bedSelect) {
+                const loadBeds = async (wardId) => {
+                    bedSelect.innerHTML = '<option value="">Loading Beds...</option>';
+                    if (!wardId) {
+                        bedSelect.innerHTML = '<option value="">Select Bed</option>';
+                        return;
+                    }
+
+                    try {
+                        // Ensure this URL is correctly defined in your urls.py (e.g., using a name like 'api_beds_by_ward')
+                        const response = await fetch(`/api/beds_by_ward/${wardId}/?is_occupied=false`);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const beds = await response.json();
+
+                        let options = '<option value="">Select Bed</option>';
+                        beds.forEach(bed => {
+                            // Pre-select if it's the current bed for an existing encounter
+                            // Use object.bed.pk for a CreateView will be empty, but for an UpdateView it will have a value
+                            const isSelected = "{{ object.bed.pk }}" && "{{ object.bed.pk }}" === String(bed.id) ? 'selected' : '';
+                            options += `<option value="${bed.id}" ${isSelected}>${bed.bed_number} - ${bed.status}</option>`;
+                        });
+                        bedSelect.innerHTML = options;
+
+                    } catch (error) {
+                        console.error('Error fetching beds:', error);
+                        bedSelect.innerHTML = '<option value="">Error loading beds</option>';
+                    }
+                };
+
+                // Load beds if a ward is already selected (e.g., on edit page load or form re-render with errors)
+                if (wardSelect.value) { // This handles cases where ward is pre-selected by form data on POST/GET
+                    loadBeds(wardSelect.value);
+                } else if ("{{ object.ward.pk }}") { // This handles cases where object.ward exists (for UpdateView)
+                    loadBeds("{{ object.ward.pk }}");
+                }
+
+
+                // Add event listener for ward selection change
+                wardSelect.addEventListener('change', (event) => {
+                    loadBeds(event.target.value);
+                });
+            }
+        });
+    </script>
 {% endblock %}

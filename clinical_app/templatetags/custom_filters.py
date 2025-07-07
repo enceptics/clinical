@@ -20,3 +20,23 @@ def multiply(value, arg):
         return float(value) * float(arg)
     except (ValueError, TypeError):
         return ''
+
+@register.filter(name='add_class')
+def add_class(value, arg):
+    """
+    Adds a CSS class to a form field.
+    """
+    return value.as_widget(attrs={'class': arg})
+
+@register.filter(name='add_attr')
+def add_attr(field, css):
+    """
+    Adds attributes to a form field.
+    Usage: {{ field|add_attr:"placeholder:Enter text,data-test:value" }}
+    """
+    attrs = {}
+    pairs = css.split(',')
+    for pair in pairs:
+        key, value = pair.split(':')
+        attrs[key.strip()] = value.strip()
+    return field.as_widget(attrs=attrs)

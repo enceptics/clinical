@@ -62,8 +62,16 @@
                                     RR: {{ vital.respiratory_rate|default:"N/A" }} rpm,
                                     SpO2: {{ vital.oxygen_saturation|default:"N/A" }}%
                                     {% if vital.weight_kg or vital.height_cm %}
-                                        <br>Weight: {{ vital.weight_kg|default:"N/A" }} kg, Height: {{ vital.height_cm|default:"N/A" }} cm, BMI: {{ vital.bmi|default:"N/A" }}
+                                        <br>
+                                        Weight: {{ vital.weight_kg|default:"N/A" }} kg,
+                                        Height: {{ vital.height_cm|default:"N/A" }} cm,
+                                        {% if vital.bmi %}
+                                            BMI: {{ vital.bmi|floatformat:2 }}
+                                        {% else %}
+                                            BMI: N/A
+                                        {% endif %}
                                     {% endif %}
+
                                     <small class="text-muted">Recorded by: {{ vital.recorded_by.get_full_name|default:"N/A" }}</small>
                                 </li>
                             {% endfor %}
