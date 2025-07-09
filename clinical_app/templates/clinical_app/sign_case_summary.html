@@ -1,0 +1,252 @@
+{% extends "clinical_app/base.html" %}
+{% load static %} 
+
+{% block title %}Sign Case Summary for {{ case_summary.encounter.patient.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="signature-page-container">
+    <header class="signature-header">
+        <h1>Sign Case Summary</h1>
+        <p>Please provide your signature or initials to finalize the case summary.</p>
+        <p class="summary-id">Case Summary ID: <strong>{{ case_summary.pk }}</strong></p>
+        <p class="patient-info">Patient: <strong>{{ case_summary.encounter.patient.user.get_full_name }}</strong></p>
+    </header>
+
+    <div class="signature-area">
+        <form method="post" id="signatureForm">
+            {% csrf_token %}
+
+            <div class="tab-controls">
+                <button type="button" class="tab-button active" data-tab="draw-tab">Draw Signature</button>
+                <button type="button" class="tab-button" data-tab="initials-tab">Type Initials</button>
+            </div>
+
+            <div class="tab-content">
+                <div id="draw-tab" class="tab-pane active">
+                    <h3>Draw Your Signature</h3>
+                    <canvas id="signatureCanvas" width="400" height="200" style="border: 1px solid #ccc; background-color: #f9f9f9; border-radius: 8px;"></canvas>
+                    <div class="canvas-actions">
+                        <button type="button" id="clearSignature" class="btn btn-secondary btn-sm">Clear</button>
+                    </div>
+                    <input type="hidden" name="signature_data" id="signatureData">
+                </div>
+
+                <div id="initials-tab" class="tab-pane">
+                    <h3>Type Your Initials</h3>
+                    <input type="text" name="initials" id="initialsInput" maxlength="10" placeholder="e.g., JD" class="form-control">
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-check-circle"></i> Confirm & Sign
+                </button>
+                <a href="{% url 'clinical_app:case_summary_detail' pk=case_summary.pk %}" class="btn btn-secondary">
+                    <i class="fas fa-times-circle"></i> Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const signatureCanvas = document.getElementById('signatureCanvas');
+        const signaturePad = new SignaturePad(signatureCanvas, {
+            backgroundColor: 'rgb(249, 249, 249)' // match canvas background
+        });
+
+        document.getElementById('clearSignature').addEventListener('click', function() {
+            signaturePad.clear();
+        });
+
+        document.getElementById('signatureForm').addEventListener('submit', function(event) {
+            const signatureDataField = document.getElementById('signatureData');
+            const initialsInputField = document.getElementById('initialsInput');
+
+            const drawTab = document.getElementById('draw-tab');
+            const initialsTab = document.getElementById('initials-tab');
+
+            // Determine which tab is active and populate the correct field
+            if (drawTab.classList.contains('active')) {
+                if (signaturePad.isEmpty()) {
+                    alert("Please provide your signature by drawing it.");
+                    event.preventDefault(); // Stop form submission
+                } else {
+                    signatureDataField.value = signaturePad.toDataURL();
+                }
+            } else if (initialsTab.classList.contains('active')) {
+                if (initialsInputField.value.trim() === '') {
+                    alert("Please provide your initials.");
+                    event.preventDefault(); // Stop form submission
+                }
+                // Signature data field remains empty if initials are used
+                signatureDataField.value = '';
+            } else {
+                alert("Please provide a signature or initials.");
+                event.preventDefault(); // Stop form submission if neither tab is active
+            }
+        });
+
+        // Tab functionality
+        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabPanes = document.querySelectorAll('.tab-pane');
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                tabButtons.forEach(btn => btn.classList.remove('active'));
+                tabPanes.forEach(pane => pane.classList.remove('active'));
+
+                button.classList.add('active');
+                document.getElementById(button.dataset.tab).classList.add('active');
+
+                // Clear the other input when switching tabs
+                if (button.dataset.tab === 'draw-tab') {
+                    document.getElementById('initialsInput').value = '';
+                } else {
+                    signaturePad.clear();
+                }
+            });
+        });
+    });
+</script>
+
+<style>
+    body { background-color: #f4f7f6; margin: 0; padding: 0; }
+    .signature-page-container {
+        max-width: 700px;
+        margin: 40px auto;
+        padding: 40px;
+        background-color: #fff;
+        border-radius: 12px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+        font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #343a40;
+        line-height: 1.7;
+        text-align: center; /* Center content in the container */
+    }
+    .signature-header { margin-bottom: 30px; }
+    .signature-header h1 {
+        color: #0056b3;
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        font-weight: 700;
+    }
+    .signature-header p {
+        font-size: 1.05em;
+        color: #6c757d;
+        margin-bottom: 5px;
+    }
+    .signature-header .summary-id {
+        font-size: 1.1em;
+        color: #343a40;
+        margin-top: 15px;
+    }
+    .signature-area {
+        background-color: #f8fbfd;
+        border: 1px solid #d0e0eb;
+        border-radius: 10px;
+        padding: 30px;
+        margin-bottom: 30px;
+    }
+    .tab-controls {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 25px;
+        border-bottom: 1px solid #eee;
+    }
+    .tab-button {
+        background-color: #f0f4f7;
+        border: none;
+        padding: 12px 25px;
+        cursor: pointer;
+        font-size: 1.05em;
+        font-weight: 600;
+        color: #555;
+        border-radius: 8px 8px 0 0;
+        transition: all 0.3s ease;
+        margin: 0 5px;
+        box-shadow: 0 -2px 5px rgba(0,0,0,0.05); /* Subtle shadow on top */
+    }
+    .tab-button.active {
+        background-color: #007bff;
+        color: white;
+        box-shadow: 0 -4px 8px rgba(0, 123, 255, 0.2);
+    }
+    .tab-pane {
+        display: none;
+        padding: 20px 0;
+    }
+    .tab-pane.active {
+        display: block;
+    }
+    #signatureCanvas {
+        display: block; /* Centers the canvas */
+        margin: 0 auto 15px auto;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+    .canvas-actions {
+        margin-top: 10px;
+    }
+    #initialsInput {
+        width: 60%; /* Narrower for initials */
+        max-width: 200px;
+        padding: 12px;
+        margin: 0 auto; /* Center the input */
+        display: block;
+        border: 1px solid #ced4da;
+        border-radius: 8px;
+        font-size: 1.1em;
+        text-align: center;
+    }
+    .form-actions {
+        margin-top: 30px;
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+    }
+    .btn {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 12px 25px; border-radius: 8px; text-decoration: none;
+        font-weight: 600; transition: all 0.3s ease;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.08); cursor: pointer;
+    }
+    .btn-primary { background-color: #007bff; color: #fff; border: 1px solid #007bff; }
+    .btn-secondary { background-color: #6c757d; color: #fff; border: 1px solid #6c757d; }
+    .btn-sm { padding: 8px 15px; font-size: 0.9em; }
+    .btn:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.15); opacity: 0.95; }
+
+    /* Responsive adjustments */
+    @media (max-width: 480px) {
+        #signatureCanvas {
+            width: 100%; /* Make canvas responsive */
+            height: 150px;
+        }
+        .signature-page-container {
+            padding: 20px;
+            margin: 20px auto;
+        }
+        .signature-header h1 { font-size: 1.8em; }
+        .tab-button {
+            padding: 10px 15px;
+            font-size: 0.9em;
+        }
+        .btn {
+            padding: 10px 15px;
+            font-size: 0.9em;
+            margin: 0 5px;
+        }
+        .form-actions {
+            flex-direction: column;
+            gap: 10px;
+        }
+        .form-actions .btn {
+            width: 100%;
+        }
+        #initialsInput {
+            width: 80%;
+        }
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "clinical_app/base.html" %}
+{% block content %}
+    <div class="container mt-4">
+        <h3 style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; font-size: 1.8em; margin-bottom: 15px;">
+            {% if form.instance.pk %}
+                Edit Clinical Note for: 
+            {% else %}
+                Create Clinical Note for: 
+            {% endif %}
+            <a href="{% url 'patient_detail' pk=patient.pk %}" 
+               style="color: #007bff; text-decoration: none;">
+                <span style="font-weight: 600; text-shadow: 0.5px 0.5px 1px rgba(0,0,0,0.1);">
+                    {{ patient.user.get_full_name }}
+                </span>
+            </a>
+        </h3>
+        <p style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #666; font-size: 1.1em; margin-top: 10px;">
+            Encounter Date: 
+            <span style="font-weight: 500; color: #444;">
+                {{ encounter.encounter_date|date:"Y-m-d H:i" }}
+            </span>
+            (<a href="{% url 'encounter_detail' pk=encounter.pk %}" style="text-decoration: none; color: #17a2b8;">View Encounter</a>)
+        </p>
+
+        <hr>
+
+        <form method="post">
+            {% csrf_token %}
+            {# CHANGED: Use form.as_p for basic rendering of each field in a paragraph tag #}
+            {{ form.as_p }} 
+            
+            {# Alternatively, you could iterate manually for more control over layout: #}
+            {#
+            {% for field in form %}
+                <div class="form-group mb-3"> {# Add Bootstrap's form-group for spacing #}
+                    {{ field.label_tag }} {# Label of the field #}
+                    {{ field }} {# The actual input widget #}
+                    {% if field.help_text %}
+                        <small class="form-text text-muted">{{ field.help_text }}</small>
+                    {% endif %}
+                    {% for error in field.errors %}
+                        <div class="invalid-feedback d-block">{{ error }}</div> {# Display field-specific errors #}
+                    {% endfor %}
+                </div>
+            {% endfor %}
+            #}
+
+            <button type="submit" class="btn btn-primary mt-3">
+                {% if form.instance.pk %}Update Note{% else %}Create Note{% endif %}
+            </button>
+            <a href="{% url 'encounter_detail' pk=encounter.pk %}" class="btn btn-secondary mt-3">Cancel</a>
+        </form>
+    </div>
+{% endblock content %}

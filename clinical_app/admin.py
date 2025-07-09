@@ -5,7 +5,7 @@ from .models import (
     Diagnosis, TreatmentPlan, LabTestCategory, LabTest, LabTestRequest,
     LabTestResult, ImagingType, ImagingRequest, ImagingResult, Medication,
     Prescription, Ward, Bed, CaseSummary, CancerRegistryReport,
-    BirthRecord, MortalityRecord
+    BirthRecord, MortalityRecord, ActivityLog
 )
 
 # Register your models here.
@@ -284,3 +284,26 @@ class MortalityRecordAdmin(admin.ModelAdmin):
     list_filter = ('date_of_death', 'certified_by')
     raw_id_fields = ('patient', 'certified_by')
     date_hierarchy = 'date_of_death'
+
+@admin.register(ActivityLog)
+class ActivityLogAdmin(admin.ModelAdmin):
+    list_display = ('timestamp', 'user', 'action_type', 'model_name', 'object_id', 'ip_address')
+    list_filter = ('action_type', 'model_name', 'timestamp')
+    search_fields = ('user__username', 'user__email', 'model_name', 'object_id', 'description')
+    readonly_fields = ('timestamp', 'user', 'action_type', 'ip_address', 'model_name', 'object_id', 'description', 'changes')
+    ordering = ('-timestamp',)
+
+    fieldsets = (
+        (None, {
+            'fields': (
+                'timestamp', 'user', 'ip_address', 'action_type',
+                'model_name', 'object_id', 'description', 'changes'
+            )
+        }),
+    )
+
+    def has_add_permission(self, request):
+        return False  # Prevent manual addition of logs
+
+    def has_change_permission(self, request, obj=None):
+        return False  # Prevent editing of existing logs

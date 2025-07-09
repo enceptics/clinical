@@ -511,6 +511,20 @@
                         </div>
                     </a>
                 </div>
+                <div class="col-md-4">
+                    <a href="{% url 'select_user_type' %}" class="card custom-styled-card disabled" aria-label="Available Beds Card">
+                        <div class="card-body">
+                            <div class="card-text-container">
+                                <h5>Register Users</h5>
+                                <h3 class="card-text-value">{{ available_beds }}</h3>
+                                <p class="card-text">Register New Users</p>
+                            </div>
+                            <div class="icon-circle">
+                                <i class="fas fa-bed" aria-hidden="true"></i>
+                            </div>
+                        </div>
+                    </a>
+                </div>
             </div>
 
             <hr class="my-4"> {# Separator #}

@@ -34,6 +34,21 @@ urlpatterns = [
     path('imaging_requests/<int:imaging_request_pk>/result/add/', views.ImagingResultCreateView.as_view(), name='imaging_result_create'),
     path('encounters/<int:encounter_pk>/prescription/add/', views.PrescriptionCreateView.as_view(), name='prescription_create'),
 
+    # What has been done to the patient 
+    path('encounters/<int:encounter_pk>/clinical_note/add/',
+         views.ClinicalNoteCreateView.as_view(),
+         name='clinical_note_create'),
+    path('encounters/<int:encounter_pk>/clinical_note/<int:pk>/',
+         views.ClinicalNoteDetailView.as_view(),
+         name='clinical_note_detail'),
+    path('encounters/<int:encounter_pk>/clinical_note/<int:pk>/edit/',
+         views.ClinicalNoteUpdateView.as_view(),
+         name='clinical_note_update'),
+
+    # Case summary
+    path('encounters/<int:pk>/generate-summary/', views.GenerateCaseSummaryView.as_view(), name='generate_case_summary'),
+    path('case-summaries/<int:pk>/', views.CaseSummaryDetailView.as_view(), name='case_summary_detail'),
+    # path('summary/<int:pk>/sign/', views.sign_case_summary, name='sign_case_summary'),
     # Doctor-specific URLs
     path('doctor/my_patients/', views.DoctorPatientListView.as_view(), name='doctor_patient_list'),
 
@@ -42,6 +57,6 @@ urlpatterns = [
 
     # Add URLs for other models (e.g., Appointments, Labs, Imaging, etc.) as needed
     # For instance:
-    # path('appointments/', views.AppointmentListView.as_view(), name='appointment_list'),
-    # path('appointments/create/', views.AppointmentCreateView.as_view(), name='appointment_create'),
+    path('appointments/', views.AppointmentListView.as_view(), name='appointment_list'),
+    path('appointments/create/', views.AppointmentCreateView.as_view(), name='appointment_create'),
 ]

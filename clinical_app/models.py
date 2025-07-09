@@ -415,7 +415,8 @@ class Radiologist(models.Model):
 class Appointment(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE, related_name='appointments')
     doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE, related_name='appointments')
-    appointment_date = models.DateTimeField()
+    appointment_date = models.DateTimeField(null=True, blank=True)
+    appointment_time = models.DateTimeField(null=True, blank=True)
     reason_for_visit = models.TextField()
     status_choices = (
         ('scheduled', 'Scheduled'),
@@ -532,6 +533,8 @@ class PhysicalExamination(models.Model):
     def __str__(self):
         return f"Physical Exam for {self.encounter.patient} on {self.examination_date.strftime('%Y-%m-%d')}"
 
+# In your models.py file, within the Diagnosis class
+
 class Diagnosis(models.Model):
     encounter = models.ForeignKey(Encounter, on_delete=models.CASCADE, related_name='diagnoses')
     diagnosed_by = models.ForeignKey(Doctor, on_delete=models.SET_NULL, null=True, blank=True)
@@ -539,7 +542,22 @@ class Diagnosis(models.Model):
     icd10_code = models.CharField(max_length=20, blank=True, null=True) # International Classification of Diseases
     diagnosis_text = models.TextField()
     is_primary = models.BooleanField(default=False) # Is this the main diagnosis for the encounter?
-    # Add status (e.g., provisional, confirmed, resolved)
+
+    # --- ADD THIS NEW FIELD ---
+    DIAGNOSIS_STATUS_CHOICES = (
+        ('provisional', 'Provisional'),
+        ('final', 'Final'),
+        ('differential', 'Differential'),
+        ('ruled_out', 'Ruled Out'),
+        ('resolved', 'Resolved'), # Added resolved as per your comment
+    )
+    diagnosis_status = models.CharField(
+        max_length=20, # Ensure this is long enough for your longest choice value
+        choices=DIAGNOSIS_STATUS_CHOICES,
+        default='provisional', # Set a sensible default
+        help_text="Current status of the diagnosis (e.g., provisional, final)."
+    )
+    # --- END NEW FIELD ---
 
     class Meta:
         verbose_name_plural = "Diagnoses"
@@ -563,6 +581,104 @@ class TreatmentPlan(models.Model):
 
     def __str__(self):
         return f"Treatment Plan for {self.encounter.patient} on {self.created_date.strftime('%Y-%m-%d')}"
+
+# -----------------------------------------------------------------------------
+# What has been done to the patient
+# -----------------------------------------------------------------------------
+
+class ClinicalNote(models.Model):
+    """
+    Records detailed clinical information for a specific encounter.
+    This covers what was done, observed, and planned during a patient visit.
+    """
+    encounter = models.OneToOneField(
+        'Encounter',
+        on_delete=models.CASCADE,
+        related_name='clinical_note',
+        help_text="The encounter this clinical note is associated with."
+    )
+    chief_complaint = models.TextField(
+        verbose_name="Chief Complaint",
+        help_text="Patient's primary reason for the visit (in their own words if possible)."
+    )
+    history_of_present_illness = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="History of Present Illness (HPI)",
+        help_text="Detailed chronological description of the chief complaint."
+    )
+    review_of_systems = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Review of Systems (ROS)",
+        help_text="Systematic inquiry about symptoms in different body systems."
+    )
+    physical_exam_findings = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Physical Examination Findings",
+        help_text="Objective findings from the physical exam."
+    )
+    assessment = models.TextField(
+        verbose_name="Assessment",
+        help_text="Provider's medical impression and differential diagnoses."
+    )
+    plan = models.TextField(
+        verbose_name="Plan",
+        help_text="Proposed diagnostic, therapeutic, and management strategies."
+    )
+    # You might link to a separate Diagnosis model if you have one, or just store text
+    # diagnosis = models.ForeignKey(Diagnosis, on_delete=models.SET_NULL, null=True, blank=True)
+    # For now, let's keep it simple with text.
+    primary_diagnosis = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        verbose_name="Primary Diagnosis (e.g., ICD-10 code and description)"
+    )
+    secondary_diagnoses = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Secondary Diagnoses",
+        help_text="Comma-separated list of additional diagnoses."
+    )
+    # Interventions, Procedures, Medications could be free text or separate models
+    interventions_performed = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Interventions/Procedures Performed",
+        help_text="Details of any procedures, therapies, or specific interventions carried out."
+    )
+    medications_prescribed = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Medications Prescribed/Administered",
+        help_text="List of medications, dosage, frequency, and route."
+    )
+    follow_up_instructions = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Follow-up Instructions",
+        help_text="Instructions given to the patient for follow-up care."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_clinical_notes',
+        help_text="The user who created this note."
+    )
+
+    class Meta:
+        verbose_name = "Clinical Note"
+        verbose_name_plural = "Clinical Notes"
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Clinical Note for {self.encounter.patient.user.get_full_name()} on {self.encounter.encounter_date.strftime('%Y-%m-%d')}"
 
 # -----------------------------------------------------------------------------
 # Investigations (Lab & Imaging)
@@ -605,6 +721,23 @@ class LabTestRequest(models.Model):
     def __str__(self):
         return f"Lab request for {self.encounter.patient} on {self.requested_date.strftime('%Y-%m-%d')}"
 
+    # Add this method to get a display string for the associated tests
+    def get_tests_display(self):
+        return ", ".join([test.name for test in self.tests.all()])
+
+    def get_status_badge_class(self):
+        """Returns the Bootstrap badge class and appropriate text color for the current status."""
+        if self.status == 'completed':
+            return 'badge-success text-white' # Green background, white text
+        elif self.status == 'pending':
+            return 'badge-warning text-dark'  # Yellow background, dark text
+        elif self.status == 'in_progress':
+            return 'badge-primary text-white' # Blue background, white text
+        elif self.status == 'cancelled':
+            return 'badge-danger text-white'  # Red background, white text
+        else: # Fallback for any unexpected status
+            return 'badge-info text-dark'     # Light blue background, dark text
+
 class LabTestResult(models.Model):
     request = models.ForeignKey(LabTestRequest, on_delete=models.CASCADE, related_name='results')
     test = models.ForeignKey(LabTest, on_delete=models.CASCADE)
@@ -619,6 +752,10 @@ class LabTestResult(models.Model):
 
     def __str__(self):
         return f"Result for {self.test.name} for {self.request.encounter.patient}"
+
+    # Add this method to get a display string for the associated tests
+    def get_tests_display(self):
+        return ", ".join([test.name for test in self.tests.all()])
 
 class ImagingType(models.Model):
     name = models.CharField(max_length=100, unique=True) # e.g., "X-Ray", "CT Scan", "MRI", "Ultrasound"
@@ -736,6 +873,13 @@ class CaseSummary(models.Model):
     prepared_by = models.ForeignKey(Doctor, on_delete=models.SET_NULL, null=True, blank=True)
     summary_date = models.DateTimeField(auto_now_add=True)
     digital_signature_hash = models.CharField(max_length=255, blank=True, null=True) # Doctor's digital signature
+
+    # Fields for the electronic signature
+    signed_by_user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='signed_clinical_summaries')
+    user_signature_image = models.ImageField(upload_to='signatures/case_summaries/', null=True, blank=True)
+    user_initials = models.CharField(max_length=10, blank=True, null=True)
+    is_signed = models.BooleanField(default=False)
+    date_signed = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         verbose_name_plural = "Case Summaries"

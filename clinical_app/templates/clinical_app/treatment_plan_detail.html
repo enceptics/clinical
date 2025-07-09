@@ -1,0 +1,85 @@
+{% extends "base.html" %} {# Assumes you have a base.html template #}
+{% load static %} {# If you have static files like CSS/JS #}
+
+{% block title %}Treatment Plan Details{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h1 class="card-title mb-0">Treatment Plan Details</h1>
+                </div>
+                <div class="card-body">
+                    <h4 class="mb-3">Patient: <a href="{% url 'patient_detail' treatment_plan.encounter.patient.pk %}" class="text-decoration-none">{{ treatment_plan.encounter.patient.user.get_full_name }} ({{ treatment_plan.encounter.patient.patient_id }})</a></h4>
+                    <p class="text-muted">Associated Encounter: <a href="{% url 'encounter_detail' treatment_plan.encounter.pk %}" class="text-decoration-none">{{ treatment_plan.encounter.encounter_date|date:"F d, Y P" }} (Type: {{ treatment_plan.encounter.get_encounter_type_display }})</a></p>
+                    <hr>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Created By:</strong> {{ treatment_plan.created_by.user.get_full_name }}
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <strong>Created Date:</strong> {{ treatment_plan.created_date|date:"F d, Y P" }}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5 class="text-primary">What has been done (Actions Taken):</h5>
+                        <p class="card-text border p-3 bg-light rounded">{{ treatment_plan.actions_taken|default:"No actions recorded for this plan."|linebreaksbr }}</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5 class="text-primary">Treatment Description:</h5>
+                        <p class="card-text border p-3 bg-light rounded">{{ treatment_plan.treatment_description|default:"No description provided."|linebreaksbr }}</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <h5 class="text-primary">Recommendations:</h5>
+                        <p class="card-text border p-3 bg-light rounded">{{ treatment_plan.recommendations|default:"No recommendations provided."|linebreaksbr }}</p>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <strong>Expected Return Date:</strong>
+                            {% if treatment_plan.expected_return_date %}
+                                <span class="badge bg-info text-dark">{{ treatment_plan.expected_return_date|date:"F d, Y" }}</span>
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <strong>Status:</strong>
+                            {% if treatment_plan.status == 'active' %}
+                                <span class="badge bg-success">{{ treatment_plan.get_status_display }}</span>
+                            {% elif treatment_plan.status == 'completed' %}
+                                <span class="badge bg-primary">{{ treatment_plan.get_status_display }}</span>
+                            {% elif treatment_plan.status == 'discontinued' %}
+                                <span class="badge bg-warning text-dark">{{ treatment_plan.get_status_display }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ treatment_plan.get_status_display }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <strong>Is Current Plan:</strong>
+                        {% if treatment_plan.is_current_plan %}
+                            <span class="badge bg-success">Yes</span>
+                        {% else %}
+                            <span class="badge bg-secondary">No</span>
+                        {% endif %}
+                    </div>
+
+                </div>
+                <div class="card-footer d-flex justify-content-between">
+                    <a href="{% url 'update_treatment_plan' pk=treatment_plan.pk %}" class="btn btn-warning">Edit Treatment Plan</a>
+                    <a href="{% url 'encounter_detail' treatment_plan.encounter.pk %}" class="btn btn-outline-primary">Back to Encounter</a>
+                    <a href="{% url 'patient_detail' treatment_plan.encounter.patient.pk %}" class="btn btn-outline-info">Back to Patient</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

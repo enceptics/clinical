@@ -1,0 +1,22 @@
+{% extends "clinical_app/base.html" %}
+{% block content %}
+
+<h3 style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; font-size: 1.8em; margin-bottom: 15px;">
+    Create Treatment Plan for: 
+    <span style="color: #007bff; font-weight: 600; text-shadow: 0.5px 0.5px 1px rgba(0,0,0,0.1);">
+        {{ encounter.patient.user.get_full_name }}
+    </span>
+</h3>
+<p style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #666; font-size: 1.1em; margin-top: 10px;">
+    Encounter Date: 
+    <span style="font-weight: 500; color: #444;">
+        {{ encounter.encounter_date|date:"Y-m-d H:i" }}
+    </span>
+</p>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Save Treatment Plan</button>
+</form>
+<a href="">Back to Patient Details</a>
+{% endblock %}
