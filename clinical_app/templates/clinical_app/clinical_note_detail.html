@@ -1,0 +1,68 @@
+{% extends "clinical_app/base.html" %}
+
+{% block content %}
+    <div class="container mt-4">
+        <h3 style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; font-size: 1.8em; margin-bottom: 15px;">
+            Clinical Note for: 
+            <a href="{% url 'patient_detail' pk=patient.pk %}" 
+               style="color: #007bff; text-decoration: none;">
+                <span style="font-weight: 600; text-shadow: 0.5px 0.5px 1px rgba(0,0,0,0.1);">
+                    {{ patient.user.get_full_name }}
+                </span>
+            </a>
+        </h3>
+        <p style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #666; font-size: 1.1em; margin-top: 10px;">
+            Encounter Date: 
+            <span style="font-weight: 500; color: #444;">
+                {{ encounter.encounter_date|date:"Y-m-d H:i" }}
+            </span>
+            (<a href="{% url 'encounter_detail' pk=encounter.pk %}" style="text-decoration: none; color: #17a2b8;">View Encounter</a>)
+        </p>
+
+        <hr>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Clinical Details</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Chief Complaint:</strong> {{ clinical_note.chief_complaint|linebreaksbr }}</p>
+                {% if clinical_note.history_of_present_illness %}
+                    <p><strong>History of Present Illness (HPI):</strong> {{ clinical_note.history_of_present_illness|linebreaksbr }}</p>
+                {% endif %}
+                {% if clinical_note.review_of_systems %}
+                    <p><strong>Review of Systems (ROS):</strong> {{ clinical_note.review_of_systems|linebreaksbr }}</p>
+                {% endif %}
+                {% if clinical_note.physical_exam_findings %}
+                    <p><strong>Physical Examination Findings:</strong> {{ clinical_note.physical_exam_findings|linebreaksbr }}</p>
+                {% endif %}
+                <p><strong>Assessment:</strong> {{ clinical_note.assessment|linebreaksbr }}</p>
+                <p><strong>Plan:</strong> {{ clinical_note.plan|linebreaksbr }}</p>
+                {% if clinical_note.primary_diagnosis %}
+                    <p><strong>Primary Diagnosis:</strong> {{ clinical_note.primary_diagnosis }}</p>
+                {% endif %}
+                {% if clinical_note.secondary_diagnoses %}
+                    <p><strong>Secondary Diagnoses:</strong> {{ clinical_note.secondary_diagnoses|linebreaksbr }}</p>
+                {% endif %}
+                {% if clinical_note.interventions_performed %}
+                    <p><strong>Interventions/Procedures Performed:</strong> {{ clinical_note.interventions_performed|linebreaksbr }}</p>
+                {% endif %}
+                {% if clinical_note.medications_prescribed %}
+                    <p><strong>Medications Prescribed/Administered:</strong> {{ clinical_note.medications_prescribed|linebreaksbr }}</p>
+                {% endif %}
+                {% if clinical_note.follow_up_instructions %}
+                    <p><strong>Follow-up Instructions:</strong> {{ clinical_note.follow_up_instructions|linebreaksbr }}</p>
+                {% endif %}
+                <p class="text-muted small mt-3">Created by {{ clinical_note.created_by.get_full_name }} on {{ clinical_note.created_at|date:"Y-m-d H:i" }}</p>
+                {% if clinical_note.created_at != clinical_note.updated_at %}
+                    <p class="text-muted small">Last updated on {{ clinical_note.updated_at|date:"Y-m-d H:i" }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <a href="{% url 'clinical_note_update' encounter_pk=encounter.pk pk=clinical_note.pk %}" class="btn btn-warning">Edit Note</a>
+            <a href="{% url 'encounter_detail' pk=encounter.pk %}" class="btn btn-secondary">Back to Encounter</a>
+        </div>
+    </div>
+{% endblock content %}

@@ -14,7 +14,7 @@ from .models import (
     User, Patient, Doctor, Nurse, ProcurementOfficer, Department, Appointment,
     VitalSign, MedicalHistory, PhysicalExamination, Diagnosis, TreatmentPlan,
     LabTestRequest, LabTestResult, ImagingRequest, ImagingResult, Prescription,
-    ConsentForm, Receptionist, LabTechnician, Radiologist, Pharmacist,
+    ConsentForm, Receptionist, LabTechnician, Radiologist, Pharmacist, ClinicalNote,
     Medication  # Assuming you have a Medication model for Prescription form
 )
 
@@ -709,3 +709,45 @@ class ConsentFormForm(forms.ModelForm):
             'document_file': forms.ClearableFileInput(attrs={'class': 'form-control'}),
         }
     # No need for __init__ as widgets handle styling
+
+class ClinicalNoteForm(forms.ModelForm):
+    class Meta:
+        model = ClinicalNote
+        fields = [
+            'chief_complaint',
+            'history_of_present_illness',
+            'review_of_systems',
+            'physical_exam_findings',
+            'assessment',
+            'plan',
+            'primary_diagnosis',
+            'secondary_diagnoses',
+            'interventions_performed',
+            'medications_prescribed',
+            'follow_up_instructions',
+        ]
+        widgets = {
+            'chief_complaint': forms.Textarea(attrs={'rows': 3}),
+            'history_of_present_illness': forms.Textarea(attrs={'rows': 4}),
+            'review_of_systems': forms.Textarea(attrs={'rows': 4}),
+            'physical_exam_findings': forms.Textarea(attrs={'rows': 5}),
+            'assessment': forms.Textarea(attrs={'rows': 5}),
+            'plan': forms.Textarea(attrs={'rows': 6}),
+            'secondary_diagnoses': forms.Textarea(attrs={'rows': 2}),
+            'interventions_performed': forms.Textarea(attrs={'rows': 4}),
+            'medications_prescribed': forms.Textarea(attrs={'rows': 4}),
+            'follow_up_instructions': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Add Bootstrap classes to all fields manually
+        for field_name, field in self.fields.items():
+            field.widget.attrs['class'] = 'form-control' # This makes fields look like Bootstrap inputs
+            # Ensure textarea rows are set, in case widgets dict above is sometimes missed
+            if isinstance(field.widget, forms.Textarea):
+                field.widget.attrs['rows'] = field.widget.attrs.get('rows', 4) 
+            # You can also add more classes or attributes here based on field type
+            # Example: if field_name == 'chief_complaint': field.widget.attrs['placeholder'] = 'Patient\'s main reason for visit'
+            if field.required:
+                field.label = f"{field.label} *" # Add asterisk for required fields

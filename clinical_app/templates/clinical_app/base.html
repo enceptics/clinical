@@ -336,8 +336,7 @@
         {% if user.is_authenticated %}
         <div class="sidebar d-flex flex-column" id="sidebar">
             <div class="sidebar-header">
-                <img src="https://via.placeholder.com/40" alt="Hospital Logo" class="sidebar-logo">
-                <span class="sidebar-hospital-name">HospitalConnect</span>
+               
             </div>
             <ul class="nav flex-column flex-grow-1">
                 <li class="nav-item">
@@ -364,6 +363,12 @@
                             <a class="nav-link" href="{% url 'activity_log_list' %}">
                                 <i class="fas fa-clipboard-list fa-fw"></i>
                                 <span class="nav-text">Activity Logs</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'select_user_type' %}">
+                                <i class="fas fa-users fa-fw"></i>
+                                <span class="nav-text">Register Users</span>
                             </a>
                         </li>
                     {% endif %}

@@ -1,0 +1,73 @@
+{% extends "clinical_app/base.html" %}
+
+{% block title %}
+    {% if form.instance.pk %}Edit Appointment{% else %}Schedule Appointment{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1 class="mb-4">
+        {% if form.instance.pk %}Edit Appointment{% else %}Schedule New Appointment{% endif %}
+    </h1>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-success text-white">
+            Appointment Details
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                {{ form.non_field_errors }}
+
+                <div class="form-group">
+                    <label for="{{ form.patient.id_for_label }}">Patient:</label>
+                    {{ form.patient }}
+                    {% if form.patient.errors %}
+                        <div class="invalid-feedback d-block">{{ form.patient.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.doctor.id_for_label }}">Doctor:</label>
+                    {{ form.doctor }}
+                    {% if form.doctor.errors %}
+                        <div class="invalid-feedback d-block">{{ form.doctor.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.appointment_date.id_for_label }}">Appointment Date & Time:</label>
+                    {{ form.appointment_date }}
+                    {% if form.appointment_date.errors %}
+                        <div class="invalid-feedback d-block">{{ form.appointment_date.errors }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="form-group">
+                    <label for="{{ form.reason_for_visit.id_for_label }}">Reason for Visit:</label>
+                    {{ form.reason_for_visit }}
+                    {% if form.reason_for_visit.errors %}
+                        <div class="invalid-feedback d-block">{{ form.reason_for_visit.errors }}</div>
+                    {% endif %}
+                </div>
+
+                {# If you allow updating status through this form, add it here #}
+                {% if form.instance.pk and request.user.user_type in ['admin', 'receptionist', 'doctor'] %}
+                    <div class="form-group">
+                        <label for="{{ form.status.id_for_label }}">Status:</label>
+                        {{ form.status }}
+                        {% if form.status.errors %}
+                            <div class="invalid-feedback d-block">{{ form.status.errors }}</div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+                <button type="submit" class="btn btn-success mt-3">
+                    {% if form.instance.pk %}Update Appointment{% else %}Schedule Appointment{% endif %}
+                </button>
+                <a href="{% url 'appointment_list' %}" class="btn btn-secondary mt-3">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -149,21 +149,25 @@
                 </div>
             </div>
 
-            <div class="card mb-4">
+         <div class="card mb-4">
                 <div class="card-header bg-warning text-white">Lab Test Requests <a href="{% url 'lab_request_create' encounter.pk %}" class="btn btn-sm btn-light float-right">Request Lab</a></div>
                 <div class="card-body">
                     {% if lab_requests %}
                         <ul class="list-group list-group-flush">
                             {% for req in lab_requests %}
                                 <li class="list-group-item">
-                                    <strong>Requested:</strong> {{ req.requested_date|date:"M d, Y P" }}<br>
+                                    <strong>Requested On:</strong> {{ req.requested_date|date:"M d, Y P" }}<br>
+                                    <strong>Requested By:</strong> {{ req.requested_by.user.get_full_name|default:"N/A" }}<br>
                                     <strong>Tests:</strong>
                                     <ul>
                                         {% for test in req.tests.all %}
                                             <li>{{ test.name }}</li>
                                         {% endfor %}
                                     </ul>
-                                    <strong>Status:</strong> <span class="badge badge-{% if req.status == 'completed' %}success{% elif req.status == 'pending' %}warning{% else %}info{% endif %}">{{ req.get_status_display }}</span><br>
+                                    <strong>Notes:</strong> {{ req.request_notes|default:"N/A"|truncatechars:100 }}<br>
+                                                        <strong>Status:</strong> <span class="badge {{ req.badge_class }}">{{ req.get_status_display }}</span>
+
+                                    <br>
                                     {% if req.status != 'completed' and user.user_type == 'lab_tech' %}
                                         <a href="{% url 'lab_result_create' req.pk %}" class="btn btn-outline-success btn-sm mt-2">Add Result</a>
                                     {% elif req.results.exists %}
@@ -171,8 +175,12 @@
                                             <strong>Results:</strong>
                                             <ul>
                                                 {% for result in req.results.all %}
-                                                    <li>{{ result.test.name }}: {{ result.result_value }} {{ result.result_unit }} {% if result.is_abnormal %}<span class="badge badge-danger">Abnormal</span>{% endif %}
-                                                    {% if result.result_file %}<a href="{{ result.result_file.url }}" target="_blank">View File</a>{% endif %}
+                                                    <li>
+                                                        {{ result.test.name }}: {{ result.result_value }} {{ result.result_unit }}
+                                                        {% if result.is_abnormal %}<span class="badge badge-danger ml-1">Abnormal</span>{% endif %}
+                                                        {% if result.result_file %}
+                                                            <a href="{{ result.result_file.url }}" target="_blank" class="ml-2">View File</a>
+                                                        {% endif %}
                                                     </li>
                                                 {% endfor %}
                                             </ul>
@@ -237,18 +245,41 @@
                 </div>
             </div>
 
+        <h4>Clinical Notes</h4>
+        {% if encounter.clinical_note %} {# Check if a clinical note already exists for this encounter #}
+            <div class="alert alert-success" role="alert">
+                A clinical note has been recorded for this encounter.
+                <a href="{% url 'clinical_note_detail' encounter_pk=encounter.pk pk=encounter.clinical_note.pk %}" class="btn btn-sm btn-outline-success ml-2">View Clinical Note</a>
+                <a href="{% url 'clinical_note_update' encounter_pk=encounter.pk pk=encounter.clinical_note.pk %}" class="btn btn-sm btn-outline-warning ml-2">Edit Clinical Note</a>
+            </div>
+        {% else %}
+            <div class="alert alert-info" role="alert">
+                No clinical note recorded for this encounter yet.
+                <a href="{% url 'clinical_note_create' encounter_pk=encounter.pk %}" class="btn btn-sm btn-primary ml-2">Add Clinical Note</a>
+            </div>
+        {% endif %}
+
             <div class="card mb-4">
                 <div class="card-header bg-primary text-white">Case Summary</div>
                 <div class="card-body">
-                    {% if case_summary %}
-                        <p>{{ case_summary.summary_text }}</p>
-                        <p class="text-muted"><em>Prepared by: {{ case_summary.prepared_by.user.get_full_name }} on {{ case_summary.summary_date|date:"M d, Y P" }}</em></p>
-                        {% if case_summary.digital_signature_hash %}
-                            <p>Digital Signature Hash: <code>{{ case_summary.digital_signature_hash }}</code></p>
-                        {% endif %}
-                    {% else %}
-                        <p>No case summary generated yet. (Feature to generate summary needed)</p>
-                    {% endif %}
+                    <h4>Case Summary</h4>
+    {% if encounter.case_summary %}
+        <div class="detail-card">
+            <p><strong>Status:</strong> Case Summary Available</p>
+            <p><strong>Prepared By:</strong> {{ encounter.case_summary.prepared_by.user.get_full_name|default:"N/A" }}</p>
+            <p><strong>Summary Date:</strong> {{ encounter.case_summary.summary_date|date:"Y-m-d H:i" }}</p>
+
+            <a href="{% url 'case_summary_detail' encounter.case_summary.pk %}" class="btn btn-primary">View Full Case Summary</a>            
+        </div>
+    {% else %}
+        <p>No case summary available for this encounter.
+           {# THIS IS THE CRUCIAL PART FOR FIRST-TIME GENERATION #}
+           <form action="{% url 'generate_case_summary' encounter.pk %}" method="post" style="display:inline;">
+               {% csrf_token %}
+               <button type="submit" class="btn btn-primary">Generate Case Summary</button>
+           </form>
+        </p>
+    {% endif %}
                 </div>
             </div>
 
