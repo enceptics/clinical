@@ -34,8 +34,8 @@
                             <td><a href="{% url 'ward_detail' ward.pk %}" class="text-decoration-none text-info fw-bold">{{ ward.name }}</a></td>
                             <td><span class="badge bg-secondary">{{ ward.get_ward_type_display }}</span></td>
                             <td>{{ ward.capacity }}</td>
-                            <td>{{ ward.occupied_beds_count }}</td> {# Use the annotated value #}
-                            <td>{{ ward.available_beds_count }}</td> {# Use the annotated value #}
+                            <td>{{ ward.occupied_beds_count }}</td> 
+                            <td>{{ ward.available_beds_count }}</td> 
                             <td class="text-center">
                                 <a href="{% url 'ward_detail' ward.pk %}" class="btn btn-sm btn-outline-info me-1" title="View Details"><i class="fas fa-eye"></i></a>
                                 {% if request.user.user_type == 'admin' %}

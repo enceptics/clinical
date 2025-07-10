@@ -1,0 +1,73 @@
+{% extends 'clinical_app/base.html' %}  
+
+{% block title %}{{ title }} - {{ record.baby_name|default:"Unnamed Baby" }}{% endblock %}
+
+{% block content %}
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">{{ title }}</h4>
+                        <div>
+                            <a href="{% url 'birth_record_update' record.pk %}" class="btn btn-light btn-sm me-2"><i class="fas fa-edit"></i> Edit</a>
+                            <a href="{% url 'birth_record_delete' record.pk %}" class="btn btn-danger btn-sm"><i class="fas fa-trash-alt"></i> Delete</a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row">
+                            <dt class="col-sm-3">Baby Name:</dt>
+                            <dd class="col-sm-9">{{ record.baby_name|default:"N/A" }}</dd>
+
+                            <dt class="col-sm-3">Mother:</dt>
+                            <dd class="col-sm-9">
+                                <a href="{% url 'patient_detail' record.patient.pk %}">
+                                    {{ record.patient.user.get_full_name }} (ID: {{ record.patient.user.id_number }})
+                                </a>
+                            </dd>
+
+                            <dt class="col-sm-3">Date of Birth:</dt>
+                            <dd class="col-sm-9">{{ record.date_of_birth|date:"F d, Y H:i" }}</dd>
+
+                            <dt class="col-sm-3">Gender:</dt>
+                            <dd class="col-sm-9">{{ record.get_gender_display }}</dd>
+
+                            <dt class="col-sm-3">Weight (kg):</dt>
+                            <dd class="col-sm-9">{{ record.weight_kg }} kg</dd>
+
+                            <dt class="col-sm-3">Height (cm):</dt>
+                            <dd class="col-sm-9">{{ record.height_cm|default:"N/A" }} cm</dd>
+
+                            <dt class="col-sm-3">APGAR Score (1 min):</dt>
+                            <dd class="col-sm-9">{{ record.apgar_score_1min|default:"N/A" }}</dd>
+
+                            <dt class="col-sm-3">APGAR Score (5 min):</dt>
+                            <dd class="col-sm-9">{{ record.apgar_score_5min|default:"N/A" }}</dd>
+
+                            <dt class="col-sm-3">Mode of Delivery:</dt>
+                            <dd class="col-sm-9">{{ record.mode_of_delivery|default:"N/A" }}</dd>
+
+                            <dt class="col-sm-3">Delivered By:</dt>
+                            <dd class="col-sm-9">{{ record.delivered_by|default:"N/A" }}</dd>
+
+                            <dt class="col-sm-3">Multiple Birth:</dt>
+                            <dd class="col-sm-9">{% if record.is_multiple_birth %}Yes{% else %}No{% endif %}</dd>
+
+                            <dt class="col-sm-3">Delivery Notes:</dt>
+                            <dd class="col-sm-9">
+                                {% if record.delivery_notes %}
+                                    <pre class="card p-2 bg-light">{{ record.delivery_notes }}</pre>
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </dd>
+                        </dl>
+                    </div>
+                    <div class="card-footer text-end">
+                        <a href="{% url 'birth_records_list' %}" class="btn btn-secondary">Back to List</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

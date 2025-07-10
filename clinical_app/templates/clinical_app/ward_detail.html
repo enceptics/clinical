@@ -64,6 +64,7 @@
                         <tr>
                             <th scope="col">Bed Number</th>
                             <th scope="col">Status</th>
+                            <th scope="col" class="text-center">Patient</th>
                             <th scope="col" class="text-center">Actions</th>
                         </tr>
                     </thead>
@@ -78,6 +79,7 @@
                                     <span class="badge bg-success">Available</span>
                                 {% endif %}
                             </td>
+                            <td><a href="{% url 'bed_detail' bed.pk %}" class="text-decoration-none text-info fw-bold">{{ bed.patient.user.first_name }} {{ bed.patient.user.last_name }} - {{ bed.patient.user.username }}</a></td>
                             <td class="text-center">
                                 <a href="{% url 'bed_detail' bed.pk %}" class="btn btn-sm btn-outline-info me-1" title="View Bed Details"><i class="fas fa-eye"></i></a>
                                 {% if request.user.user_type == 'admin' or request.user.user_type == 'nurse' %}

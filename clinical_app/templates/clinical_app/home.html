@@ -393,7 +393,7 @@
                         <a href="{% url 'ward_list' %}" class="card custom-styled-card" aria-label="Available Beds Card">
                             <div class="card-body">
                                 <div class="card-text-container">
-                                    <h5>Available Beds</h5>
+                                    <h5>Available Beds in Wards</h5>
                                     <h3 class="card-text-value">{{ available_beds }}</h3>
                                     <p class="card-text">Currently unoccupied hospital beds.</p>
                                 </div>
@@ -432,7 +432,7 @@
                     </a>
                 </div>
                 <div class="col-md-4">
-                    <a href="#" class="card custom-styled-card disabled" aria-label="Imaging Scans Last 30 Days Card">
+                    <a href="{% url 'imaging_results_list' %}?date_range=last_30_days" class="card custom-styled-card" aria-label="Imaging Scans Last 30 Days Card">
                         <div class="card-body">
                             <div class="card-text-container">
                                 <h5>Imaging Scans (Last 30 Days)</h5>
@@ -446,12 +446,12 @@
                     </a>
                 </div>
                 <div class="col-md-4">
-                    <a href="#" class="card custom-styled-card disabled" aria-label="Medications Low in Stock Card">
+                    <a href="{% url 'medication_inventory_list' %}" class="card custom-styled-card" aria-label="Medications Low in Stock Card">
                         <div class="card-body">
                             <div class="card-text-container">
                                 <h5>Medications Low in Stock</h5>
-                                <h3 class="card-text-value">{{ medications_low_in_stock }}</h3>
-                                <p class="card-text">Items below reorder level.</p>
+                                <h3 class="card-text-value">{{ low_stock_meds_pharmacist }}</h3>
+                                <p class="card-text">Medications that need reordering.</p>
                             </div>
                             <div class="icon-circle">
                                 <i class="fas fa-pills" aria-hidden="true"></i>
@@ -459,8 +459,8 @@
                         </div>
                     </a>
                 </div>
-                 <div class="col-md-4">
-                    <a href="#" class="card custom-styled-card disabled" aria-label="Unreported Cancer Reports Card">
+                <div class="col-md-4">
+                    <a href="{% url 'cancer_reports_list' %}?reported=false&date_range=last_year" class="card custom-styled-card" aria-label="Unreported Cancer Reports Card">
                         <div class="card-body">
                             <div class="card-text-container">
                                 <h5>Unreported Cancer Reports (Last Year)</h5>
@@ -474,7 +474,7 @@
                     </a>
                 </div>
                 <div class="col-md-4">
-                    <a href="#" class="card custom-styled-card disabled" aria-label="Cancer Reports Submitted (Last 30 Days) Card">
+                    <a href="{% url 'cancer_reports_list' %}?reported=true&date_range=last_30_days" class="card custom-styled-card" aria-label="Cancer Reports Submitted (Last 30 Days) Card">
                         <div class="card-body">
                             <div class="card-text-container">
                                 <h5>Cancer Reports Submitted (Last 30 Days)</h5>
@@ -487,8 +487,8 @@
                         </div>
                     </a>
                 </div>
-                <div class="col-md-4">
-                    <a href="#" class="card custom-styled-card disabled" aria-label="New Births Today Card">
+               <div class="col-md-4">
+                    <a href="{% url 'birth_records_list' %}" class="card custom-styled-card" aria-label="New Births Today Card">
                         <div class="card-body">
                             <div class="card-text-container">
                                 <h5>New Births Today</h5>
@@ -501,34 +501,20 @@
                         </div>
                     </a>
                 </div>
-                <div class="col-md-4">
-                    <a href="#" class="card custom-styled-card disabled" aria-label="New Mortalities Today Card">
-                        <div class="card-body">
-                            <div class="card-text-container">
-                                <h5>New Mortalities Today</h5>
-                                <h3 class="card-text-value">{{ new_mortalities_today }}</h3>
-                                <p class="card-text">Recorded deaths in the facility today.</p>
+                    <div class="col-md-4">
+                        <a href="{% url 'mortality_records_list' %}" class="card custom-styled-card" aria-label="New Mortalities Today Card">
+                            <div class="card-body">
+                                <div class="card-text-container">
+                                    <h5>New Mortalities Today</h5>
+                                    <h3 class="card-text-value">{{ new_mortalities_today }}</h3>
+                                    <p class="card-text">Recorded deaths in the facility today.</p>
+                                </div>
+                                <div class="icon-circle">
+                                    <i class="fas fa-cross" aria-hidden="true"></i>
+                                </div>
                             </div>
-                            <div class="icon-circle">
-                                <i class="fas fa-cross" aria-hidden="true"></i>
-                            </div>
-                        </div>
-                    </a>
-                </div>
-                <div class="col-md-4">
-                    <a href="{% url 'select_user_type' %}" class="card custom-styled-card disabled" aria-label="Available Beds Card">
-                        <div class="card-body">
-                            <div class="card-text-container">
-                                <h5>Register Users</h5>
-                                <h3 class="card-text-value">{{ available_beds }}</h3>
-                                <p class="card-text">Register New Users</p>
-                            </div>
-                            <div class="icon-circle">
-                                <i class="fas fa-bed" aria-hidden="true"></i>
-                            </div>
-                        </div>
-                    </a>
-                </div>
+                        </a>
+                    </div>
             </div>
 
             <hr class="my-4"> {# Separator #}
@@ -803,7 +789,7 @@
                     </a>
                 </div>
                 <div class="col-md-6">
-                    <a href="#" class="card custom-styled-card disabled" aria-label="Medications Low in Stock Card">
+                    <a href="{% url 'medication_inventory_list' %}" class="card custom-styled-card" aria-label="Medications Low in Stock Card">
                         <div class="card-body">
                             <div class="card-text-container">
                                 <h5>Medications Low in Stock</h5>

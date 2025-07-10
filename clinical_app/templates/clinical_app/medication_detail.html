@@ -1,0 +1,53 @@
+{% extends 'clinical_app/base.html' %}
+
+{% block title %}{{ title }} - {{ medication.name }}{% endblock %}
+
+{% block content %}
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">{{ title }}</h4>
+                        <div>
+                            <a href="{% url 'medication_update' medication.pk %}" class="btn btn-light btn-sm me-2"><i class="fas fa-edit"></i> Edit</a>
+                            <a href="{% url 'medication_delete' medication.pk %}" class="btn btn-danger btn-sm"><i class="fas fa-trash-alt"></i> Delete</a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row">
+                            <dt class="col-sm-3">Medication Name:</dt>
+                            <dd class="col-sm-9">{{ medication.name }}</dd>
+
+                            <dt class="col-sm-3">Strength:</dt>
+                            <dd class="col-sm-9">{{ medication.strength|default:"N/A" }}</dd>
+
+                            <dt class="col-sm-3">Form:</dt>
+                            <dd class="col-sm-9">{{ medication.form|default:"N/A" }}</dd>
+
+                            <dt class="col-sm-3">Manufacturer:</dt>
+                            <dd class="col-sm-9">{{ medication.manufacturer|default:"N/A" }}</dd>
+
+                            <dt class="col-sm-3">Price Per Unit:</dt>
+                            <dd class="col-sm-9">Ksh. {{ medication.price_per_unit|floatformat:2|default:"N/A" }}</dd>
+
+                            <dt class="col-sm-3">Current Stock Quantity:</dt>
+                            <dd class="col-sm-9">
+                                <span class="badge {% if medication.stock_quantity < medication.reorder_level %}bg-danger{% else %}bg-success{% endif %}">
+                                    {{ medication.stock_quantity }}
+                                </span>
+                            </dd>
+
+                            <dt class="col-sm-3">Reorder Level:</dt>
+                            <dd class="col-sm-9">{{ medication.reorder_level }}</dd>
+
+                        </dl>
+                    </div>
+                    <div class="card-footer text-end">
+                        <a href="{% url 'medication_inventory_list' %}" class="btn btn-secondary">Back to Inventory</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

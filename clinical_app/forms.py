@@ -9,13 +9,14 @@ from django.core.exceptions import ValidationError
 import secrets # For generating secure temporary passwords
 import string # For password character set
 import json # For handling JSONField in Radiologist form
+from datetime import date # For default value of report_date
 
 from .models import (
     User, Patient, Doctor, Nurse, ProcurementOfficer, Department, Appointment,
     VitalSign, MedicalHistory, PhysicalExamination, Diagnosis, TreatmentPlan,
     LabTestRequest, LabTestResult, ImagingRequest, ImagingResult, Prescription,
     ConsentForm, Receptionist, LabTechnician, Radiologist, Pharmacist, ClinicalNote,
-    Medication  # Assuming you have a Medication model for Prescription form
+    Medication, Ward, Bed, BirthRecord, MortalityRecord, CancerRegistryReport 
 )
 
 # --- Utility Functions ---
@@ -194,6 +195,74 @@ class CustomUserCreationForm(UserCreationForm):
 
 ## Specific User Type Registration Forms
 
+class WardForm(forms.ModelForm):
+    class Meta:
+        model = Ward
+        # EXCLUDE 'available_beds_count' and 'current_occupancy' from fields.
+        # These are calculated properties and should not be directly editable via a form.
+        fields = ['name', 'ward_type', 'capacity']
+        # If you were using 'exclude', it would look like:
+        # exclude = ['beds'] # Or other fields you don't want in the form.
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Apply Bootstrap classes to fields for styling
+        for field_name, field in self.fields.items():
+            if isinstance(field.widget, forms.TextInput) or \
+               isinstance(field.widget, forms.NumberInput) or \
+               isinstance(field.widget, forms.Textarea):
+                field.widget.attrs.update({'class': 'form-control'})
+            elif isinstance(field.widget, forms.Select):
+                field.widget.attrs.update({'class': 'form-select'})
+            # You can add more conditions for other widget types if needed
+
+class BedCreateForm(forms.ModelForm):
+    class Meta:
+        model = Bed
+        fields = ['bed_number'] # Only bed_number needed for creation
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['bed_number'].widget.attrs.update({'class': 'form-control'})
+
+
+# Form for UPDATING an existing Bed (including patient assignment/unassignment)
+class BedUpdateForm(forms.ModelForm):
+    class Meta:
+        model = Bed
+        # We want to manage bed_number and patient here.
+        # 'ward' is implicitly handled by the instance in an UpdateView.
+        # 'is_occupied' is now a property, so it's not in the fields.
+        fields = ['bed_number', 'patient']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Apply Bootstrap classes
+        self.fields['bed_number'].widget.attrs.update({'class': 'form-control'})
+        self.fields['patient'].widget.attrs.update({'class': 'form-select'})
+
+        # Customize the queryset for the patient field
+        # This ensures users can only select unassigned patients
+        # OR the patient already assigned to THIS specific bed (if editing an existing assignment).
+        
+        # Patients who are currently not assigned to any bed
+        unassigned_patients = Patient.objects.filter(current_bed__isnull=True)
+        
+        # If this form is for an existing Bed instance (self.instance is present)
+        # AND that bed instance currently has a patient assigned to it
+        if self.instance and self.instance.patient:
+            # The queryset includes all unassigned patients PLUS the patient currently assigned to this bed.
+            self.fields['patient'].queryset = unassigned_patients | Patient.objects.filter(pk=self.instance.patient.pk)
+        else:
+            # If creating a new bed (though this form is for update) or updating an empty bed,
+            # only show unassigned patients.
+            self.fields['patient'].queryset = unassigned_patients
+
+        # Allow the patient field to be empty (for unassignment)
+        self.fields['patient'].empty_label = "--- Select Patient (Leave blank to unassign) ---"
+        self.fields['patient'].required = False
+
 class PatientRegistrationForm(CustomUserCreationForm):
     blood_group = forms.ChoiceField(choices=Patient.blood_group_choices, required=False)
     emergency_contact_name = forms.CharField(max_length=100, required=True)
@@ -225,6 +294,45 @@ class PatientRegistrationForm(CustomUserCreationForm):
         self.fields['allergies'].widget.attrs['class'] = 'form-control'
         self.fields['pre_existing_conditions'].widget.attrs['class'] = 'form-control'
 
+
+class DepartmentForm(forms.ModelForm):
+    class Meta:
+        model = Department
+        # List all fields you want to appear in the form.
+        # Exclude 'created_at' and 'updated_at' as they are auto-populated.
+        fields = [
+            'name', 'description', 'department_type', 'head_of_department',
+            'contact_phone', 'contact_email', 'location', 'floor_number',
+            'staff_count', 'annual_budget', 'is_active',
+        ]
+        
+        # Add widgets for Bootstrap styling
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'department_type': forms.Select(attrs={'class': 'form-select'}),
+            'head_of_department': forms.Select(attrs={'class': 'form-select'}), # This will show all users
+            'contact_phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'contact_email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'location': forms.TextInput(attrs={'class': 'form-control'}),
+            'floor_number': forms.NumberInput(attrs={'class': 'form-control'}),
+            'staff_count': forms.NumberInput(attrs={'class': 'form-control'}),
+            'annual_budget': forms.NumberInput(attrs={'class': 'form-control'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+    # Optional: Customize queryset for head_of_department if only specific users can be HODs
+    # For example, if only users with user_type='doctor' or 'admin' can be HODs
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Filter users who can be assigned as Head of Department
+        # This assumes your User model has a 'user_type' field and 'doctor' is a valid type.
+        # Adjust 'doctor' or add other types like 'admin' as needed.
+        # self.fields['head_of_department'].queryset = User.objects.filter(user_type='doctor') 
+        # Or if you want all users to be selectable:
+        self.fields['head_of_department'].queryset = User.objects.all().order_by('first_name', 'last_name') # Order for better UX
+        # Add a blank choice at the top if the field can be null
+        self.fields['head_of_department'].empty_label = "--- Select Head of Department ---"
 
 class DoctorRegistrationForm(CustomUserCreationForm):
     specialization = forms.CharField(
@@ -817,19 +925,69 @@ class TreatmentPlanForm(forms.ModelForm):
     # No need for __init__ as widgets handle styling
 
 
+# class LabTestResultForm(forms.ModelForm):
+#     class Meta:
+#         model = LabTestResult
+#         # 'request', 'performed_by', and 'result_date' are set in the view
+#         fields = ['result_value', 'request_notes', 'is_normal']
+#         labels = {
+#             'result_value': 'Result Value/Observation',
+#             'request_notes': 'Lab Technician Notes',
+#             'is_normal': 'Is Result Normal?'
+#         }
+#         widgets = {
+#             'result_value': forms.TextInput(attrs={'placeholder': 'e.g., 5.2 mg/dL or "Positive" or "No growth observed"'}),
+#             'request_notes': forms.Textarea(attrs={'rows': 4, 'placeholder': 'Enter any additional notes, interpretation, or details about the test result.'}),
+#             'is_normal': forms.CheckboxInput(),
+#         }
+
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         for field_name, field in self.fields.items():
+#             if field_name != 'is_normal': # Checkboxes are styled differently
+#                 if isinstance(field.widget, (forms.TextInput, forms.Textarea, forms.Select)):
+#                     field.widget.attrs['class'] = 'form-control'
+#             else: # For checkbox
+#                 field.widget.attrs['class'] = 'form-check-input'
+
 class LabTestRequestForm(forms.ModelForm):
+    """
+    Form for creating or updating a LabTestRequest.
+    """
     class Meta:
         model = LabTestRequest
-        fields = ['tests', 'request_notes', 'status']
-        widgets = {
-            # Assuming 'tests' is a ManyToMany field to a 'Test' model or similar
-            'tests': forms.SelectMultiple(attrs={'class': 'form-control'}),
-            'request_notes': forms.Textarea(attrs={'rows': 3, 'class': 'form-control', 'placeholder': 'Notes for lab technician'}),
-            'status': forms.Select(attrs={'class': 'form-control'}),
+        # Fields that the user will input directly:
+        # - 'encounter' will typically be set by the view (e.g., from URL kwargs or session)
+        # - 'requested_by' will be set automatically to request.user in the view
+        # - 'requested_date' is auto_now_add
+        # - 'status' defaults to 'pending' for new requests
+        fields = ['tests', 'request_notes']
+        labels = {
+            'tests': 'Select Lab Tests to Order',
+            'request_notes': 'Additional Request Notes for Lab',
         }
+        widgets = {
+            # Use CheckboxSelectMultiple for a user-friendly selection of multiple tests
+            'tests': forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input-group'}),
+            'request_notes': forms.Textarea(attrs={'rows': 4, 'placeholder': 'Provide any specific instructions or clinical notes for the lab technician here.'}),
+        }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Ensure that if 'tests' is a ManyToMany, its queryset is set if needed in a view
+        # Apply Bootstrap classes for styling
+        for field_name, field in self.fields.items():
+            if field_name == 'tests':
+                # For CheckboxSelectMultiple, the class usually applies to individual checkboxes
+                # We can style the container or individual items in the template if needed.
+                # field.widget.attrs['class'] is not directly applicable to the wrapper div.
+                pass
+            else:
+                # Apply 'form-control' to other input types
+                if isinstance(field.widget, (forms.TextInput, forms.Textarea, forms.Select)):
+                    field.widget.attrs['class'] = 'form-control'
+
+        # Optionally, if you want to ensure the 'tests' queryset is ordered
+        self.fields['tests'].queryset = LabTest.objects.all().order_by('name')
 
 
 class LabTestResultForm(forms.ModelForm):
@@ -845,7 +1003,6 @@ class LabTestResultForm(forms.ModelForm):
             'comment': forms.Textarea(attrs={'rows': 2, 'class': 'form-control', 'placeholder': 'Additional comments'}),
             'result_file': forms.ClearableFileInput(attrs={'class': 'form-control'}), # For file uploads
         }
-    # No need for __init__ as widgets handle styling
 
 
 class ImagingRequestForm(forms.ModelForm):
@@ -944,3 +1101,138 @@ class ClinicalNoteForm(forms.ModelForm):
             # Example: if field_name == 'chief_complaint': field.widget.attrs['placeholder'] = 'Patient\'s main reason for visit'
             if field.required:
                 field.label = f"{field.label} *" # Add asterisk for required fields
+
+class BirthRecordForm(forms.ModelForm):
+    class Meta:
+        model = BirthRecord
+        fields = '__all__' # Or specify individual fields: ['patient', 'baby_name', ...]
+        # Add widgets for better UX, e.g., date pickers
+        widgets = {
+            'date_of_birth': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+        }
+
+class MortalityRecordForm(forms.ModelForm):
+    class Meta:
+        model = MortalityRecord
+        fields = '__all__' # This is fine as it includes all your model fields
+        widgets = {
+            'date_of_death': forms.DateTimeInput(attrs={'type': 'datetime-local'}, format='%Y-%m-%dT%H:%M'), # Added format
+            'cause_of_death': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'contributing_factors': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'death_location': forms.Select(attrs={'class': 'form-select'}),
+            # patient, full_name, encounter, certified_by, certificate_number handled automatically
+        }
+    
+    # Custom cleaning for patient/full_name exclusivity
+    def clean(self):
+        cleaned_data = super().clean()
+        patient = cleaned_data.get('patient')
+        full_name = cleaned_data.get('full_name')
+
+        if not patient and not full_name:
+            raise forms.ValidationError(
+                "Either a patient record must be linked OR a full name must be provided."
+            )
+        if patient and full_name:
+            # You might allow both but prioritize `patient`, or disallow both.
+            # For simplicity, let's say you should only provide one for a new record.
+            # Or you can just let 'patient' override 'full_name' in your logic.
+            # Here, we'll allow both but indicate a potential redundancy.
+            pass # Or raise a specific error if you want strict exclusivity:
+            # raise forms.ValidationError(
+            #    "Please link either a patient record or provide a full name, but not both."
+            # )
+        return cleaned_data
+
+class MedicationForm(forms.ModelForm):
+    class Meta:
+        model = Medication
+        fields = '__all__' # Includes name, strength, form, manufacturer, price_per_unit, stock_quantity, reorder_level
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control'}),
+            'strength': forms.TextInput(attrs={'class': 'form-control'}),
+            'form': forms.TextInput(attrs={'class': 'form-control'}),
+            'manufacturer': forms.TextInput(attrs={'class': 'form-control'}),
+            'price_per_unit': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'stock_quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+            'reorder_level': forms.NumberInput(attrs={'class': 'form-control', 'min': '0'}),
+        }
+
+# New Cancer Registry Report Form
+class CancerRegistryReportForm(forms.ModelForm):
+    class Meta:
+        model = CancerRegistryReport
+        fields = '__all__' # Include all fields from the model
+        widgets = {
+            'report_date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
+            'date_of_diagnosis': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
+            'date_of_last_follow_up': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
+            'date_of_death': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
+            'cancer_type': forms.TextInput(attrs={'class': 'form-control'}),
+            'stage': forms.TextInput(attrs={'class': 'form-control'}),
+            'treatment_modalities': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'cause_of_death': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'vital_status': forms.Select(attrs={'class': 'form-select'}),
+            'reported_to_registry': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'registry_submission_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}, format='%Y-%m-%dT%H:%M'),
+            'patient': forms.Select(attrs={'class': 'form-select'}), # Style for select fields
+            'diagnosis': forms.Select(attrs={'class': 'form-select'}), # Style for select fields
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set default for report_date if creating a new report
+        if not self.instance.pk: # Only for new instances
+            self.fields['report_date'].initial = date.today()
+            # If reported_to_registry is true, registry_submission_date should be required
+            self.fields['registry_submission_date'].required = False # Default to not required
+
+    def clean(self):
+        cleaned_data = super().clean()
+        reported_to_registry = cleaned_data.get('reported_to_registry')
+        registry_submission_date = cleaned_data.get('registry_submission_date')
+        vital_status = cleaned_data.get('vital_status')
+        date_of_death = cleaned_data.get('date_of_death')
+        cause_of_death = cleaned_data.get('cause_of_death')
+
+        # If reported_to_registry is true, registry_submission_date must be provided
+        if reported_to_registry and not registry_submission_date:
+            self.add_error('registry_submission_date', "Submission date is required if reported to registry.")
+        
+        # If vital_status is 'dead', date_of_death should be required
+        if vital_status == 'dead' and not date_of_death:
+            self.add_error('date_of_death', "Date of death is required if vital status is 'Dead'.")
+        # If vital_status is 'dead' and date_of_death is provided, cause_of_death might be required
+        if vital_status == 'dead' and date_of_death and not cause_of_death:
+             self.add_error('cause_of_death', "Cause of death is recommended if vital status is 'Dead'.")
+        
+        # If vital_status is 'alive', date_of_death and cause_of_death should be empty
+        if vital_status == 'alive' and (date_of_death or cause_of_death):
+            self.add_error('vital_status', "Date of death and cause of death must be empty if vital status is 'Alive'.")
+            # Optionally clear the fields
+            cleaned_data['date_of_death'] = None
+            cleaned_data['cause_of_death'] = ''
+
+        return cleaned_data
+
+class ImagingResultForm(forms.ModelForm):
+    class Meta:
+        model = ImagingResult
+        # Fields must match your model's fields exactly
+        fields = ['report_date', 'findings', 'impression', 'recommendations', 'image_files', 'radiologist']
+        widgets = {
+            # Map 'result_date' to 'report_date'
+            'report_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}, format='%Y-%m-%dT%H:%M'),
+            'findings': forms.Textarea(attrs={'rows': 6, 'class': 'form-control'}),
+            # Map 'conclusion' to 'impression'
+            'impression': forms.Textarea(attrs={'rows': 4, 'class': 'form-control'}),
+            'recommendations': forms.Textarea(attrs={'rows': 4, 'class': 'form-control'}),
+            'image_files': forms.ClearableFileInput(attrs={'class': 'form-control'}), # Keep this without 'multiple'
+            'radiologist': forms.Select(attrs={'class': 'form-select'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set initial value for report_date to now
+        if not self.instance.pk:
+            self.fields['report_date'].initial = timezone.now().strftime('%Y-%m-%dT%H:%M')

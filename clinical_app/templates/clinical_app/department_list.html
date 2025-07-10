@@ -6,26 +6,33 @@
 <div class="container mt-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="mb-0 text-primary">{{ title }}</h1>
-        {# Link to create a new department (uncomment when you create DepartmentCreateView) #}
-        {# This link is only visible to admins, matching IsAdminMixin #}
         {% if request.user.user_type == 'admin' %}
-            <a href="{% url 'department_create' %}" class="btn btn-primary btn-lg custom-btn-primary">
+            <a href="{% url 'department_create' %}" class="btn btn-primary btn-lg custom-btn-primary shadow-sm">
                 <i class="fas fa-plus-circle me-2"></i> Add New Department
             </a>
         {% endif %}
     </div>
 
-    {# Optional: Add search/filter for departments here if needed #}
-
     {% if departments %}
-    <div class="card shadow-lg">
+    <div class="card shadow-lg border-0 rounded-3">
         <div class="card-body p-0">
-            <div class="table-responsive">
+            {# Add horizontal scroll for wide tables #}
+            <div class="table-responsive"> 
                 <table class="table table-hover table-striped mb-0 custom-table-modern">
                     <thead class="bg-light text-dark custom-thead">
                         <tr>
-                            <th scope="col">Department Name</th>
-                            <th scope="col">Description</th>
+                            <th scope="col">Name</th>
+                            <th scope="col">Type</th>
+                            <th scope="col">HOD</th>
+                            <th scope="col">Phone</th>
+                            <th scope="col">Email</th>
+                            <th scope="col">Location</th>
+                            <th scope="col">Floor</th>
+                            <th scope="col">Staff</th>
+                            <!-- <th scope="col">Budget</th> -->
+                            <th scope="col">Active</th>
+                            <th scope="col">Created</th>
+                            <th scope="col">Updated</th>
                             <th scope="col" class="text-center">Actions</th>
                         </tr>
                     </thead>
@@ -33,16 +40,29 @@
                         {% for department in departments %}
                         <tr>
                             <td>
-                                {# Link to department detail page (uncomment when you create DepartmentDetailView) #}
-                                {# <a href="{% url 'department_detail' department.pk %}" class="text-decoration-none text-info fw-bold">{{ department.name }}</a> #}
-                                {{ department.name }}
+                                {# Link to department detail page #}
+                                <a href="" class="text-decoration-none text-info fw-bold">{{ department.name }}</a>
                             </td>
-                            <td>{{ department.description|default:"N/A" }}</td>
+                            <td>{{ department.get_department_type_display }}</td> {# Uses get_FOO_display for choices #}
+                            <td>{{ department.head_of_department.get_full_name|default:department.head_of_department.username|default:"N/A" }}</td>
+                            <td>{{ department.contact_phone|default:"N/A" }}</td>
+                            <td>{{ department.contact_email|default:"N/A" }}</td>
+                            <td>{{ department.location|default:"N/A" }}</td>
+                            <td>{{ department.floor_number|default:"N/A" }}</td>
+                            <td>{{ department.staff_count|default:"N/A" }}</td>
+                            <!-- <td>KES {{ department.annual_budget|floatformat:2|default:"0.00" }}</td> {# Format as currency #} -->
+                            <td>
+                                {% if department.is_active %}
+                                    <span class="badge bg-success">Yes</span>
+                                {% else %}
+                                    <span class="badge bg-danger">No</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ department.created_at|date:"Y-m-d" }}</td> {# Simple date format #}
+                            <td>{{ department.updated_at|date:"Y-m-d" }}</td>
                             <td class="text-center">
-                                {# Actions like View, Edit, Delete (uncomment when you create respective views) #}
-                                {# <a href="{% url 'department_detail' department.pk %}" class="btn btn-sm btn-outline-info me-1" title="View Details"><i class="fas fa-eye"></i></a> #}
                                 {% if request.user.user_type == 'admin' %}
-                                   <a href="{% url 'department_update' department.pk %}" class="btn btn-sm btn-outline-warning me-1" title="Edit Department"><i class="fas fa-edit"></i></a> 
+                                    <a href="{% url 'department_update' department.pk %}" class="btn btn-sm btn-outline-warning me-1" title="Edit Department"><i class="fas fa-edit"></i></a>
                                     <a href="{% url 'department_delete' department.pk %}" class="btn btn-sm btn-outline-danger" title="Delete Department"><i class="fas fa-trash-alt"></i></a>
                                 {% endif %}
                             </td>
@@ -62,6 +82,9 @@
     {% else %}
     <div class="alert alert-info text-center py-4 shadow-sm rounded-3" role="alert">
         <i class="fas fa-info-circle me-2"></i> No departments found.
+        {% if request.user.user_type == 'admin' %}
+            <p class="mt-2">Click "Add New Department" to get started.</p>
+        {% endif %}
     </div>
     {% endif %}
 </div>

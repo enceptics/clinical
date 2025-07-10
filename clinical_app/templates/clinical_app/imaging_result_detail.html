@@ -1,0 +1,95 @@
+{% extends 'clinical_app/base.html' %}
+
+{% block title %}{{ title }} - {{ result.request.imaging_type.name }}{% endblock %}
+
+{% block content %}
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">{{ title }}</h4>
+                        {% if request.user.user_type == 'radiologist' or request.user.user_type == 'admin' %}
+                            <div>
+                                <a href="{% url 'imaging_result_update' result.pk %}" class="btn btn-light btn-sm me-2"><i class="fas fa-edit"></i> Edit</a>
+                                <a href="{% url 'imaging_result_delete' result.pk %}" class="btn btn-danger btn-sm"><i class="fas fa-trash-alt"></i> Delete</a>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="card-body">
+                        <dl class="row">
+                            <dt class="col-sm-4">Patient:</dt>
+                            <dd class="col-sm-8">
+                                <a href="{% url 'patient_detail' result.request.patient.pk %}">
+                                    {{ result.request.patient.user.get_full_name }} (ID: {{ result.request.patient.user.id_number }})
+                                </a>
+                            </dd>
+
+                            <dt class="col-sm-4">Imaging Request:</dt>
+                            <dd class="col-sm-8">
+                                {% if result.request %}
+                                    <a href="{% url 'imaging_request_detail' result.request.pk %}"> {# Assuming you have an imaging_request_detail URL #}
+                                        {{ result.request.imaging_type.name }} (Requested: {{ result.request.request_date|date:"Y-m-d H:i" }})
+                                    </a>
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-4">Radiologist:</dt>
+                            <dd class="col-sm-8">{{ result.radiologist.user.get_full_name|default:"N/A" }}</dd>
+
+                            <dt class="col-sm-4">Result Date:</dt>
+                            <dd class="col-sm-8">{{ result.result_date|date:"F d, Y H:i" }}</dd>
+
+                            <dt class="col-sm-4">Status:</dt>
+                            <dd class="col-sm-8">
+                                <span class="badge {% if result.status == 'finalized' %}bg-success{% elif result.status == 'preliminary' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                    {{ result.get_status_display }}
+                                </span>
+                            </dd>
+
+                            <dt class="col-sm-4">Findings:</dt>
+                            <dd class="col-sm-8">
+                                {% if result.findings %}
+                                    <pre class="card p-2 bg-light">{{ result.findings }}</pre>
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-4">Conclusion:</dt>
+                            <dd class="col-sm-8">
+                                {% if result.conclusion %}
+                                    <pre class="card p-2 bg-light">{{ result.conclusion }}</pre>
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-4">Image Files:</dt>
+                            <dd class="col-sm-8">
+                                {% if result.image_files %}
+                                    {# Assuming ImageField for single file or comma-separated string for multiple #}
+                                    {# If using a custom ManyToMany field with separate Image model, you'd iterate #}
+                                    {% if result.image_files.url %}
+                                        <a href="{{ result.image_files.url }}" target="_blank" class="btn btn-sm btn-outline-primary mt-1">
+                                            <i class="fas fa-image me-1"></i> View Image
+                                        </a>
+                                    {% else %}
+                                        N/A (No specific file attached)
+                                    {% endif %}
+                                {% else %}
+                                    No files attached.
+                                {% endif %}
+                            </dd>
+                        </dl>
+                    </div>
+                    <div class="card-footer text-end">
+                        <a href="{% url 'imaging_results_list' %}" class="btn btn-secondary">Back to Results List</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

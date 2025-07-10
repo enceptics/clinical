@@ -1,0 +1,71 @@
+{% extends 'clinical_app/base.html' %}  
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">{{ title }}</h4>
+                    </div>
+                    <div class="card-body">
+                        <form method="post">
+                            {% csrf_token %}
+
+                            {% if form.non_field_errors %}
+                                <div class="alert alert-danger" role="alert">
+                                    {% for error in form.non_field_errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+
+                            {% for field in form %}
+                                <div class="mb-3">
+                                    {{ field.label_tag }}
+                                    {{ field }}
+                                    {% if field.help_text %}
+                                        <div class="form-text text-muted">{{ field.help_text }}</div>
+                                    {% endif %}
+                                    {% if field.errors %}
+                                        <div class="alert alert-danger p-1 mt-1 small">
+                                            {% for error in field.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+
+                            <div class="d-flex justify-content-between mt-4">
+                                <button type="submit" class="btn btn-success">Save Record</button>
+                                <a href="{% url 'birth_records_list' %}" class="btn btn-secondary">Cancel</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+    {# Add any specific JS for form fields, like date pickers, if needed #}
+    <script>
+        // Example for styling form fields with Bootstrap classes
+        document.addEventListener('DOMContentLoaded', function() {
+            var formFields = document.querySelectorAll('.form-control, .form-select, .form-check-input');
+            formFields.forEach(function(field) {
+                if (field.tagName === 'SELECT') {
+                    field.classList.add('form-select');
+                } else if (field.type === 'checkbox' || field.type === 'radio') {
+                    field.classList.add('form-check-input');
+                } else {
+                    field.classList.add('form-control');
+                }
+            });
+        });
+    </script>
+{% endblock %}

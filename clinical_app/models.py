@@ -6,6 +6,7 @@ from datetime import date, timedelta # Import timedelta for date calculations
 import uuid
 from django.urls import reverse # Import reverse for get_absolute_url
 from decimal import Decimal, InvalidOperation, DivisionByZero,ROUND_HALF_UP
+from django.utils import timezone 
 
 # -----------------------------------------------------------------------------
 # User and Staff Management (Custom User Model)
@@ -159,11 +160,72 @@ class ProcurementOfficer(models.Model):
         return f"Procurement Officer {self.user.first_name} {self.user.last_name}"
 
 class Department(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    description = models.TextField(blank=True, null=True)
+    CLINICAL = 'Clinical'
+    ADMINISTRATIVE = 'Administrative'
+    DIAGNOSTIC = 'Diagnostic'
+    SUPPORT = 'Support'
+    EMERGENCY = 'Emergency'
+    SURGICAL = 'Surgical'
+    DEPARTMENT_TYPE_CHOICES = [
+        (CLINICAL, 'Clinical Services'),
+        (ADMINISTRATIVE, 'Administrative Services'),
+        (DIAGNOSTIC, 'Diagnostic Services'),
+        (SUPPORT, 'Support Services'),
+        (EMERGENCY, 'Emergency Services'),
+        (SURGICAL, 'Surgical Services'),
+    ]
+
+    name = models.CharField(max_length=100, unique=True,
+                            help_text="The official name of the department (e.g., 'Pediatrics', 'Radiology').")
+    description = models.TextField(blank=True, null=True,
+                                   help_text="A brief overview of the department's functions and scope.")
+
+    # --- Operational & Contact Information ---
+    department_type = models.CharField(max_length=50, choices=DEPARTMENT_TYPE_CHOICES, default=CLINICAL,
+                                       help_text="Category of the department (e.g., Clinical, Administrative).")
+
+    # Assuming 'User' model includes doctors/heads; adjust if you have a separate 'Doctor' model.
+    head_of_department = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True,
+                                           related_name='departments_headed',
+                                           help_text="The lead or head of this department.")
+
+    contact_phone = models.CharField(max_length=20, blank=True, null=True,
+                                     help_text="Primary phone number for direct departmental contact.")
+    contact_email = models.EmailField(max_length=254, blank=True, null=True,
+                                      help_text="Primary email address for the department.")
+
+    # --- Location Information ---
+    location = models.CharField(max_length=255, blank=True, null=True,
+                                help_text="Physical location within the hospital (e.g., 'Ground Floor, East Wing', 'Building C, Level 2').")
+    
+    floor_number = models.IntegerField(blank=True, null=True,
+                                       help_text="The floor number where the department is located.")
+
+    staff_count = models.IntegerField(blank=True, null=True,
+                                      help_text="Approximate total number of staff members in the department.")
+
+    annual_budget = models.DecimalField(max_digits=12, decimal_places=2, default=0.00,
+                                        help_text="The allocated annual budget for this department. Useful for procurement tracking.")
+ 
+    is_active = models.BooleanField(default=True,
+                                    help_text="Designates whether this department is currently operational and active.")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Department"
+        verbose_name_plural = "Departments"
+        ordering = ['name'] 
 
     def __str__(self):
         return self.name
+
+    def get_absolute_url(self):
+
+        from django.urls import reverse
+        return reverse('department_list')
+
 
 # -----------------------------------------------------------------------------
 # Patient Management
@@ -787,15 +849,15 @@ class ImagingRequest(models.Model):
 class ImagingResult(models.Model):
     request = models.OneToOneField(ImagingRequest, on_delete=models.CASCADE, related_name='result')
     radiologist = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='imaging_results_reported_by_set')
-    report_date = models.DateTimeField(auto_now_add=True)
+    # CHANGE THIS LINE: From auto_now_add=True to default=timezone.now
+    report_date = models.DateTimeField(default=timezone.now) # Changed
     findings = models.TextField()
     impression = models.TextField()
     recommendations = models.TextField(blank=True, null=True)
-    image_files = models.FileField(upload_to='imaging_results/', blank=True, null=True) # For DICOM or other image files
+    image_files = models.FileField(upload_to='imaging_results/', blank=True, null=True)
 
     def __str__(self):
         return f"Imaging Report for {self.request.encounter.patient} ({self.request.imaging_type.name})"
-
 # -----------------------------------------------------------------------------
 # Pharmacy & Medication Management
 # -----------------------------------------------------------------------------
@@ -842,26 +904,56 @@ class Ward(models.Model):
         ('icu', 'Intensive Care Unit'),
         ('maternity', 'Maternity'),
         ('pediatric', 'Pediatric'),
-        ('oncology', 'Oncology'), # Specific ward for oncology
-        # Add more as needed
+        ('oncology', 'Oncology'),
     )
     ward_type = models.CharField(max_length=50, choices=ward_type_choices, default='general')
     capacity = models.IntegerField()
-    # current_occupancy - can be a property or calculated
 
     def __str__(self):
         return self.name
 
+    @property
+    def current_occupancy(self):
+        """Calculates the number of currently occupied beds in this ward."""
+        # This filters related beds where the 'patient' field is NOT NULL
+        return self.beds.filter(patient__isnull=False).count()
+
+    @property
+    def available_beds_count(self):
+        """Calculates the number of available (unoccupied) beds in this ward."""
+        # This filters related beds where the 'patient' field IS NULL
+        return self.beds.filter(patient__isnull=True).count()
+
 class Bed(models.Model):
     ward = models.ForeignKey(Ward, on_delete=models.CASCADE, related_name='beds')
     bed_number = models.CharField(max_length=20)
-    is_occupied = models.BooleanField(default=False)
+    # The `is_occupied` field becomes redundant if `patient` is present.
+    # We can remove it and use a property, or keep it and update it via save/forms.
+    # For now, let's keep it but rely on the patient field.
+    is_occupied = models.BooleanField(default=False) # Will be updated by save method or form
+
+    # Add the foreign key to Patient
+    patient = models.OneToOneField(
+        'Patient',            # 'Patient' as string if Patient is defined later in the file
+        on_delete=models.SET_NULL, # When a patient record is deleted, set this bed's patient to NULL
+        null=True,             # A bed can be empty
+        blank=True,            # Allow empty in forms
+        related_name='current_bed', # Allows patient.current_bed to get the bed object
+        help_text="The patient currently assigned to this bed. Null if bed is empty."
+    )
 
     class Meta:
-        unique_together = ('ward', 'bed_number') # Ensure unique bed numbers within a ward
+        unique_together = ('ward', 'bed_number')
 
     def __str__(self):
-        return f"{self.ward.name} - Bed {self.bed_number}"
+        status = "Occupied" if self.patient else "Available"
+        patient_name = f" ({self.patient.get_full_name()})" if self.patient and hasattr(self.patient, 'get_full_name') else ""
+        return f"{self.ward.name} - Bed {self.bed_number} ({status}{patient_name})"
+
+    # Optional: Override save method to keep is_occupied in sync
+    def save(self, *args, **kwargs):
+        self.is_occupied = self.patient is not None
+        super().save(*args, **kwargs)
 
 # -----------------------------------------------------------------------------
 # Case Summary & Reporting

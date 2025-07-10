@@ -1,15 +1,27 @@
 {% extends "clinical_app/base.html" %}
 
-
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
 <div class="container mt-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1 class="mb-0 text-primary">{{ title }}</h1>
-        <a href="{% url 'ward_detail' ward.pk %}" class="btn btn-secondary">
-            <i class="fas fa-arrow-alt-circle-left me-2"></i> Back to Ward Details
-        </a>
+        {# --- Start of the fix for the Back to Ward Details link --- #}
+        {% if bed %} {# If 'bed' object is in context (e.g., for BedUpdateView, BedDetailView) #}
+            <a href="{% url 'ward_detail' pk=bed.ward.pk %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-alt-circle-left me-2"></i> Back to Ward Details
+            </a>
+        {% elif ward %} {# If 'ward' object is in context (e.g., for BedCreateView) #}
+            <a href="{% url 'ward_detail' pk=ward.pk %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-alt-circle-left me-2"></i> Back to Ward Details
+            </a>
+        {% else %}
+            {# Fallback if neither bed nor ward is available (shouldn't happen for these views) #}
+            <a href="{% url 'ward_list' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-alt-circle-left me-2"></i> Back to Ward List
+            </a>
+        {% endif %}
+        {# --- End of the fix --- #}
     </div>
 
     <div class="card shadow-lg p-4">
@@ -79,10 +91,10 @@
         // For 'is_occupied' checkbox, you might need to adjust its specific HTML if you want full Bootstrap 'form-check' layout.
         // A common pattern is:
         // <div class="form-check">
-        //   {{ form.is_occupied }}
-        //   <label class="form-check-label" for="{{ form.is_occupied.id_for_label }}">
-        //     {{ form.is_occupied.label }}
-        //   </label>
+        //    {{ form.is_occupied }}
+        //    <label class="form-check-label" for="{{ form.is_occupied.id_for_label }}">
+        //      {{ form.is_occupied.label }}
+        //    </label>
         // </div>
     });
 </script>

@@ -79,6 +79,10 @@ urlpatterns = [
     # Logs
     path('activity-logs/', views.ActivityLogListView.as_view(), name='activity_log_list'),
 
+    # Lab
+    path('lab_requests/<int:lab_request_pk>/record_result/', views.LabTestResultCreateView.as_view(), name='record_lab_result'),
+    path('lab_requests/', views.LabTestResultCreateView.as_view(), name='record_lab_result'),
+
     # Appointment paths
     path('appointments/', views.AppointmentListView.as_view(), name='appointment_list'),
     path('appointment/<int:pk>/', views.AppointmentDetailView.as_view(), name='appointment_detail'),
@@ -87,4 +91,39 @@ urlpatterns = [
     path('appointments/create/', views.AppointmentCreateView.as_view(), name='appointment_create'),
     path('ajax/search_patients/', views.search_patients_ajax, name='search_patients_ajax'),
     path('ajax/search_doctors/', views.search_doctors_ajax, name='search_doctors_ajax'),
+
+    # Medication URLs
+    path('medications/', views.MedicationInventoryView.as_view(), name='medication_inventory_list'),
+    path('medications/new/', views.MedicationCreateView.as_view(), name='medication_create'),
+    path('medications/<int:pk>/', views.MedicationDetailView.as_view(), name='medication_detail'),
+    path('medications/<int:pk>/update/', views.MedicationUpdateView.as_view(), name='medication_update'),
+    path('medications/<int:pk>/delete/', views.MedicationDeleteView.as_view(), name='medication_delete'),
+
+    # Birth records
+    path('birth-records/', views.BirthRecordsListView.as_view(), name='birth_records_list'),
+    path('birth-records/new/', views.BirthRecordCreateView.as_view(), name='birth_record_create'),
+    path('birth-records/<int:pk>/', views.BirthRecordDetailView.as_view(), name='birth_record_detail'),
+    path('birth-records/<int:pk>/update/', views.BirthRecordUpdateView.as_view(), name='birth_record_update'),
+    path('birth-records/<int:pk>/delete/', views.BirthRecordDeleteView.as_view(), name='birth_record_delete'),
+
+    # --- Mortality Records URLs ---
+    path('mortality-records/', views.MortalityRecordsListView.as_view(), name='mortality_records_list'),
+    path('mortality-records/new/', views.MortalityRecordCreateView.as_view(), name='mortality_record_create'),
+    path('mortality-records/<int:pk>/', views.MortalityRecordDetailView.as_view(), name='mortality_record_detail'),
+    path('mortality-records/<int:pk>/update/', views.MortalityRecordUpdateView.as_view(), name='mortality_record_update'),
+    path('mortality-records/<int:pk>/delete/', views.MortalityRecordDeleteView.as_view(), name='mortality_record_delete'),
+
+    # Cancer Registry Report URLs
+    path('cancer-reports/', views.CancerRegistryReportsListView.as_view(), name='cancer_reports_list'),
+    path('cancer-reports/new/', views.CancerRegistryReportCreateView.as_view(), name='cancer_report_create'),
+    path('cancer-reports/<int:pk>/', views.CancerRegistryReportDetailView.as_view(), name='cancer_report_detail'),
+    path('cancer-reports/<int:pk>/update/', views.CancerRegistryReportUpdateView.as_view(), name='cancer_report_update'),
+    path('cancer-reports/<int:pk>/delete/', views.CancerRegistryReportDeleteView.as_view(), name='cancer_report_delete'),
+
+    # Imaging Result URLs (General list/detail/update/delete)
+    path('imaging-results/', views.ImagingResultListView.as_view(), name='imaging_results_list'),
+    path('imaging-results/<int:pk>/', views.ImagingResultDetailView.as_view(), name='imaging_result_detail'),
+    path('imaging-results/<int:pk>/update/', views.ImagingResultUpdateView.as_view(), name='imaging_result_update'),
+    path('imaging-results/<int:pk>/delete/', views.ImagingResultDeleteView.as_view(), name='imaging_result_delete'),
+
 ]

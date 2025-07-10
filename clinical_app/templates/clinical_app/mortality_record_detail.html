@@ -1,0 +1,91 @@
+{% extends 'clinical_app/base.html' %}
+
+{% block title %}{{ title }} - {% if record.patient %}{{ record.patient.user.get_full_name }}{% else %}{{ record.full_name|default:"N/A" }}{% endif %}{% endblock %}
+
+{% block content %}
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center"> {# Changed header color #}
+                        <h4 class="mb-0">{{ title }}</h4>
+                        <div>
+                            <a href="{% url 'mortality_record_update' record.pk %}" class="btn btn-light btn-sm me-2"><i class="fas fa-edit"></i> Edit</a>
+                            <a href="{% url 'mortality_record_delete' record.pk %}" class="btn btn-danger btn-sm"><i class="fas fa-trash-alt"></i> Delete</a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <dl class="row">
+                            <dt class="col-sm-3">Patient Name:</dt>
+                            <dd class="col-sm-9">
+                                {% if record.patient %}
+                                    <a href="{% url 'patient_detail' record.patient.pk %}">
+                                        {{ record.patient.user.get_full_name }} (ID: {{ record.patient.user.id_number }})
+                                    </a>
+                                {% else %}
+                                    {{ record.full_name|default:"N/A (Patient not linked)" }}
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-3">Date of Death:</dt>
+                            <dd class="col-sm-9">{{ record.date_of_death|date:"F d, Y H:i" }}</dd>
+
+                            <dt class="col-sm-3">Cause of Death:</dt>
+                            <dd class="col-sm-9">
+                                {% if record.cause_of_death %}
+                                    <pre class="card p-2 bg-light">{{ record.cause_of_death }}</pre>
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-3">Contributing Factors:</dt>
+                            <dd class="col-sm-9">
+                                {% if record.contributing_factors %}
+                                    <pre class="card p-2 bg-light">{{ record.contributing_factors }}</pre>
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-3">Death Location:</dt>
+                            <dd class="col-sm-9">{{ record.get_death_location_display|default:"N/A" }}</dd>
+
+                            <dt class="col-sm-3">Encounter:</dt>
+                            <dd class="col-sm-9">
+                                {% if record.encounter %}
+                                    <a href="{% url 'encounter_detail' record.encounter.pk %}">
+                                        Encounter ID: {{ record.encounter.pk }} (Date: {{ record.encounter.encounter_date|date:"Y-m-d" }})
+                                    </a>
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-3">Certified By:</dt>
+                            <dd class="col-sm-9">
+                                {% if record.certified_by %}
+                                    <a href="{% url 'doctor_detail' record.certified_by.pk %}"> {# Assuming a doctor detail URL #}
+                                        {{ record.certified_by.user.get_full_name }}
+                                    </a>
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </dd>
+
+                            <dt class="col-sm-3">Certificate Number:</dt>
+                            <dd class="col-sm-9">{{ record.certificate_number|default:"N/A" }}</dd>
+
+                            <dt class="col-sm-3">Reported Date:</dt>
+                            <dd class="col-sm-9">{{ record.reported_date|date:"F d, Y H:i" }}</dd>
+
+                        </dl>
+                    </div>
+                    <div class="card-footer text-end">
+                        <a href="{% url 'mortality_records_list' %}" class="btn btn-secondary">Back to List</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

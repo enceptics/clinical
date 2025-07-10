@@ -1,0 +1,151 @@
+{% extends 'clinical_app/base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="mb-0 text-info"><i class="fas fa-x-ray me-2"></i>{{ title }}</h2>
+         
+                <div class="alert alert-info py-2 px-3 mb-0" role="alert">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Imaging scan requests are initiated by doctors during patient encounters.
+                </div>
+           
+            <a href="{% url 'imaging_results_list' %}" class="btn btn-outline-info btn-sm shadow-sm">
+                <i class="fas fa-clipboard-list me-2"></i>View Pending Requests
+            </a>
+        </div>
+
+        {% if filtered_by_date_range %}
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                <i class="fas fa-filter me-2"></i>
+                <strong>Currently filtered:</strong>
+                {% if filtered_by_date_range == 'last_30_days' %}
+                    Reports from the last 30 days.
+                {% endif %}
+                <a href="{% url 'imaging_results_list' %}" class="alert-link ms-3">Clear Filters</a>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endif %}
+
+        {% if results %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light py-3">
+                    <h5 class="mb-0 text-secondary">All Imaging Results</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Patient</th>
+                                    <th>Imaging Type</th>
+                                    <th>Result Date</th>
+                                    <th>Status</th>
+                                    <th>Radiologist</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for result in results %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'patient_detail' result.request.patient.pk %}" class="text-decoration-none">
+                                                {{ result.request.patient.user.get_full_name }}
+                                            </a>
+                                        </td>
+                                        <td>{{ result.request.imaging_type.name }}</td>
+                                        
+                                        <td>{{ result.report_date|date:"Y-m-d H:i" }}</td>
+                                        <td>
+                                            <span class="badge {% if result.status == 'finalized' %}bg-success{% elif result.status == 'preliminary' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                                {{ result.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>{{ result.radiologist.user.get_full_name|default:"N/A" }}</td>
+                                        <td class="text-center">
+                                            <div class="btn-group" role="group" aria-label="Imaging Result Actions">
+                                                <a href="{% url 'imaging_result_detail' result.pk %}" class="btn btn-sm btn-info" data-bs-toggle="tooltip" data-bs-placement="top" title="View Details">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="{% url 'imaging_result_update' result.pk %}" class="btn btn-sm btn-primary" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit Result">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a href="{% url 'imaging_result_delete' result.pk %}" class="btn btn-sm btn-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="Delete Result">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            {% if is_paginated %}
+                <nav aria-label="Page navigation" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ active_filters }}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link" aria-hidden="true">&laquo;</span>
+                            </li>
+                        {% endif %}
+
+                        {% for i in paginator.page_range %}
+                            {% if page_obj.number == i %}
+                                <li class="page-item active" aria-current="page">
+                                    <span class="page-link">{{ i }}</span>
+                                </li>
+                            {% else %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ i }}&{{ active_filters }}">{{ i }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ active_filters }}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link" aria-hidden="true">&raquo;</span>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+
+        {% else %}
+            <div class="alert alert-info text-center py-4 shadow-sm" role="alert">
+                <i class="fas fa-info-circle fa-2x mb-2"></i>
+                <h4>No imaging results found.</h4>
+                <p>No results have been recorded yet or do not match the current filters.</p>
+                {% if filtered_by_date_range %}
+                <p><a href="{% url 'imaging_results_list' %}" class="alert-link">Clear filters</a> to see all results.</p>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
+    </script>
+{% endblock %}

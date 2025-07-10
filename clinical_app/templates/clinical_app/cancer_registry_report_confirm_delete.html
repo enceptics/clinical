@@ -1,0 +1,30 @@
+{% extends 'clinical_app/base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card border-danger shadow-sm">
+                    <div class="card-header bg-danger text-white">
+                        <h4 class="mb-0">{{ title }}</h4>
+                    </div>
+                    <div class="card-body">
+                        <p class="lead text-center">Are you sure you want to delete the cancer report for:</p>
+                        <h5 class="text-center text-danger">
+                            "{{ object.patient.user.get_full_name }}" - {{ object.cancer_type }} on {{ object.report_date|date:"Y-m-d" }}?
+                        </h5>
+                        <p class="text-center text-muted">This action cannot be undone.</p>
+
+                        <form method="post" class="text-center mt-4">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger me-3"><i class="fas fa-trash-alt"></i> Confirm Delete</button>
+                            <a href="{% url 'cancer_report_detail' object.pk %}" class="btn btn-secondary"><i class="fas fa-times"></i> Cancel</a>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
