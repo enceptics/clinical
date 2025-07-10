@@ -19,7 +19,7 @@
                 {% csrf_token %}
                 {{ form.non_field_errors }}
 
-                <div class="form-group">
+                <div class="form-group mb-3">
                     <label for="{{ form.patient.id_for_label }}">Patient:</label>
                     {{ form.patient }}
                     {% if form.patient.errors %}
@@ -27,7 +27,7 @@
                     {% endif %}
                 </div>
 
-                <div class="form-group">
+                <div class="form-group mb-3">
                     <label for="{{ form.doctor.id_for_label }}">Doctor:</label>
                     {{ form.doctor }}
                     {% if form.doctor.errors %}
@@ -35,7 +35,7 @@
                     {% endif %}
                 </div>
 
-                <div class="form-group">
+                <div class="form-group mb-3">
                     <label for="{{ form.appointment_date.id_for_label }}">Appointment Date & Time:</label>
                     {{ form.appointment_date }}
                     {% if form.appointment_date.errors %}
@@ -43,7 +43,7 @@
                     {% endif %}
                 </div>
 
-                <div class="form-group">
+                <div class="form-group mb-3">
                     <label for="{{ form.reason_for_visit.id_for_label }}">Reason for Visit:</label>
                     {{ form.reason_for_visit }}
                     {% if form.reason_for_visit.errors %}
@@ -51,9 +51,9 @@
                     {% endif %}
                 </div>
 
-                {# If you allow updating status through this form, add it here #}
-                {% if form.instance.pk and request.user.user_type in ['admin', 'receptionist', 'doctor'] %}
-                    <div class="form-group">
+                {# Status field visibility check #}
+                {% if form.instance.pk and request.user.user_type == 'admin' or request.user.user_type == 'receptionist' or request.user.user_type == 'doctor' %}
+                    <div class="form-group mb-3">
                         <label for="{{ form.status.id_for_label }}">Status:</label>
                         {{ form.status }}
                         {% if form.status.errors %}
@@ -70,4 +70,57 @@
         </div>
     </div>
 </div>
-{% endblock %}
+{% endblock content %} {# <--- THIS WAS THE MISSING LINE! #}
+
+{# JavaScript for Select2 #}
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Initialize Select2 for the patient field
+    $('#id_patient').select2({
+        minimumInputLength: 2, // Minimum characters to type before searching
+        allowClear: true, // Allow clearing the selection
+        placeholder: $(this).attr('placeholder') || 'Search for a patient...',
+        ajax: {
+            url: "{% url 'search_patients_ajax' %}",
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                return {
+                    q: params.term
+                };
+            },
+            processResults: function (data) {
+                return {
+                    results: data.results
+                };
+            },
+            cache: true
+        }
+    });
+
+    // Initialize Select2 for the doctor field
+    $('#id_doctor').select2({
+        minimumInputLength: 2,
+        allowClear: true,
+        placeholder: $(this).attr('placeholder') || 'Search for a doctor...',
+        ajax: {
+            url: "{% url 'search_doctors_ajax' %}",
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                return {
+                    q: params.term
+                };
+            },
+            processResults: function (data) {
+                return {
+                    results: data.results
+                };
+            },
+            cache: true
+        }
+    });
+});
+</script>
+{% endblock extra_js %}

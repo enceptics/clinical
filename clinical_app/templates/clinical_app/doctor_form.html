@@ -1,0 +1,133 @@
+{% extends "clinical_app/base.html" %}
+
+{% block title %}Edit Doctor: {{ doctor.user.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4 text-center text-primary fw-bold">Edit Doctor: {{ doctor.user.get_full_name }}</h1>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg border-0 rounded-4">
+                <div class="card-header bg-gradient-primary text-muted d-flex align-items-center rounded-top-4">
+                    <i class="fas fa-edit fa-2x me-3"></i>
+                    <h4 class="mb-0 text-muted">Update Doctor Information</h4>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {# Display Non-Field Errors #}
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger" role="alert">
+                                {% for error in form.non_field_errors %}
+                                    <p>{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        {# Personal Details Section #}
+                        <h5 class="mt-3 mb-3 text-secondary"><i class="fas fa-user me-2"></i>Personal Details</h5>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                {{ form.first_name.label_tag }}
+                                {{ form.first_name }}
+                                {% if form.first_name.errors %}
+                                    <small class="text-danger">{{ form.first_name.errors }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.last_name.label_tag }}
+                                {{ form.last_name }}
+                                {% if form.last_name.errors %}
+                                    <small class="text-danger">{{ form.last_name.errors }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.email.label_tag }}
+                                {{ form.email }}
+                                {% if form.email.errors %}
+                                    <small class="text-danger">{{ form.email.errors }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.phone_number.label_tag }}
+                                {{ form.phone_number }}
+                                {% if form.phone_number.errors %}
+                                    <small class="text-danger">{{ form.phone_number.errors }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.date_of_birth.label_tag }}
+                                {{ form.date_of_birth }}
+                                {% if form.date_of_birth.errors %}
+                                    <small class="text-danger">{{ form.date_of_birth.errors }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.gender.label_tag }}
+                                {{ form.gender }}
+                                {% if form.gender.errors %}
+                                    <small class="text-danger">{{ form.gender.errors }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-12">
+                                {{ form.address.label_tag }}
+                                {{ form.address }}
+                                {% if form.address.errors %}
+                                    <small class="text-danger">{{ form.address.errors }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        {# Professional Details Section #}
+                        <h5 class="mt-4 mb-3 text-secondary"><i class="fas fa-briefcase-medical me-2"></i>Professional Details</h5>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                {{ form.specialization.label_tag }}
+                                {{ form.specialization }}
+                                {% if form.specialization.errors %}
+                                    <small class="text-danger">{{ form.specialization.errors }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.medical_license_number.label_tag }}
+                                {{ form.medical_license_number }}
+                                {% if form.medical_license_number.errors %}
+                                    <small class="text-danger">{{ form.medical_license_number.errors }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.department.label_tag }}
+                                {{ form.department }}
+                                {% if form.department.errors %}
+                                    <small class="text-danger">{{ form.department.errors }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.years_of_experience.label_tag }}
+                                {{ form.years_of_experience }}
+                                {% if form.years_of_experience.errors %}
+                                    <small class="text-danger">{{ form.years_of_experience.errors }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        {# Action Buttons #}
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save me-2"></i> Save Changes
+                            </button>
+                            <a href="{% url 'doctor_detail' doctor.pk %}" class="btn btn-outline-secondary btn-lg">
+                                <i class="fas fa-times-circle me-2"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

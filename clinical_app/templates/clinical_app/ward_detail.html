@@ -1,0 +1,102 @@
+{% extends "clinical_app/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0 text-primary">{{ title }}</h1>
+        <div>
+            <a href="{% url 'ward_list' %}" class="btn btn-secondary me-2">
+                <i class="fas fa-arrow-alt-circle-left me-2"></i> Back to Wards
+            </a>
+            {% if request.user.user_type == 'admin' %}
+                <a href="{% url 'ward_update' ward.pk %}" class="btn btn-warning me-2">
+                    <i class="fas fa-edit me-2"></i> Edit Ward
+                </a>
+                <a href="{% url 'ward_delete' ward.pk %}" class="btn btn-danger">
+                    <i class="fas fa-trash-alt me-2"></i> Delete Ward
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card shadow-lg mb-4">
+        <div class="card-header bg-primary text-white custom-header">
+            <h5 class="mb-0">Ward Information</h5>
+        </div>
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-4 text-muted">Ward Name:</dt>
+                <dd class="col-sm-8">{{ ward.name }}</dd>
+
+                <dt class="col-sm-4 text-muted">Ward Type:</dt>
+                <dd class="col-sm-8"><span class="badge bg-secondary">{{ ward.get_ward_type_display }}</span></dd>
+
+                <dt class="col-sm-4 text-muted">Capacity:</dt>
+                <dd class="col-sm-8">{{ ward.capacity }} beds</dd>
+
+                <dt class="col-sm-4 text-muted">Occupied Beds:</dt>
+                <dd class="col-sm-8">{{ occupied_beds_count }}</dd>
+
+                <dt class="col-sm-4 text-muted">Available Beds:</dt>
+                <dd class="col-sm-8">{{ available_beds_count }}</dd>
+            </dl>
+        </div>
+    </div>
+
+    {# List of Beds in this Ward #}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="mt-4 text-primary">Beds in {{ ward.name }}</h3>
+        {% if request.user.user_type == 'admin' or request.user.user_type == 'nurse' %}
+            <a href="{% url 'bed_create' ward.pk %}" class="btn btn-success btn-sm">
+                <i class="fas fa-plus-circle me-2"></i> Add New Bed
+            </a>
+        {% endif %}
+    </div>
+
+    {% if ward.beds.all %}
+    <div class="card shadow-lg">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0 custom-table-modern">
+                    <thead class="bg-light text-dark custom-thead">
+                        <tr>
+                            <th scope="col">Bed Number</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bed in ward.beds.all %}
+                        <tr>
+                            <td><a href="{% url 'bed_detail' bed.pk %}" class="text-decoration-none text-info fw-bold">{{ bed.bed_number }}</a></td>
+                            <td>
+                                {% if bed.is_occupied %}
+                                    <span class="badge bg-danger">Occupied</span>
+                                {% else %}
+                                    <span class="badge bg-success">Available</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <a href="{% url 'bed_detail' bed.pk %}" class="btn btn-sm btn-outline-info me-1" title="View Bed Details"><i class="fas fa-eye"></i></a>
+                                {% if request.user.user_type == 'admin' or request.user.user_type == 'nurse' %}
+                                    <a href="{% url 'bed_update' bed.pk %}" class="btn btn-sm btn-outline-warning me-1" title="Edit Bed"><i class="fas fa-edit"></i></a>
+                                    <a href="{% url 'bed_delete' bed.pk %}" class="btn btn-sm btn-outline-danger" title="Delete Bed"><i class="fas fa-trash-alt"></i></a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center py-3 shadow-sm rounded-3 mt-3" role="alert">
+        <i class="fas fa-info-circle me-2"></i> No beds registered for this ward yet.
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

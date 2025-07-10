@@ -1,0 +1,27 @@
+{% extends "clinical_app/base.html" %}
+
+{% block title %}Confirm Delete - {{ object }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow-lg border-danger">
+        <div class="card-header bg-danger text-white">
+            <h3 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i> Confirm Deletion</h3>
+        </div>
+        <div class="card-body">
+            <p class="lead">Are you sure you want to delete "{{ object }}"?</p>
+            <p class="text-danger">This action cannot be undone.</p>
+            
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger me-2">
+                    <i class="fas fa-trash-alt me-2"></i> Confirm Delete
+                </button>
+                <a href="{% if object.pk %}{% if object.ward %}{% url 'ward_detail' object.ward.pk %}{% else %}{% url 'ward_detail' object.pk %}{% endif %}{% else %}{% url 'ward_list' %}{% endif %}" class="btn btn-secondary">
+                    <i class="fas fa-times-circle me-2"></i> Cancel
+                </a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

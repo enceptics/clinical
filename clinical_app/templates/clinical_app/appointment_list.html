@@ -3,95 +3,116 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <h1 class="mb-4">{{ title }}</h1>
-
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <a href="{% url 'appointment_create' %}" class="btn btn-primary">Schedule New Appointment</a>
-        <form class="form-inline my-2 my-lg-0">
-            {# Add search/filter functionality if needed later #}
-            {# <input class="form-control mr-sm-2" type="search" placeholder="Search appointments" aria-label="Search"> #}
-            {# <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button> #}
-        </form>
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0 text-primary">{{ title }}</h1>
+        <a href="{% url 'appointment_create' %}" class="btn btn-primary btn-lg custom-btn-primary">
+            <i class="fas fa-plus-circle me-2"></i> Schedule New Appointment
+        </a>
     </div>
 
+    {# Search/Filter Section #}
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <form class="d-flex" method="GET"> {# IMPORTANT: Add method="GET" #}
+                <input class="form-control me-2" type="search" 
+                       placeholder="Search by Patient, Doctor, or Reason..." 
+                       aria-label="Search" 
+                       name="q" {# IMPORTANT: Add name="q" #}
+                       value="{{ request.GET.q|default:'' }}"> {# OPTIONAL: Retain search term in input #}
+                <button class="btn btn-outline-secondary" type="submit">Search</button>
+                {# Optional: Clear Search Button #}
+                {% if request.GET.q %}
+                    <a href="{% url 'appointment_list' %}" class="btn btn-outline-secondary ms-2">Clear</a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+
     {% if appointments %}
-    <div class="table-responsive">
-        <table class="table table-hover table-striped">
-            <thead class="thead-dark">
-                <tr>
-                    <th>Patient</th>
-                    <th>Doctor</th>
-                    <th>Date & Time</th>
-                    <th>Reason</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for appointment in appointments %}
-                <tr>
-                    <td><a href="{% url 'patient_detail' appointment.patient.pk %}">{{ appointment.patient.user.get_full_name }}</a></td>
-                    <td><a href="{% url 'doctor_detail' appointment.doctor.pk %}">{{ appointment.doctor.user.get_full_name }}</a></td>
-                    <td>{{ appointment.appointment_date|date:"M d, Y P" }}</td>
-                    <td>{{ appointment.reason_for_visit|truncatechars:70 }}</td>
-                    <td>
-                        {% if appointment.status == 'scheduled' %}
-                            <span class="badge badge-primary">{{ appointment.get_status_display }}</span>
-                        {% elif appointment.status == 'completed' %}
-                            <span class="badge badge-success">{{ appointment.get_status_display }}</span>
-                        {% elif appointment.status == 'cancelled' or appointment.status == 'no_show' %}
-                            <span class="badge badge-danger">{{ appointment.get_status_display }}</span>
-                        {% elif appointment.status == 'rescheduled' %}
-                            <span class="badge badge-info">{{ appointment.get_status_display }}</span>
-                        {% else %}
-                            <span class="badge badge-secondary">{{ appointment.get_status_display }}</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <a href="{% url 'appointment_detail' appointment.pk %}" class="btn btn-info btn-sm">View</a>
-                        {% if request.user.user_type in ['admin', 'receptionist'] or (request.user.user_type == 'doctor' and appointment.doctor.user == request.user) or (request.user.user_type == 'patient' and appointment.patient.user == request.user) %}
-                            <a href="{% url 'appointment_update' appointment.pk %}" class="btn btn-warning btn-sm">Edit</a>
-                        {% endif %}
-                        {% if request.user.user_type in ['admin', 'receptionist'] %}
-                            <a href="{% url 'appointment_delete' appointment.pk %}" class="btn btn-danger btn-sm">Delete</a>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="card shadow-lg">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0 custom-table-modern">
+                    <thead class="bg-light text-dark custom-thead">
+                        <tr>
+                            <th scope="col">Patient</th>
+                            <th scope="col">Doctor</th>
+                            <th scope="col">Date & Time</th>
+                            <th scope="col">Reason</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for appointment in appointments %}
+                        <tr>
+                            <td><a href="{% url 'patient_detail' appointment.patient.pk %}" class="text-decoration-none text-info fw-bold">{{ appointment.patient.user.get_full_name }}</a></td>
+                            <td><a href="{% url 'doctor_detail' appointment.doctor.pk %}" class="text-decoration-none text-secondary">{{ appointment.doctor.user.get_full_name }}</a></td>
+                            <td>{{ appointment.appointment_date|date:"M d, Y h:i A" }}</td>
+                            <td>{{ appointment.reason_for_visit|truncatechars:70 }}</td>
+                            <td>
+                                {% if appointment.status == 'scheduled' %}
+                                    <span class="badge bg-info text-dark status-scheduled">{{ appointment.get_status_display }}</span>
+                                {% elif appointment.status == 'completed' %}
+                                    <span class="badge bg-success status-completed">{{ appointment.get_status_display }}</span>
+                                {% elif appointment.status == 'cancelled' %}
+                                    <span class="badge bg-danger status-cancelled">{{ appointment.get_status_display }}</span>
+                                {% elif appointment.status == 'no_show' %}
+                                    <span class="badge bg-warning text-dark status-no-show">{{ appointment.get_status_display }}</span>
+                                {% elif appointment.status == 'rescheduled' %}
+                                    <span class="badge bg-primary status-rescheduled">{{ appointment.get_status_display }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary status-default">{{ appointment.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <a href="{% url 'appointment_detail' appointment.pk %}" class="btn btn-sm btn-outline-info me-1" title="View Details"><i class="fas fa-eye"></i></a>
+                                {% if request.user.user_type == 'admin' or request.user.user_type == 'receptionist' or request.user.user_type == 'doctor' and appointment.doctor.user == request.user or request.user.user_type == 'patient' and appointment.patient.user == request.user %}
+                                    <a href="{% url 'appointment_update' appointment.pk %}" class="btn btn-sm btn-outline-warning me-1" title="Edit Appointment"><i class="fas fa-edit"></i></a>
+                                {% endif %}
+                                {% if request.user.user_type == 'admin' or request.user.user_type == 'receptionist' %}
+                                    <a href="{% url 'appointment_delete' appointment.pk %}" class="btn btn-sm btn-outline-danger" title="Delete Appointment"><i class="fas fa-trash-alt"></i></a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     {% if is_paginated %}
-    <nav aria-label="Page navigation">
-        <ul class="pagination justify-content-center">
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center shadow-sm rounded-pill">
             {% if page_obj.has_previous %}
-                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ request.GET.q|urlencode }}"><i class="fas fa-chevron-left"></i> Previous</a></li>
             {% else %}
-                <li class="page-item disabled"><span class="page-link">Previous</span></li>
+                <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-left"></i> Previous</span></li>
             {% endif %}
 
             {% for i in paginator.page_range %}
                 {% if page_obj.number == i %}
                     <li class="page-item active"><span class="page-link">{{ i }}</span></li>
                 {% else %}
-                    <li class="page-item"><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+                    <li class="page-item"><a class="page-link" href="?page={{ i }}&q={{ request.GET.q|urlencode }}">{{ i }}</a></li>
                 {% endif %}
             {% endfor %}
 
             {% if page_obj.has_next %}
-                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ request.GET.q|urlencode }}">Next <i class="fas fa-chevron-right"></i></a></li>
             {% else %}
-                <li class="page-item disabled"><span class="page-link">Next</span></li>
+                <li class="page-item disabled"><span class="page-link">Next <i class="fas fa-chevron-right"></i></span></li>
             {% endif %}
         </ul>
     </nav>
     {% endif %}
 
     {% else %}
-    <div class="alert alert-info" role="alert">
-        No appointments found.
+    <div class="alert alert-info text-center py-4 shadow-sm rounded-3" role="alert">
+        <i class="fas fa-info-circle me-2"></i> No appointments found.
     </div>
     {% endif %}
 </div>

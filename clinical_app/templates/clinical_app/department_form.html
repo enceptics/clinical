@@ -1,0 +1,99 @@
+{% extends "clinical_app/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    {# Main header section for the page #}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0 text-primary">{{ title }}</h1>
+        <a href="{% url 'department_list' %}" class="btn btn-secondary shadow-sm">
+            <i class="fas fa-arrow-alt-circle-left me-2"></i> Back to Departments
+        </a>
+    </div>
+
+    {# Card containing the form #}
+    <div class="card shadow-lg border-0 rounded-3"> {# border-0 and rounded-3 for a slightly softer look #}
+        <div class="card-header bg-primary text-white py-3 rounded-top-3"> {# Custom header styling #}
+            <h5 class="mb-0">{{ title }} Form</h5> {# A title specifically for the form within the card #}
+        </div>
+        <div class="card-body p-4">
+            <form method="post" class="needs-validation" novalidate> {# Add HTML5 validation attributes #}
+                {% csrf_token %}
+                
+                {# Display non-field errors in a prominent alert #}
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger fade show mb-4" role="alert">
+                        <h4 class="alert-heading"><i class="fas fa-exclamation-circle me-2"></i> Form Errors!</h4>
+                        <ul class="mb-0">
+                            {% for error in form.non_field_errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+
+                {# Loop through each field to apply Bootstrap styling #}
+                {% for field in form %}
+                    <div class="mb-3">
+                        <label for="{{ field.id_for_label }}" class="form-label fw-bold">{{ field.label }}</label>
+                        
+                        {# Render the field. The JS below will add the correct Bootstrap class #}
+                        {{ field }}
+                        
+                        {# Display help text below the field #}
+                        {% if field.help_text %}
+                            <div class="form-text text-muted">{{ field.help_text }}</div>
+                        {% endif %}
+
+                        {# Display field-specific errors #}
+                        {% if field.errors %}
+                            <div class="invalid-feedback d-block"> {# d-block ensures visibility #}
+                                {% for error in field.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+
+                {# Submit Button #}
+                <button type="submit" class="btn btn-primary mt-4 btn-lg shadow-sm"> {# Larger and more prominent button #}
+                    <i class="fas fa-save me-2"></i> Save Department
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Corrected and more robust JavaScript for applying Bootstrap form classes
+        const formFields = document.querySelectorAll('.card-body form input, .card-body form select, .card-body form textarea');
+        formFields.forEach(field => {
+            if (field.type === 'checkbox' || field.type === 'radio') {
+                field.classList.add('form-check-input');
+            } else if (field.tagName === 'SELECT') {
+                field.classList.add('form-select');
+            } else { // This covers text inputs, number inputs, date inputs, textareas, etc.
+                field.classList.add('form-control');
+            }
+        });
+
+        // Add Bootstrap's HTML5 form validation classes
+        const forms = document.querySelectorAll('.needs-validation');
+        Array.prototype.slice.call(forms)
+            .forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    if (!form.checkValidity()) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    form.classList.add('was-validated');
+                }, false);
+            });
+    });
+</script>
+{% endblock extra_js %}

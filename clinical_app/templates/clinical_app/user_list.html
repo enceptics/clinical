@@ -1,0 +1,118 @@
+{% extends "clinical_app/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0 text-primary">{{ title }}</h1>
+      
+    </div>
+
+    {# Search/Filter Section for Users #}
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <form class="d-flex" method="GET">
+                <input class="form-control me-2" type="search"
+                       placeholder="Search by name, username, type, or email..."
+                       aria-label="Search"
+                       name="q"
+                       value="{{ request.GET.q|default:'' }}">
+                <button class="btn btn-outline-secondary" type="submit">Search</button>
+                {% if request.GET.q %}
+                    <a href="{% url 'user_list' %}" class="btn btn-outline-secondary ms-2">Clear</a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    {% if users %}
+    <div class="card shadow-lg">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0 custom-table-modern">
+                    <thead class="bg-light text-dark custom-thead">
+                        <tr>
+                            <th scope="col">Username</th>
+                            <th scope="col">Full Name</th>
+                            <th scope="col">User Type</th>
+                            <th scope="col">Email</th>
+                            <th scope="col">Phone</th>
+                            <th scope="col">Gender</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user_obj in users %} {# Renamed loop variable to user_obj to avoid clash with request.user #}
+                        <tr>
+                            <td>{{ user_obj.username }}</td>
+                            <td>{{ user_obj.get_full_name|default:"N/A" }}</td>
+                            <td>
+                                <span class="badge 
+                                    {% if user_obj.user_type == 'admin' %}bg-danger
+                                    {% elif user_obj.user_type == 'doctor' %}bg-primary
+                                    {% elif user_obj.user_type == 'patient' %}bg-info text-dark
+                                    {% elif user_obj.user_type == 'receptionist' %}bg-success
+                                    {% elif user_obj.user_type == 'nurse' %}bg-warning text-dark
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ user_obj.get_user_type_display }}
+                                </span>
+                            </td>
+                            <td>{{ user_obj.email|default:"N/A" }}</td>
+                            <td>{{ user_obj.phone_number|default:"N/A" }}</td>
+                            <td>{{ user_obj.get_gender_display|default:"N/A" }}</td>
+                            <td class="text-center">
+                                {# Example: Link to user detail page (if you create one) #}
+                                {# <a href="{% url 'user_detail' user_obj.pk %}" class="btn btn-sm btn-outline-info me-1" title="View Details"><i class="fas fa-eye"></i></a> #}
+                                
+                                {# Example: Link to user update page (if you create one) #}
+                                {% if request.user.user_type == 'admin' %} {# Only admin can edit other users #}
+                                    {# <a href="{% url 'user_update' user_obj.pk %}" class="btn btn-sm btn-outline-warning me-1" title="Edit User"><i class="fas fa-edit"></i></a> #}
+                                {% endif %}
+
+                                {# Example: Link to user delete page (if you create one) #}
+                                {% if request.user.user_type == 'admin' and user_obj != request.user %} {# Admin can delete, but not self #}
+                                    {# <a href="{% url 'user_delete' user_obj.pk %}" class="btn btn-sm btn-outline-danger" title="Delete User"><i class="fas fa-trash-alt"></i></a> #}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {# Pagination (similar to appointment list) #}
+    {% if is_paginated %}
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center shadow-sm rounded-pill">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ request.GET.q|urlencode }}"><i class="fas fa-chevron-left"></i> Previous</a></li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-left"></i> Previous</span></li>
+            {% endif %}
+
+            {% for i in paginator.page_range %}
+                {% if page_obj.number == i %}
+                    <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                {% else %}
+                    <li class="page-item"><a class="page-link" href="?page={{ i }}&q={{ request.GET.q|urlencode }}">{{ i }}</a></li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ request.GET.q|urlencode }}">Next <i class="fas fa-chevron-right"></i></a></li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">Next <i class="fas fa-chevron-right"></i></span></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <div class="alert alert-info text-center py-4 shadow-sm rounded-3" role="alert">
+        <i class="fas fa-info-circle me-2"></i> No users found.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

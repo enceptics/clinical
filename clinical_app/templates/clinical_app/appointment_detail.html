@@ -3,60 +3,81 @@
 {% block title %}Appointment Details - {{ appointment.patient.user.get_full_name }}{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <h1 class="mb-4">Appointment Details</h1>
-
-    <div class="mb-3">
-        <a href="{% url 'appointment_list' %}" class="btn btn-secondary btn-sm">Back to Appointments</a>
-        {% if request.user.user_type in ['admin', 'receptionist'] or (request.user.user_type == 'doctor' and appointment.doctor.user == request.user) or (request.user.user_type == 'patient' and appointment.patient.user == request.user) %}
-            <a href="{% url 'appointment_update' appointment.pk %}" class="btn btn-warning btn-sm">Edit Appointment</a>
-        {% endif %}
-        {% if request.user.user_type in ['admin', 'receptionist'] %}
-            <a href="{% url 'appointment_delete' appointment.pk %}" class="btn btn-danger btn-sm">Delete Appointment</a>
-        {% endif %}
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0 text-primary">Appointment Details</h1>
+        <div>
+            <a href="{% url 'appointment_list' %}" class="btn btn-secondary me-2">
+                <i class="fas fa-arrow-alt-circle-left me-2"></i> Back to Appointments
+            </a>
+            {# Conditional Edit Button - PARENTHESES REMOVED #}
+            {% if request.user.user_type == 'admin' or request.user.user_type == 'receptionist' or request.user.user_type == 'doctor' and appointment.doctor.user == request.user or request.user.user_type == 'patient' and appointment.patient.user == request.user %}
+                <a href="{% url 'appointment_update' appointment.pk %}" class="btn btn-warning me-2">
+                    <i class="fas fa-edit me-2"></i> Edit Appointment
+                </a>
+            {% endif %}
+            {# Conditional Delete Button - This was already simple enough, but kept consistent #}
+            {% if request.user.user_type == 'admin' or request.user.user_type == 'receptionist' %}
+                <a href="{% url 'appointment_delete' appointment.pk %}" class="btn btn-danger">
+                    <i class="fas fa-trash-alt me-2"></i> Delete Appointment
+                </a>
+            {% endif %}
+        </div>
     </div>
 
-    <div class="card shadow-sm">
-        <div class="card-header bg-primary text-white">
-            Appointment Information
+    <div class="card shadow-lg mb-4">
+        <div class="card-header bg-success text-white custom-header">
+            <h5 class="mb-0">Appointment Information</h5>
         </div>
         <div class="card-body">
-            <dl class="row">
-                <dt class="col-sm-3">Patient:</dt>
-                <dd class="col-sm-9"><a href="{% url 'patient_detail' appointment.patient.pk %}">{{ appointment.patient.user.get_full_name }} (ID: {{ appointment.patient.patient_id }})</a></dd>
+            <dl class="row mb-0">
+                <dt class="col-sm-4 text-muted">Patient:</dt>
+                <dd class="col-sm-8">
+                    <a href="{% url 'patient_detail' appointment.patient.pk %}" class="text-decoration-none text-info fw-bold">
+                        {{ appointment.patient.user.get_full_name }}
+                        <small class="text-muted">(ID: {{ appointment.patient.patient_id }})</small>
+                    </a>
+                </dd>
 
-                <dt class="col-sm-3">Doctor:</dt>
-                <dd class="col-sm-9"><a href="{% url 'doctor_detail' appointment.doctor.pk %}">{{ appointment.doctor.user.get_full_name }}</a></dd>
+                <dt class="col-sm-4 text-muted">Doctor:</dt>
+                <dd class="col-sm-8">
+                    <a href="{% url 'doctor_detail' appointment.doctor.pk %}" class="text-decoration-none text-secondary">
+                        {{ appointment.doctor.user.get_full_name }}
+                    </a>
+                </dd>
 
-                <dt class="col-sm-3">Date & Time:</dt>
-                <dd class="col-sm-9">{{ appointment.appointment_date|date:"l, M d, Y" }} at {{ appointment.appointment_date|date:"P" }}</dd>
+                <dt class="col-sm-4 text-muted">Date & Time:</dt>
+                <dd class="col-sm-8">
+                    <i class="far fa-calendar-alt me-2"></i> {{ appointment.appointment_date|date:"l, M d, Y" }}
+                    <i class="far fa-clock ms-3 me-2"></i> {{ appointment.appointment_date|date:"P" }}
+                </dd>
 
-                <dt class="col-sm-3">Reason for Visit:</dt>
-                <dd class="col-sm-9">{{ appointment.reason_for_visit }}</dd>
+                <dt class="col-sm-4 text-muted">Reason for Visit:</dt>
+                <dd class="col-sm-8">{{ appointment.reason_for_visit }}</dd>
 
-                <dt class="col-sm-3">Status:</dt>
-                <dd class="col-sm-9">
+                <dt class="col-sm-4 text-muted">Status:</dt>
+                <dd class="col-sm-8">
                     {% if appointment.status == 'scheduled' %}
-                        <span class="badge badge-primary">{{ appointment.get_status_display }}</span>
+                        <span class="badge bg-info text-dark">{{ appointment.get_status_display }}</span>
                     {% elif appointment.status == 'completed' %}
-                        <span class="badge badge-success">{{ appointment.get_status_display }}</span>
+                        <span class="badge bg-success">{{ appointment.get_status_display }}</span>
                     {% elif appointment.status == 'cancelled' or appointment.status == 'no_show' %}
-                        <span class="badge badge-danger">{{ appointment.get_status_display }}</span>
+                        <span class="badge bg-danger">{{ appointment.get_status_display }}</span>
                     {% elif appointment.status == 'rescheduled' %}
-                        <span class="badge badge-info">{{ appointment.get_status_display }}</span>
+                        <span class="badge bg-primary">{{ appointment.get_status_display }}</span>
                     {% else %}
-                        <span class="badge badge-secondary">{{ appointment.get_status_display }}</span>
+                        <span class="badge bg-secondary">{{ appointment.get_status_display }}</span>
                     {% endif %}
                 </dd>
 
-                <dt class="col-sm-3">Scheduled By:</dt>
-                <dd class="col-sm-9">{{ appointment.scheduled_by.get_full_name|default:"N/A" }}</dd> {# Assuming scheduled_by field exists #}
+                <dt class="col-sm-4 text-muted">Scheduled By:</dt>
+                <dd class="col-sm-8">{{ appointment.scheduled_by.get_full_name|default:"N/A" }}</dd>
 
-                <dt class="col-sm-3">Created At:</dt>
-                <dd class="col-sm-9">{{ appointment.created_at|date:"M d, Y P" }}</dd>
+                <dt class="col-sm-4 text-muted">Created At:</dt>
+                <dd class="col-sm-8">{{ appointment.created_at|date:"M d, Y P" }}</dd>
 
-                <dt class="col-sm-3">Last Updated:</dt>
-                <dd class="col-sm-9">{{ appointment.updated_at|date:"M d, Y P" }}</dd>
+                <dt class="col-sm-4 text-muted">Last Updated:</dt>
+                <dd class="col-sm-8">{{ appointment.updated_at|date:"M d, Y P" }}</dd>
             </dl>
         </div>
     </div>

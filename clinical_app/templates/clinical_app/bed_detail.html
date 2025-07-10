@@ -1,0 +1,48 @@
+{% extends "clinical_app/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0 text-primary">{{ title }}</h1>
+        <div>
+            <a href="{% url 'ward_detail' bed.ward.pk %}" class="btn btn-secondary me-2">
+                <i class="fas fa-arrow-alt-circle-left me-2"></i> Back to Ward
+            </a>
+            {% if request.user.user_type == 'admin' or request.user.user_type == 'nurse' %}
+                <a href="{% url 'bed_update' bed.pk %}" class="btn btn-warning me-2">
+                    <i class="fas fa-edit me-2"></i> Edit Bed
+                </a>
+                <a href="{% url 'bed_delete' bed.pk %}" class="btn btn-danger">
+                    <i class="fas fa-trash-alt me-2"></i> Delete Bed
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card shadow-lg mb-4">
+        <div class="card-header bg-info text-dark custom-header">
+            <h5 class="mb-0">Bed Information</h5>
+        </div>
+        <div class="card-body">
+            <dl class="row mb-0">
+                <dt class="col-sm-4 text-muted">Ward:</dt>
+                <dd class="col-sm-8"><a href="{% url 'ward_detail' bed.ward.pk %}">{{ bed.ward.name }}</a></dd>
+
+                <dt class="col-sm-4 text-muted">Bed Number:</dt>
+                <dd class="col-sm-8">{{ bed.bed_number }}</dd>
+
+                <dt class="col-sm-4 text-muted">Status:</dt>
+                <dd class="col-sm-8">
+                    {% if bed.is_occupied %}
+                        <span class="badge bg-danger">Occupied</span>
+                    {% else %}
+                        <span class="badge bg-success">Available</span>
+                    {% endif %}
+                </dd>
+            </dl>
+        </div>
+    </div>
+</div>
+{% endblock %}

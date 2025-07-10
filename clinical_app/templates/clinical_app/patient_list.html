@@ -5,10 +5,15 @@
 {% block content %}
 <div class="container-fluid">
     <h1 class="mb-4">Patient List</h1>
-    <form method="get" class="form-inline mb-3">
-        <input type="text" name="q" class="form-control mr-sm-2" placeholder="Search patients..." value="{{ request.GET.q }}">
-        <button type="submit" class="btn btn-outline-success my-2 my-sm-0">Search</button>
-    </form>
+<form method="get" class="mb-3">
+    <div class="input-group">
+        <label for="search-query-group" class="visually-hidden">Search Patients</label>
+        <input type="text" id="search-query-group" name="q" class="form-control" placeholder="Search patients by name, ID, or contact info..." value="{{ request.GET.q }}" aria-label="Search Patients">
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-search me-1"></i> Search
+        </button>
+    </div>
+</form>
 
     {% if user.user_type == 'admin' %}
         <a href="{% url 'register_by_type' user_type='patient' %}" class="btn btn-primary mb-3">Register New Patient</a>

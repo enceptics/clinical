@@ -329,7 +329,7 @@
         {% if user_type == 'admin' %}
             <div class="row">
                 <div class="col-md-4">
-                    <a href="{% url 'patient_list' %}" class="card custom-styled-card" aria-label="Total Patients Card"> {# Link entire card for better UX #}
+                    <a href="{% url 'patient_list' %}" class="card custom-styled-card" aria-label="Total Patients Card"> 
                         <div class="card-body">
                             <div class="card-text-container">
                                 <h5>Total Patients</h5>
@@ -343,7 +343,7 @@
                     </a>
                 </div>
                 <div class="col-md-4">
-                    <a href="#" class="card custom-styled-card disabled" aria-label="Total Doctors Card"> {# Disabled link for now #}
+                    <a href="{% url 'doctor_list' %}" class="card custom-styled-card" aria-label="Total Doctors Card"> {# Removed 'disabled' class #}
                         <div class="card-body">
                             <div class="card-text-container">
                                 <h5>Total Doctors</h5>
@@ -357,10 +357,11 @@
                     </a>
                 </div>
                 <div class="col-md-4">
-                    <a href="#" class="card custom-styled-card disabled" aria-label="Pending Appointments Card"> {# Disabled link for now #}
+                    <a href="{% url 'appointment_list' %}" class="card custom-styled-card {% if some_condition_is_true %}disabled{% endif %}" aria-label="Pending Appointments Card">
                         <div class="card-body">
                             <div class="card-text-container">
                                 <h5>Pending Appointments</h5>
+                                {# Displaying the variable correctly in Django #}
                                 <h3 class="card-text-value">{{ pending_appointments }}</h3>
                                 <p class="card-text">Appointments scheduled but not completed.</p>
                             </div>
@@ -372,11 +373,12 @@
                 </div>
                 {# New Admin Metrics based on your View #}
                 <div class="col-md-4">
-                    <a href="#" class="card custom-styled-card disabled" aria-label="Total Active Staff Card">
+                    {# Updated href to point to the 'user_list' URL and removed 'disabled' class #}
+                    <a href="{% url 'user_list' %}" class="card custom-styled-card" aria-label="Total Active Staff Card">
                         <div class="card-body">
                             <div class="card-text-container">
-                                <h5>Total Active Staff</h5>
-                                <h3 class="card-text-value">{{ total_active_staff }}</h3>
+                                <h5>Total Active Users</h5>
+                                <h3 class="card-text-value">{{ total_active_users }}</h3>
                                 <p class="card-text">All active users except patients.</p>
                             </div>
                             <div class="icon-circle">
@@ -385,22 +387,24 @@
                         </div>
                     </a>
                 </div>
-                <div class="col-md-4">
-                    <a href="#" class="card custom-styled-card disabled" aria-label="Available Beds Card">
-                        <div class="card-body">
-                            <div class="card-text-container">
-                                <h5>Available Beds</h5>
-                                <h3 class="card-text-value">{{ available_beds }}</h3>
-                                <p class="card-text">Currently unoccupied hospital beds.</p>
+
+                    <div class="col-md-4">
+                        {# Updated href to point to the 'ward_list' URL and removed 'disabled' class #}
+                        <a href="{% url 'ward_list' %}" class="card custom-styled-card" aria-label="Available Beds Card">
+                            <div class="card-body">
+                                <div class="card-text-container">
+                                    <h5>Available Beds</h5>
+                                    <h3 class="card-text-value">{{ available_beds }}</h3>
+                                    <p class="card-text">Currently unoccupied hospital beds.</p>
+                                </div>
+                                <div class="icon-circle">
+                                    <i class="fas fa-bed" aria-hidden="true"></i>
+                                </div>
                             </div>
-                            <div class="icon-circle">
-                                <i class="fas fa-bed" aria-hidden="true"></i>
-                            </div>
-                        </div>
-                    </a>
-                </div>
+                        </a>
+                    </div>
                 <div class="col-md-4">
-                    <a href="#" class="card custom-styled-card disabled" aria-label="Total Departments Card">
+                    <a href="{% url 'department_list' %}" class="card custom-styled-card" aria-label="Total Departments Card">
                         <div class="card-body">
                             <div class="card-text-container">
                                 <h5>Total Departments</h5>

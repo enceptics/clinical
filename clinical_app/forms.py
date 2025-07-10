@@ -405,18 +405,186 @@ class CustomUserChangeForm(UserChangeForm):
 
 
 ## Model Forms for Related Profiles and Clinical Data
-
-class DoctorForm(forms.ModelForm):
-    """Form for editing an existing Doctor profile."""
-    class Meta:
-        model = Doctor
-        fields = ['specialization', 'medical_license_number', 'department']
+class PatientForm(forms.ModelForm):
+    # Fields from the User model that you want to allow updating
+    first_name = forms.CharField(max_length=150, required=True, label="First Name")
+    last_name = forms.CharField(max_length=150, required=True, label="Last Name")
+    email = forms.EmailField(required=True, label="Email Address")
+    username = forms.CharField(max_length=150, required=True, label="Username")
+    phone_number = forms.CharField(max_length=20, required=False, label="Phone Number")
     
+    # Use the gender_choices from your Custom User model
+    gender = forms.ChoiceField(choices=User.gender_choices, required=False, label="Gender")
+    date_of_birth = forms.DateField(
+        widget=forms.DateInput(attrs={'type': 'date'}),
+        required=False,
+        label="Date of Birth"
+    )
+
+    class Meta:
+        model = Patient
+        fields = [
+            # 'patient_id', # REMOVE patient_id from here as it's auto-generated and primary_key/not editable
+            'blood_group',
+            'emergency_contact_name',
+            'emergency_contact_phone',
+            'allergies',
+            'pre_existing_conditions',
+        ]
+        widgets = {
+            'allergies': forms.Textarea(attrs={'rows': 3, 'placeholder': 'List known allergies (e.g., medications, food)'}),
+            'pre_existing_conditions': forms.Textarea(attrs={'rows': 3, 'placeholder': 'List any chronic conditions'}),
+        }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for field in self.fields.values():
-            field.widget.attrs['class'] = 'form-control'
+        if self.instance and self.instance.user:
+            self.fields['first_name'].initial = self.instance.user.first_name
+            self.fields['last_name'].initial = self.instance.user.last_name
+            self.fields['email'].initial = self.instance.user.email
+            self.fields['username'].initial = self.instance.user.username
+            self.fields['phone_number'].initial = self.instance.user.phone_number
+            self.fields['gender'].initial = self.instance.user.gender
+            self.fields['date_of_birth'].initial = self.instance.user.date_of_birth
+        
+        # Add Bootstrap form-control class to all fields
+        for field_name, field in self.fields.items():
+            if isinstance(field.widget, (forms.TextInput, forms.EmailInput, forms.NumberInput, forms.Textarea, forms.DateInput, forms.Select)):
+                field.widget.attrs.update({'class': 'form-control'})
+            elif isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs.update({'class': 'form-check-input'})
 
+        # Add a read-only field for patient_id if you want to display it
+        # This is for display only, it won't be part of the form's data submission for update
+        if self.instance and self.instance.patient_id:
+            self.fields['display_patient_id'] = forms.CharField(
+                label="Patient ID",
+                initial=self.instance.patient_id,
+                required=False,
+                widget=forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control'})
+            )
+            # Reorder fields if you want display_patient_id to appear at the top
+            self.order_fields(['display_patient_id', 'first_name', 'last_name', 'username', 'email', 'phone_number', 'gender', 'date_of_birth', 'blood_group', 'emergency_contact_name', 'emergency_contact_phone', 'allergies', 'pre_existing_conditions'])
+
+
+    def clean_username(self):
+        username = self.cleaned_data['username']
+        # Check if username exists for another user (excluding the current user if updating)
+        query = User.objects.filter(username=username)
+        if self.instance and self.instance.user:
+            query = query.exclude(pk=self.instance.user.pk)
+        if query.exists():
+            raise forms.ValidationError("This username is already taken. Please choose another.")
+        return username
+
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        # Check if email exists for another user (excluding the current user if updating)
+        query = User.objects.filter(email=email)
+        if self.instance and self.instance.user:
+            query = query.exclude(pk=self.instance.user.pk)
+        if query.exists():
+            raise forms.ValidationError("This email is already in use. Please use another.")
+        return email
+
+    def save(self, commit=True):
+        # Retrieve the Patient instance created by super().save(commit=False)
+        # Note: If primary_key=True, then super().save() might not create a new object
+        # but modify the existing one based on the user's PK.
+        patient = super().save(commit=False) # This will update Patient fields
+
+        # Get the associated User instance
+        user = patient.user
+
+        # Update User fields from form data
+        user.first_name = self.cleaned_data['first_name']
+        user.last_name = self.cleaned_data['last_name']
+        user.email = self.cleaned_data['email']
+        user.username = self.cleaned_data['username']
+        user.phone_number = self.cleaned_data.get('phone_number')
+        user.gender = self.cleaned_data.get('gender')
+        user.date_of_birth = self.cleaned_data.get('date_of_birth')
+        
+        if commit:
+            user.save() # Save the updated User instance
+            patient.save() # Save the updated Patient instance (which also triggers patient_id generation if new)
+        return patient
+
+
+class DoctorForm(forms.ModelForm):
+    """
+    Form for editing an existing Doctor profile,
+    including fields from the associated User model.
+    """
+    # Fields from the User model that you want to allow editing
+    first_name = forms.CharField(max_length=150, required=True, label="First Name")
+    last_name = forms.CharField(max_length=150, required=True, label="Last Name")
+    email = forms.EmailField(required=True, label="Email Address")
+    phone_number = forms.CharField(max_length=20, required=False, label="Phone Number")
+    address = forms.CharField(widget=forms.Textarea(attrs={'rows': 3}), required=False, label="Address")
+    date_of_birth = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}), required=False, label="Date of Birth")
+    gender = forms.ChoiceField(choices=User.gender_choices, required=False, label="Gender")
+
+    class Meta:
+        model = Doctor
+        fields = [
+            'specialization',
+            'medical_license_number',
+            'department',
+            'years_of_experience', # Include 'years_of_experience' from Doctor model
+            # User fields are defined explicitly above
+        ]
+        widgets = {
+            'specialization': forms.TextInput(attrs={'class': 'form-control'}),
+            'medical_license_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'department': forms.Select(attrs={'class': 'form-control'}),
+            'years_of_experience': forms.NumberInput(attrs={'class': 'form-control'}), # Add widget for this field
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Populate form fields with existing User data if an instance is provided
+        if self.instance and self.instance.user:
+            user_data = self.instance.user
+            self.fields['first_name'].initial = user_data.first_name
+            self.fields['last_name'].initial = user_data.last_name
+            self.fields['email'].initial = user_data.email
+            self.fields['phone_number'].initial = user_data.phone_number
+            self.fields['address'].initial = user_data.address
+            self.fields['date_of_birth'].initial = user_data.date_of_birth
+            self.fields['gender'].initial = user_data.gender
+
+        # Apply Bootstrap's 'form-control' class to all fields
+        # This loop covers Meta fields and manually added fields
+        for field_name, field in self.fields.items():
+            if isinstance(field.widget, (forms.TextInput, forms.Textarea, forms.Select, forms.NumberInput, forms.DateInput)):
+                field.widget.attrs.update({'class': 'form-control'})
+            
+            # Special handling for EmailField to ensure type='email'
+            if field_name == 'email':
+                field.widget.attrs['type'] = 'email'
+
+
+    def save(self, commit=True):
+        # First, save the Doctor instance but don't commit yet
+        doctor = super().save(commit=False)
+
+        # Then, update the associated User instance with cleaned data
+        user = doctor.user
+        user.first_name = self.cleaned_data['first_name']
+        user.last_name = self.cleaned_data['last_name']
+        user.email = self.cleaned_data['email']
+        user.phone_number = self.cleaned_data['phone_number']
+        user.address = self.cleaned_data['address']
+        user.date_of_birth = self.cleaned_data['date_of_birth']
+        user.gender = self.cleaned_data['gender']
+
+        # If commit is True, save both instances
+        if commit:
+            user.save()
+            doctor.save() # This save might not be strictly necessary if primary_key=True is handled
+                          # by Django's OneToOneField, but it's safer.
+        return doctor
 
 class NurseForm(forms.ModelForm):
     """Form for editing an existing Nurse profile."""
@@ -531,20 +699,45 @@ class RadiologistForm(forms.ModelForm):
         self.fields['on_call_status'].widget.attrs['class'] = 'form-check-input'
 
 
+# In clinical_app/forms.py
 class AppointmentForm(forms.ModelForm):
     class Meta:
         model = Appointment
         fields = ['patient', 'doctor', 'appointment_date', 'reason_for_visit']
-        widgets = {
-            'appointment_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
-            'reason_for_visit': forms.Textarea(attrs={'rows': 3, 'class': 'form-control', 'placeholder': 'Main reason for visit'}),
-        }
+        # Add 'status' only when editing if needed
+        # widgets... (remain same)
+
     def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
+
+        # Apply initial Bootstrap classes
         self.fields['patient'].widget.attrs['class'] = 'form-control'
         self.fields['doctor'].widget.attrs['class'] = 'form-control'
+        
+        # Set empty labels for Select2
+        self.fields['patient'].empty_label = "Search and select a Patient"
+        self.fields['doctor'].empty_label = "Search and select a Doctor"
 
 
+        # Conditional display/initialization based on user type
+        if self.user:
+            if self.user.user_type == 'patient':
+                # Hide the patient field, it will be set automatically
+                self.fields['patient'].widget = forms.HiddenInput()
+                # Initial value will be set in the view's form_valid
+                self.fields['doctor'].queryset = Doctor.objects.all().order_by('user__first_name') # Patients can choose any doctor
+            
+            elif self.user.user_type == 'doctor':
+                # Hide the doctor field, it will be set automatically
+                self.fields['doctor'].widget = forms.HiddenInput()
+                # Doctors can choose any patient
+                self.fields['patient'].queryset = Patient.objects.all().order_by('user__first_name')
+            
+            elif self.user.user_type in ['admin', 'receptionist']:
+                # Admin/Receptionist sees searchable fields for both
+                self.fields['patient'].queryset = Patient.objects.all().order_by('user__first_name')
+                self.fields['doctor'].queryset = Doctor.objects.all().order_by('user__first_name')
 class VitalSignForm(forms.ModelForm):
     class Meta:
         model = VitalSign

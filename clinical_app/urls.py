@@ -8,6 +8,7 @@ urlpatterns = [
     path('logout/', auth_views.LogoutView.as_view(next_page='/login/'), name='logout'),
     path('register/', views.select_user_type, name='select_user_type'),
     path('register/<str:user_type>/', views.UserRegistrationView.as_view(), name='register_by_type'),
+    path('users/', views.UserListView.as_view(), name='user_list'),
 
     path('', views.HomeView.as_view(), name='home'),
 
@@ -18,6 +19,12 @@ urlpatterns = [
     path('patients/<int:pk>/update/', views.PatientUpdateView.as_view(), name='patient_update'),
     path('patients/<int:patient_pk>/add_consent/', views.ConsentFormCreateView.as_view(), name='consent_create'),
     path('patients/<int:patient_pk>/add_history/', views.MedicalHistoryCreateView.as_view(), name='medical_history_create'),
+
+    # Doctor URLs
+    path('doctors/', views.DoctorListView.as_view(), name='doctor_list'),
+    path('doctor/<int:pk>/', views.DoctorDetailView.as_view(), name='doctor_detail'),
+    path('doctors/<int:pk>/update/', views.DoctorUpdateView.as_view(), name='doctor_update'),
+    path('doctors/<int:pk>/delete/', views.DoctorDeleteView.as_view(), name='doctor_delete'),
 
     # Encounter URLs
     path('encounters/create/', views.EncounterCreateView.as_view(), name='encounter_create'),
@@ -45,6 +52,23 @@ urlpatterns = [
          views.ClinicalNoteUpdateView.as_view(),
          name='clinical_note_update'),
 
+    # --- Department URLs ---
+    path('departments/', views.DepartmentListView.as_view(), name='department_list'),
+    path('departments/create/', views.DepartmentCreateView.as_view(), name='department_create'),
+    path('departments/<int:pk>/update/', views.DepartmentUpdateView.as_view(), name='department_update'),
+    path('departments/<int:pk>/delete/', views.DepartmentDeleteView.as_view(), name='department_delete'),
+
+    # Ward and bed
+    path('wards/', views.WardListView.as_view(), name='ward_list'),
+    path('wards/create/', views.WardCreateView.as_view(), name='ward_create'),
+    path('wards/<int:pk>/', views.WardDetailView.as_view(), name='ward_detail'),
+    path('wards/<int:pk>/update/', views.WardUpdateView.as_view(), name='ward_update'),
+    path('wards/<int:pk>/delete/', views.WardDeleteView.as_view(), name='ward_delete'),
+    path('wards/<int:ward_pk>/beds/create/', views.BedCreateView.as_view(), name='bed_create'),
+    path('beds/<int:pk>/', views.BedDetailView.as_view(), name='bed_detail'),
+    path('beds/<int:pk>/update/', views.BedUpdateView.as_view(), name='bed_update'),
+    path('beds/<int:pk>/delete/', views.BedDeleteView.as_view(), name='bed_delete'),
+
     # Case summary
     path('encounters/<int:pk>/generate-summary/', views.GenerateCaseSummaryView.as_view(), name='generate_case_summary'),
     path('case-summaries/<int:pk>/', views.CaseSummaryDetailView.as_view(), name='case_summary_detail'),
@@ -55,8 +79,12 @@ urlpatterns = [
     # Logs
     path('activity-logs/', views.ActivityLogListView.as_view(), name='activity_log_list'),
 
-    # Add URLs for other models (e.g., Appointments, Labs, Imaging, etc.) as needed
-    # For instance:
+    # Appointment paths
     path('appointments/', views.AppointmentListView.as_view(), name='appointment_list'),
+    path('appointment/<int:pk>/', views.AppointmentDetailView.as_view(), name='appointment_detail'),
+    path('appointment/<int:pk>/delete/', views.AppointmentDeleteView.as_view(), name='appointment_delete'),
+    path('appointment/<int:pk>/update/', views.AppointmentUpdateView.as_view(), name='appointment_update'),
     path('appointments/create/', views.AppointmentCreateView.as_view(), name='appointment_create'),
+    path('ajax/search_patients/', views.search_patients_ajax, name='search_patients_ajax'),
+    path('ajax/search_doctors/', views.search_doctors_ajax, name='search_doctors_ajax'),
 ]

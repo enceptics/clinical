@@ -5,7 +5,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth import login
 from django.core.exceptions import ValidationError
 from django.db import transaction # For atomic operations
-from django.db.models import Q, Count, F # Import F for F expressions
+from django.db.models import Q, Count, Case, When, BooleanField, F 
 from django import template
 from django.contrib import messages
 from django import forms
@@ -24,8 +24,7 @@ import base64
 from django.core.files.base import ContentFile
 from django.http import Http404
 from django.contrib.auth.decorators import login_required
-
-logger = logging.getLogger(__name__)
+from django.contrib.messages.views import SuccessMessageMixin
 
 from .models import (
     User, Patient, Doctor, Pharmacist, Appointment, Encounter, VitalSign, MedicalHistory,
@@ -33,7 +32,7 @@ from .models import (
     ImagingRequest, ImagingResult, Prescription, CaseSummary, ConsentForm, # Prescription, ImagingRequest needed
     Ward, Bed, Department, LabTest, ImagingType, Medication, Nurse, # Added Nurse
     CancerRegistryReport, BirthRecord, MortalityRecord, ProcurementOfficer,
-    Receptionist, LabTechnician, Radiologist, ClinicalNote # Ensure these are imported if they are distinct profiles
+    Receptionist, LabTechnician, Radiologist, ClinicalNote,Ward, Bed # Ensure these are imported if they are distinct profiles
 )
 
 from .forms import (
@@ -43,7 +42,7 @@ from .forms import (
     PrescriptionForm, ConsentFormForm, DoctorForm, DoctorRegistrationForm,
     NurseRegistrationForm, PharmacistRegistrationForm, ProcurementOfficerRegistrationForm,
     CustomUserChangeForm, ReceptionistRegistrationForm, LabTechnicianRegistrationForm, 
-    RadiologistRegistrationForm, ClinicalNoteForm
+    RadiologistRegistrationForm, ClinicalNoteForm, PatientForm
 )
 
 from .models import ActivityLog
@@ -141,8 +140,8 @@ class HomeView(LoginRequiredMixin, TemplateView):
                 context['total_patients'] = Patient.objects.count()
                 context['total_doctors'] = Doctor.objects.count()
                 context['pending_appointments'] = Appointment.objects.filter(status='scheduled').count()
-
-                context['total_active_staff'] = User.objects.filter(is_active=True).exclude(user_type='patient').count()
+                context['total_active_users'] = User.objects.filter(is_active=True).count()
+                # context['total_active_staff'] = User.objects.filter(is_active=True).exclude(user_type='patient').count()
                 context['available_beds'] = Bed.objects.filter(is_occupied=False).count()
                 context['total_departments'] = Department.objects.count()
 
@@ -557,6 +556,40 @@ class UserRegistrationView(CreateView):
         messages.error(self.request, "Please correct the errors below to register the account.")
         return super().form_invalid(form)
 
+class UserListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = User
+    template_name = 'clinical_app/user_list.html' # We will create this template
+    context_object_name = 'users'
+    paginate_by = 20 # Adjust as needed
+    ordering = ['first_name', 'last_name'] # Order users alphabetically
+
+    def test_func(self):
+        # Only allow 'admin' or 'receptionist' to view the full user list
+        # Adjust permissions as per your application's requirements
+        return self.request.user.user_type in ['admin', 'receptionist']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        search_query = self.request.GET.get('q')
+
+        if search_query:
+            # Filter by first name, last name, username, or user type
+            queryset = queryset.filter(
+                Q(first_name__icontains=search_query) |
+                Q(last_name__icontains=search_query) |
+                Q(username__icontains=search_query) |
+                Q(user_type__icontains=search_query) |
+                Q(email__icontains=search_query) |
+                Q(phone_number__icontains=search_query)
+            )
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'All System Users'
+        return context
+
+
 class ConsentFormCreateView(LoginRequiredMixin, IsMedicalStaffMixin, CreateView):
     model = ConsentForm
     form_class = ConsentFormForm
@@ -670,67 +703,80 @@ class PatientCreateView(LoginRequiredMixin, IsAdminMixin, CreateView):
         context['user_form_fields'] = user_form_fields
         return self.render_to_response(context)
 
-class PatientUpdateView(LoginRequiredMixin, IsAdminMixin, UpdateView):
+# --- Patient Update View ---
+
+class IsAdminUserMixin(LoginRequiredMixin): # Renamed for clarity
+    permission_denied_message = "You are not authorized to perform this action. Only administrators can access this page."
+
+    def dispatch(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return self.handle_no_permission() # Redirect to login page
+
+        # Check if the user is an 'admin' user_type or a superuser
+        if not (request.user.user_type == 'admin' or request.user.is_superuser):
+            messages.error(request, self.permission_denied_message)
+            return redirect(reverse_lazy('home')) # Redirect to a safe page (e.g., dashboard)
+        
+        return super().dispatch(request, *args, **kwargs)
+
+
+# --- Patient Update View ---
+# UPDATED: Use the new IsAdminUserMixin
+class PatientUpdateView(IsAdminUserMixin, LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     model = Patient
-    form_class = PatientRegistrationForm
+    form_class = PatientForm
     template_name = 'clinical_app/patient_form.html'
     context_object_name = 'patient'
+    success_url = reverse_lazy('patient_list')
+    success_message = "Patient profile for '%(user.get_full_name)s' updated successfully!"
 
-    def get_object(self, queryset=None):
-        return get_object_or_404(Patient, pk=self.kwargs['pk'])
+    def get_success_message(self, cleaned_data):
+        return self.success_message % {'user.get_full_name': self.object.user.get_full_name()}
 
-    def get_success_url(self):
-        return reverse_lazy('patient_detail', kwargs={'pk': self.object.pk})
+    def form_valid(self, form):
+        messages.success(self.request, self.get_success_message(form.cleaned_data))
+        return super().form_valid(form)
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        patient_user = self.get_object().user
-        context['user_form'] = CustomUserChangeForm(instance=patient_user, prefix='user')
-        return context
+    def form_invalid(self, form):
+        messages.error(self.request, "There was an error updating the patient's profile. Please correct the errors below.")
+        return super().form_invalid(form)
+
+
+# --- Patient Delete View ---
+# UPDATED: Use the new IsAdminUserMixin
+class PatientDeleteView(IsAdminUserMixin, LoginRequiredMixin, SuccessMessageMixin, DeleteView):
+    model = Patient
+    template_name = 'clinical_app/patient_confirm_delete.html'
+    context_object_name = 'patient'
+    success_url = reverse_lazy('patient_list')
+    success_message = "Patient '%(user.get_full_name)s' (ID: %(patient_id)s) successfully deleted."
+
+    def get_success_message(self, cleaned_data):
+        return self.success_message % {
+            'user.get_full_name': self.object.user.get_full_name(),
+            'patient_id': self.object.patient_id
+        }
+
+    def delete(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        success_message = self.get_success_message({})
+        
+        response = super().delete(request, *args, **kwargs)
+        messages.success(self.request, success_message)
+        return response
+
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        return super().get(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):
-        self.object = self.get_object()
-        patient_form = PatientRegistrationForm(request.POST, instance=self.object)
-        user_form = CustomUserChangeForm(request.POST, instance=self.object.user, prefix='user')
+        return self.delete(request, *args, **kwargs)
 
-        if patient_form.is_valid() and user_form.is_valid():
-            with transaction.atomic():
-                # Capture old data before saving
-                old_patient_data = {field.name: getattr(self.object, field.name) for field in self.object._meta.fields}
-                old_user_data = {field.name: getattr(self.object.user, field.name) for field in self.object.user._meta.fields}
 
-                user = user_form.save()
-                patient = patient_form.save()
-
-                # Compare old and new data to find specific changes
-                detected_changes = {}
-                for field, old_value in old_patient_data.items():
-                    new_value = getattr(patient, field)
-                    if str(old_value) != str(new_value):
-                        detected_changes[f'patient_{field}'] = {'old': str(old_value), 'new': str(new_value)}
-
-                for field, old_value in old_user_data.items():
-                    new_value = getattr(user, field)
-                    if str(old_value) != str(new_value):
-                        detected_changes[f'user_{field}'] = {'old': str(old_value), 'new': str(new_value)}
-
-                log_activity(
-                    request.user,
-                    'UPDATE',
-                    f'Updated patient record and/or user details for {patient.user.get_full_name()} (ID: {patient.pk})',
-                    model_name='Patient',
-                    object_id=patient.pk,
-                    ip_address=get_client_ip(request),
-                    changes=detected_changes if detected_changes else None
-                )
-            messages.success(request, f"Patient {patient.user.get_full_name()} updated successfully.")
-            return redirect(self.get_success_url())
-        else:
-            messages.error(request, "Error updating patient. Please correct the errors.")
-            context = self.get_context_data()
-            context['form'] = patient_form
-            context['user_form'] = user_form
-            return render(request, self.template_name, context)
+# --- Patient List View (Consider who should see this list) ---
+# If only admins should see the list of all patients, apply the mixin here too.
+# Otherwise, if other staff types (like doctors/nurses) should see the list but not edit,
+# then keep a different mixin or no custom mixin.
 
 # --- Encounter Views (for Doctors/Nurses) ---
 class EncounterDetailView(LoginRequiredMixin, IsMedicalStaffMixin, DetailView):
@@ -787,7 +833,6 @@ class EncounterDetailView(LoginRequiredMixin, IsMedicalStaffMixin, DetailView):
         return context
 
 # Generate case summary
-
 
 class GenerateCaseSummaryView(LoginRequiredMixin, IsMedicalStaffMixin, View):
     """
@@ -1302,6 +1347,116 @@ class DoctorPatientListView(LoginRequiredMixin, IsDoctorMixin, ListView):
         # Override the 'patients' context variable with our new list
         context['patients'] = patients_with_latest_encounter
         return context
+
+# Doctorlist and detailview
+class DoctorListView(LoginRequiredMixin, IsMedicalStaffMixin, ListView):
+    model = Doctor # <--- CORRECTED: Should be Doctor, not Patient
+    template_name = 'clinical_app/doctor_list.html'
+    context_object_name = 'doctors'
+    paginate_by = 10
+    ordering = ['user__last_name', 'user__first_name']
+
+    def get_queryset(self):
+        # Optimize query: select_related the User and Department associated with Doctor
+        queryset = super().get_queryset().select_related('user', 'department')
+        query = self.request.GET.get('q')
+        if query:
+            queryset = queryset.filter(
+                Q(user__first_name__icontains=query) |
+                Q(user__last_name__icontains=query) |
+                Q(medical_license_number__icontains=query) | # <--- CORRECTED: Search by doctor's license
+                Q(specialization__icontains=query) |       # <--- ADDED: Search by specialization
+                Q(user__username__icontains=query)
+            )
+        return queryset
+
+
+class DoctorDetailView(LoginRequiredMixin, IsMedicalStaffMixin, DetailView):
+    model = Doctor
+    template_name = 'clinical_app/doctor_detail.html'
+    context_object_name = 'doctor'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        doctor = self.get_object() # Get the Doctor object
+
+        # No extra querysets for related items (vitals, diagnoses, prescriptions)
+        # as per your request to just have biographic info.
+        # The 'doctor' object itself (which includes doctor.user) will be passed to the template.
+
+        # Log doctor viewing activity
+        log_activity(
+            self.request.user,
+            'VIEW',
+            f'Viewed doctor record: {doctor.user.get_full_name()} (License: {doctor.medical_license_number})',
+            model_name='Doctor',
+            object_id=doctor.pk,
+            ip_address=get_client_ip(self.request)
+        )
+        return context
+
+# --- Doctor Update View ---
+class DoctorUpdateView(LoginRequiredMixin, IsMedicalStaffMixin, SuccessMessageMixin, UpdateView):
+    model = Doctor
+    form_class = DoctorForm
+    template_name = 'clinical_app/doctor_form.html' # Use a generic form template
+    context_object_name = 'doctor'
+    success_url = reverse_lazy('doctor_list') # Redirect to doctor list after successful update
+    success_message = "Doctor profile for '%(user.get_full_name)s' updated successfully!"
+
+    def get_success_message(self, cleaned_data):
+        # Custom success message to include doctor's name
+        return self.success_message % {'user.get_full_name': self.object.user.get_full_name()}
+
+    def form_valid(self, form):
+        # You might want to add activity logging here
+        messages.success(self.request, self.get_success_message(form.cleaned_data))
+        return super().form_valid(form)
+
+    def form_invalid(self, form):
+        messages.error(self.request, "There was an error updating the doctor's profile. Please correct the errors below.")
+        return super().form_invalid(form)
+
+
+# --- Doctor Delete View ---
+class DoctorDeleteView(LoginRequiredMixin, IsMedicalStaffMixin, SuccessMessageMixin, DeleteView):
+    model = Doctor
+    template_name = 'clinical_app/doctor_confirm_delete.html' # Separate template for confirmation
+    context_object_name = 'doctor'
+    success_url = reverse_lazy('doctor_list') # Redirect to doctor list after deletion
+    success_message = "Doctor '%(user.get_full_name)s' successfully deleted."
+
+    def get_success_message(self, cleaned_data):
+        # Access the object being deleted via self.object
+        return self.success_message % {'user.get_full_name': self.object.user.get_full_name()}
+
+    def delete(self, request, *args, **kwargs):
+        # Override delete to add custom success message via messages framework
+        self.object = self.get_object()
+        success_message = self.get_success_message({}) # Pass empty dict if not using cleaned_data
+        
+        # Before deleting the Doctor instance, delete its associated User
+        # This is critical for OneToOneField where Doctor depends on User
+        user_to_delete = self.object.user
+        response = super().delete(request, *args, **kwargs)
+        user_to_delete.delete() # Explicitly delete the user
+
+        messages.success(self.request, success_message)
+        return response
+
+    def get(self, request, *args, **kwargs):
+        """
+        Handles GET requests to display the delete confirmation page.
+        """
+        # Ensure the object exists before rendering the confirmation page
+        self.object = self.get_object()
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        """
+        Handles POST requests for deletion.
+        """
+        return self.delete(request, *args, **kwargs)
 
 # --- Encounter Views (for Doctors/Nurses) ---
 
@@ -2115,27 +2270,88 @@ class CaseSummaryCreateView(LoginRequiredMixin, IsDoctorMixin, CreateView):
 
 # --- Appointment Views ---
 
+def search_patients_ajax(request):
+    """
+    API endpoint to search patients by name or ID.
+    Returns JSON for Select2.
+    """
+    query = request.GET.get('q', '')
+    patients = Patient.objects.filter(
+        Q(user__first_name__icontains=query) |
+        Q(user__last_name__icontains=query) |
+        Q(user__username__icontains=query) | # search by username too
+        Q(patient_id__icontains=query) # if you have a specific patient_id field
+    ).order_by('user__first_name', 'user__last_name')[:10] # Limit results
+
+    results = []
+    for patient in patients:
+        results.append({
+            'id': patient.pk,
+            'text': f"{patient.user.get_full_name()} (ID: {patient.patient_id or 'N/A'})" # Or however you want to display
+        })
+    return JsonResponse({'results': results})
+
+def search_doctors_ajax(request):
+    """
+    API endpoint to search doctors by name.
+    Returns JSON for Select2.
+    """
+    query = request.GET.get('q', '')
+    doctors = Doctor.objects.filter(
+        Q(user__first_name__icontains=query) |
+        Q(user__last_name__icontains=query) |
+        Q(user__username__icontains=query)
+    ).order_by('user__first_name', 'user__last_name')[:10] # Limit results
+
+    results = []
+    for doctor in doctors:
+        results.append({
+            'id': doctor.pk,
+            'text': f"Dr. {doctor.user.get_full_name()} ({doctor.specialization or 'N/A'})"
+        })
+    return JsonResponse({'results': results})
+
+
 class AppointmentListView(LoginRequiredMixin, ListView):
     model = Appointment
     template_name = 'clinical_app/appointment_list.html'
     context_object_name = 'appointments'
-    paginate_by = 10
-    ordering = ['appointment_date', 'appointment_time']
+    paginate_by = 15 # As per your template
 
     def get_queryset(self):
         queryset = super().get_queryset()
         user = self.request.user
+        search_query = self.request.GET.get('q') # Gets the 'q' parameter from the URL
 
+        # 1. Apply user-specific filters first
+        # This ensures users only see appointments relevant to them,
+        # and then the search filter is applied on top of that.
         if user.user_type == 'patient':
             queryset = queryset.filter(patient__user=user)
         elif user.user_type == 'doctor':
             queryset = queryset.filter(doctor__user=user)
-        # Admins and Receptionists see all
+        # Admins and Receptionists (and other types) see all appointments by default
+
+        # 2. Apply search filtering if a query exists
+        if search_query:
+            # Use Q objects for OR conditions across multiple fields
+            queryset = queryset.filter(
+                Q(patient__user__first_name__icontains=search_query) |
+                Q(patient__user__last_name__icontains=search_query) |
+                Q(doctor__user__first_name__icontains=search_query) |
+                Q(doctor__user__last_name__icontains=search_query) |
+                Q(reason_for_visit__icontains=search_query)
+            )
+
+        # 3. Apply ordering after all filters
+        queryset = queryset.order_by('-id') # Orders by newest first
+
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = 'My Appointments' if self.request.user.user_type in ['patient', 'doctor'] else 'All Appointments'
+        # The 'q' value is already in request.GET.q, so no need to explicitly add it to context
         return context
 
 class AppointmentDetailView(LoginRequiredMixin, DetailView):
@@ -2173,7 +2389,14 @@ class AppointmentCreateView(LoginRequiredMixin, CreateView):
         return kwargs
 
     def form_valid(self, form):
-        form.instance.scheduled_by = self.request.user # Record who scheduled it
+        form.instance.scheduled_by = self.request.user
+
+        # Auto-assign patient/doctor based on user type if field is hidden
+        if self.request.user.user_type == 'patient' and hasattr(self.request.user, 'patient'):
+            form.instance.patient = self.request.user.patient
+        elif self.request.user.user_type == 'doctor' and hasattr(self.request.user, 'doctor'):
+            form.instance.doctor = self.request.user.doctor
+
         response = super().form_valid(form)
 
         log_activity(
@@ -2298,21 +2521,191 @@ class StaffListView(LoginRequiredMixin, IsAdminMixin, ListView):
         return context
 
 # --- Bed Management (Admin/Nurse) ---
-class BedManagementView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+class WardListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     model = Ward
-    template_name = 'clinical_app/bed_management.html'
+    template_name = 'clinical_app/ward_list.html'
     context_object_name = 'wards'
-    queryset = Ward.objects.prefetch_related('beds').all()
+    # Modify queryset to annotate with bed counts
+    queryset = Ward.objects.annotate(
+        occupied_beds_count=Count(
+            Case(When(beds__is_occupied=True, then=1), output_field=BooleanField())
+        ),
+        available_beds_count=Count(
+            Case(When(beds__is_occupied=False, then=1), output_field=BooleanField())
+        )
+    ).order_by('name') # Order by name, or whatever you prefer
+    
+    paginate_by = 10 # Adjust as needed
 
     def test_func(self):
-        return self.request.user.is_authenticated and self.request.user.user_type in ['admin', 'nurse']
+        return self.request.user.user_type in ['admin', 'nurse', 'receptionist']
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['title'] = 'Bed Management'
+        context['title'] = 'Ward List'
         return context
 
+class WardDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    model = Ward
+    template_name = 'clinical_app/ward_detail.html' # New template for Ward detail
+    context_object_name = 'ward'
+
+    def test_func(self):
+        # Allow admin, nurse, receptionist to view ward details
+        return self.request.user.user_type in ['admin', 'nurse', 'receptionist']
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = f"Ward: {self.object.name}"
+        # You might want to pass occupied/available bed counts here
+        context['occupied_beds_count'] = self.object.beds.filter(is_occupied=True).count()
+        context['available_beds_count'] = self.object.beds.filter(is_occupied=False).count()
+        return context
+
+class WardCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = Ward
+    fields = ['name', 'ward_type', 'capacity'] # Fields to be displayed in the form
+    template_name = 'clinical_app/ward_form.html' # Reusable form template
+    success_url = reverse_lazy('ward_list')
+
+    def test_func(self):
+        # Only admin can create wards
+        return self.request.user.user_type == 'admin'
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, f"Ward '{form.instance.name}' created successfully.")
+        # log_activity(self.request.user, 'CREATE', f'Created Ward: {form.instance.name}', model_name='Ward', object_id=form.instance.pk, ip_address=get_client_ip(self.request))
+        return response
+
+class WardUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = Ward
+    fields = ['name', 'ward_type', 'capacity']
+    template_name = 'clinical_app/ward_form.html'
+    context_object_name = 'ward'
+
+    def test_func(self):
+        # Only admin can update wards
+        return self.request.user.user_type == 'admin'
+
+    def get_success_url(self):
+        messages.success(self.request, f"Ward '{self.object.name}' updated successfully.")
+        # log_activity(self.request.user, 'UPDATE', f'Updated Ward: {self.object.name}', model_name='Ward', object_id=self.object.pk, ip_address=get_client_ip(self.request))
+        return reverse_lazy('ward_detail', kwargs={'pk': self.object.pk})
+
+class WardDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = Ward
+    template_name = 'clinical_app/confirm_delete.html' # Reusable confirm delete template
+    context_object_name = 'object' # Use 'object' for generic confirm_delete
+    success_url = reverse_lazy('ward_list')
+
+    def test_func(self):
+        # Only admin can delete wards
+        return self.request.user.user_type == 'admin'
+
+    def form_valid(self, form):
+        ward_name = self.get_object().name
+        response = super().form_valid(form)
+        messages.success(self.request, f"Ward '{ward_name}' deleted successfully.")
+        # log_activity(self.request.user, 'DELETE', f'Deleted Ward: {ward_name}', model_name='Ward', object_id=ward_name, ip_address=get_client_ip(self.request)) # object_id might need to be pk before delete
+        return response
+
+
+# --- Bed Views ---
+
+# Note: For Beds, we often want to create/update them in the context of a Ward.
+# So, BedCreateView and BedUpdateView will likely need to get the Ward PK from the URL.
+
+class BedDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    model = Bed
+    template_name = 'clinical_app/bed_detail.html'
+    context_object_name = 'bed'
+
+    def test_func(self):
+        # Allow admin, nurse, receptionist to view bed details
+        return self.request.user.user_type in ['admin', 'nurse', 'receptionist']
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = f"Bed: {self.object.bed_number} ({self.object.ward.name})"
+        return context
+
+class BedCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = Bed
+    fields = ['bed_number', 'is_occupied'] # Ward will be set from URL kwargs
+    template_name = 'clinical_app/bed_form.html'
+
+    def test_func(self):
+        # Only admin or nurse can create beds
+        return self.request.user.user_type in ['admin', 'nurse']
+
+    def dispatch(self, request, *args, **kwargs):
+        self.ward = get_object_or_404(Ward, pk=kwargs['ward_pk'])
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['ward'] = self.ward # Pass the ward object to the template
+        context['title'] = f"Add Bed to {self.ward.name}"
+        return context
+
+    def form_valid(self, form):
+        form.instance.ward = self.ward # Assign the ward from URL
+        response = super().form_valid(form)
+        messages.success(self.request, f"Bed '{form.instance.bed_number}' added to {self.ward.name} successfully.")
+        # log_activity(self.request.user, 'CREATE', f'Added Bed {form.instance.bed_number} to Ward: {self.ward.name}', model_name='Bed', object_id=form.instance.pk, ip_address=get_client_ip(self.request))
+        return response
+
+    def get_success_url(self):
+        return reverse_lazy('ward_detail', kwargs={'pk': self.ward.pk}) # Redirect back to the ward's detail page
+
+class BedUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = Bed
+    fields = ['bed_number', 'is_occupied']
+    template_name = 'clinical_app/bed_form.html'
+    context_object_name = 'bed'
+
+    def test_func(self):
+        # Only admin or nurse can update beds
+        return self.request.user.user_type in ['admin', 'nurse']
+
+    def get_success_url(self):
+        messages.success(self.request, f"Bed '{self.object.bed_number}' updated successfully.")
+        # log_activity(self.request.user, 'UPDATE', f'Updated Bed {self.object.bed_number} in Ward: {self.object.ward.name}', model_name='Bed', object_id=self.object.pk, ip_address=get_client_ip(self.request))
+        return reverse_lazy('ward_detail', kwargs={'pk': self.object.ward.pk})
+
+class BedDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = Bed
+    template_name = 'clinical_app/confirm_delete.html'
+    context_object_name = 'object'
+
+    def test_func(self):
+        # Only admin or nurse can delete beds
+        return self.request.user.user_type in ['admin', 'nurse']
+
+    def get_success_url(self):
+        ward_pk = self.object.ward.pk # Get ward_pk before deleting the bed object
+        bed_info = f"{self.object.ward.name} - Bed {self.object.bed_number}"
+        messages.success(self.request, f"Bed '{bed_info}' deleted successfully.")
+        # log_activity(self.request.user, 'DELETE', f'Deleted Bed {bed_info}', model_name='Bed', object_id=bed_info, ip_address=get_client_ip(self.request))
+        return reverse_lazy('ward_detail', kwargs={'pk': ward_pk}) # Redirect back to the ward's detail page
+
 # --- Department List (Admin) ---
+
+class DepartmentCreateView(LoginRequiredMixin, IsAdminMixin, CreateView):
+    model = Department
+    fields = ['name', 'description'] # Or form_class = DepartmentForm if you define one
+    template_name = 'clinical_app/department_form.html' # Reuses the form template
+
+    def get_success_url(self):
+        messages.success(self.request, f"Department '{self.object.name}' created successfully.")
+        return reverse_lazy('department_list')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Create New Department'
+        return context
+
 class DepartmentListView(LoginRequiredMixin, IsAdminMixin, ListView):
     model = Department
     template_name = 'clinical_app/department_list.html'
@@ -2323,6 +2716,32 @@ class DepartmentListView(LoginRequiredMixin, IsAdminMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['title'] = 'Hospital Departments'
         return context
+
+class DepartmentUpdateView(LoginRequiredMixin, IsAdminMixin, UpdateView):
+    model = Department
+    fields = ['name', 'description'] # Fields that can be updated
+    template_name = 'clinical_app/department_form.html' # Reusable form template
+    context_object_name = 'department' # For the template
+
+    def get_success_url(self):
+        messages.success(self.request, f"Department '{self.object.name}' updated successfully.")
+        # Optionally, log activity here
+        # from .utils import log_activity, get_client_ip
+        # log_activity(self.request.user, 'UPDATE', f'Updated Department: {self.object.name}', model_name='Department', object_id=self.object.pk, ip_address=get_client_ip(self.request))
+        return reverse_lazy('department_list') # Redirect to department list after update
+
+class DepartmentDeleteView(LoginRequiredMixin, IsAdminMixin, DeleteView):
+    model = Department
+    template_name = 'clinical_app/confirm_delete.html' # Reusable confirmation template
+    context_object_name = 'object' # The object to be deleted will be available as 'object' in the template
+
+    def get_success_url(self):
+        department_name = self.get_object().name # Get the name before the object is deleted
+        messages.success(self.request, f"Department '{department_name}' deleted successfully.")
+        # Optionally, log activity here
+        # from .utils import log_activity, get_client_ip
+        # log_activity(self.request.user, 'DELETE', f'Deleted Department: {department_name}', model_name='Department', object_id=department_name, ip_address=get_client_ip(self.request))
+        return reverse_lazy('department_list') # Redirect to department list after delete
 
 # --- Medication Inventory (Pharmacist/Admin/Procurement Officer) ---
 class MedicationInventoryView(LoginRequiredMixin, UserPassesTestMixin, ListView):

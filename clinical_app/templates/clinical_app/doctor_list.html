@@ -1,0 +1,146 @@
+{% extends "clinical_app/base.html" %}
+
+{% block title %}Doctor List{% endblock %} {# <--- CORRECTED Title #}
+
+{% block content %}
+<style>
+	/* Custom CSS for the Search Bar */
+.search-bar-modern {
+    max-width: 500px; /* Limit the max width of the search bar */
+    position: relative; /* Needed for z-index to work correctly on children */
+}
+
+.search-bar-modern .form-control {
+    padding-right: 4.5rem; /* Ensure enough space for the button inside */
+}
+
+.search-bar-modern .search-btn {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    padding-right: 1.5rem; /* Adjust button padding as needed */
+    padding-left: 1.5rem;  /* Adjust button padding as needed */
+    height: 100%; /* Make button height match input */
+    border-top-left-radius: 0; /* Remove rounding on inner edges */
+    border-bottom-left-radius: 0; /* Remove rounding on inner edges */
+    z-index: 10; /* Ensure it's above the input */
+    border: none; /* Remove border to blend perfectly with input */
+}
+
+/* For the specific case of the button overlapping into the rounded pill input */
+.search-bar-modern .rounded-pill.search-btn {
+    border-radius: 0 50rem 50rem 0 !important; /* Forces right side to be pill, left side straight */
+}
+
+/* If you want the input group to look like a single pill */
+.search-bar-modern .form-control.rounded-pill {
+    border-radius: 50rem 0 0 50rem !important; /* Forces left side to be pill, right side straight */
+}
+
+/* Example Gradient for Primary Button (if not already defined) */
+.btn-primary {
+    background-image: linear-gradient(to right, #007bff, #6f42c1); /* Example blue-to-purple gradient */
+    border: none;
+    transition: all 0.3s ease;
+}
+.btn-primary:hover {
+    background-image: linear-gradient(to right, #6f42c1, #007bff); /* Reverse gradient on hover */
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+}
+</style>
+<div class="container-fluid">
+    <h1 class="mb-4">Doctors List</h1>
+<form method="get" class="mb-4 d-flex justify-content-center"> {# Add d-flex and justify-content-center to center the form #}
+    <div class="input-group search-bar-modern"> {# Custom class for additional styling if needed #}
+        <input 
+            type="text" 
+            name="q" 
+            class="form-control " {# Added form-control-lg, border-primary, rounded-pill, and pe-5 for padding #}
+            placeholder="Search doctors (name, license, specialization)..." 
+            value="{{ request.GET.q }}"
+            aria-label="Search doctors"
+        >
+        <button 
+            type="submit" 
+            class="btn btn-primary rounded-pill search-btn" {# Changed to btn-primary, added rounded-pill, and custom class #}
+            style="margin-left: ; z-index: 5;" {# Adjust margin to overlap, bring to front with z-index #}
+        >
+            <i class="fas fa-search me-2"></i> Search {# Added Font Awesome icon for visual appeal #}
+        </button>
+    </div>
+</form>
+
+    {% if user.user_type == 'admin' %}
+        <a href="{% url 'register_by_type' user_type='doctor' %}" class="btn btn-primary mb-3">Register New Doctor</a>
+    {% endif %}
+
+    {% if doctors %}
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="thead-dark">
+                    <tr>
+                        <th>License No.</th> {# <--- CORRECTED Header #}
+                        <th>Name</th>
+                        <th>Specialization</th> {# <--- ADDED Field #}
+                        <th>Department</th> {# <--- ADDED Field #}
+                        <th>Years Exp.</th> {# <--- ADDED Field #}
+                        <th>Gender</th>
+                        <th>Date of Birth</th>
+                        <th>Phone</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for doctor in doctors %}
+                    <tr>
+                        <td>{{ doctor.medical_license_number }}</td> {# <--- CORRECTED: Display medical license #}
+                        <td>{{ doctor.user.get_full_name }}</td>
+                        <td>{{ doctor.specialization }}</td> {# <--- ADDED: Display specialization #}
+                        <td>{{ doctor.department.name|default:"N/A" }}</td> {# <--- ADDED: Display department #}
+                        <td>{{ doctor.years_of_experience|default:"N/A" }}</td> {# <--- ADDED: Display years of experience #}
+                        <td>{{ doctor.user.get_gender_display }}</td> {# <--- CORRECTED: Typo fixed #}
+                        <td>{{ doctor.user.date_of_birth|date:"M d, Y"|default:"N/A" }}</td>
+                        <td>{{ doctor.user.phone_number|default:"N/A" }}</td>
+                        <td>
+                            {# <--- CORRECTED: Typo fixed 'hdoctorref' to 'href' #}
+                            <a href="{% url 'doctor_detail' doctor.pk %}" class="btn btn-info btn-sm">View</a>
+                            
+                            {# Add delete button for admin if needed #}
+                            {% if user.user_type == 'admin' %}
+                                <a href="{% url 'doctor_delete' doctor.pk %}" class="btn btn-danger btn-sm">Delete</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {# Pagination #}
+        {% if is_paginated %}
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">Previous</a></li>
+                    {% endif %}
+                    {% for i in paginator.page_range %}
+                        {% if page_obj.number == i %}
+                            <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                        {% else %}
+                            <li class="page-item"><a class="page-link" href="?page={{ i }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">{{ i }}</a></li>
+                        {% endif %}
+                    {% endfor %}
+                    {% if page_obj.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">Next</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %}
+
+    {% else %}
+        <p>No doctors found.</p>
+    {% endif %}
+</div>
+{% endblock %}

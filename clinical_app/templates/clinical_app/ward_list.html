@@ -1,0 +1,65 @@
+{% extends "clinical_app/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0 text-primary">{{ title }}</h1>
+        {% if request.user.user_type == 'admin' %}
+            <a href="{% url 'ward_create' %}" class="btn btn-primary btn-lg custom-btn-primary">
+                <i class="fas fa-plus-circle me-2"></i> Add New Ward
+            </a>
+        {% endif %}
+    </div>
+
+    {% if wards %}
+    <div class="card shadow-lg">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0 custom-table-modern">
+                    <thead class="bg-light text-dark custom-thead">
+                        <tr>
+                            <th scope="col">Ward Name</th>
+                            <th scope="col">Type</th>
+                            <th scope="col">Capacity</th>
+                            <th scope="col">Occupied Beds</th>
+                            <th scope="col">Available Beds</th>
+                            <th scope="col" class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ward in wards %}
+                        <tr>
+                            <td><a href="{% url 'ward_detail' ward.pk %}" class="text-decoration-none text-info fw-bold">{{ ward.name }}</a></td>
+                            <td><span class="badge bg-secondary">{{ ward.get_ward_type_display }}</span></td>
+                            <td>{{ ward.capacity }}</td>
+                            <td>{{ ward.occupied_beds_count }}</td> {# Use the annotated value #}
+                            <td>{{ ward.available_beds_count }}</td> {# Use the annotated value #}
+                            <td class="text-center">
+                                <a href="{% url 'ward_detail' ward.pk %}" class="btn btn-sm btn-outline-info me-1" title="View Details"><i class="fas fa-eye"></i></a>
+                                {% if request.user.user_type == 'admin' %}
+                                    <a href="{% url 'ward_update' ward.pk %}" class="btn btn-sm btn-outline-warning me-1" title="Edit Ward"><i class="fas fa-edit"></i></a>
+                                    <a href="{% url 'ward_delete' ward.pk %}" class="btn btn-sm btn-outline-danger" title="Delete Ward"><i class="fas fa-trash-alt"></i></a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    {# Pagination (if you implement it in the view) #}
+    {% if is_paginated %}
+        {# Your pagination code here #}
+    {% endif %}
+
+    {% else %}
+    <div class="alert alert-info text-center py-4 shadow-sm rounded-3" role="alert">
+        <i class="fas fa-info-circle me-2"></i> No wards found.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
