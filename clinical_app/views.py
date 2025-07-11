@@ -44,12 +44,14 @@ from .forms import (
     NurseRegistrationForm, PharmacistRegistrationForm, ProcurementOfficerRegistrationForm,
     CustomUserChangeForm, ReceptionistRegistrationForm, LabTechnicianRegistrationForm, 
     RadiologistRegistrationForm, ClinicalNoteForm, PatientForm, DepartmentForm, WardForm, BedCreateForm, BedUpdateForm,
-    BirthRecordForm, MortalityRecordForm, MedicationForm, CancerRegistryReportForm, ImagingResultForm
+    BirthRecordForm, MortalityRecordForm, MedicationForm, CancerRegistryReportForm, ImagingResultForm, LabTestResultForm
 )
 
 from .models import ActivityLog
 from django.contrib.auth.models import AnonymousUser
 import json
+
+logger = logging.getLogger(__name__)
 
 # Utility function to get client IP address
 def get_client_ip(request):
@@ -337,11 +339,6 @@ class UserRegistrationView(CreateView):
     success_url = reverse_lazy('login')
 
     def get_form_class(self):
-        """
-        Dynamically returns the appropriate form class based on the 'user_type'
-        URL parameter. Ensures all registration forms use the CustomUserCreationForm
-        as their base to handle password auto-generation and hiding.
-        """
         user_type = self.kwargs.get('user_type', None)
 
         if user_type == 'patient':
@@ -365,24 +362,14 @@ class UserRegistrationView(CreateView):
             return CustomUserCreationForm
         else:
             messages.error(self.request, "Invalid or unsupported user type for registration. Please choose a valid type.")
-            # Fallback to CustomUserCreationForm for general or unrecognized types
             return CustomUserCreationForm 
 
     def get_form_kwargs(self):
-        """
-        Passes the 'user_type' from URL kwargs to the form's __init__ method.
-        This is crucial if your forms use 'user_type' to dynamically add/remove fields
-        or set placeholders/initial data, although for password handling, the inheritance
-        from CustomUserCreationForm is the primary mechanism.
-        """
         kwargs = super().get_form_kwargs()
         kwargs['user_type'] = self.kwargs.get('user_type', None)
         return kwargs
 
     def get_context_data(self, **kwargs):
-        """
-        Adds user_type and a display-friendly version to the template context.
-        """
         context = super().get_context_data(**kwargs)
         user_type = self.kwargs.get('user_type', 'general')
         context['user_type'] = user_type
@@ -390,37 +377,22 @@ class UserRegistrationView(CreateView):
         return context
 
     def form_valid(self, form):
-        """
-        Handles valid form submissions:
-        1. Creates the User instance with an auto-generated username and password.
-        2. Retrieves the temporary raw password for communication.
-        3. Creates the specific profile (Patient, Doctor, etc.) based on user_type.
-        4. Logs the activity.
-        5. Sends an email with credentials (best practice).
-        6. Displays a temporary message with credentials (for development only).
-        """
         user_type = self.kwargs.get('user_type', 'general')
-        
-        # Use a transaction to ensure atomic creation of user and profile.
-        # If any step fails, the entire transaction is rolled back.
+
         try:
             with transaction.atomic():
-                # Step 1: Save the user instance.
-                # The form's save method (from CustomUserCreationForm) handles:
-                # - Auto-generating username based on prefix.
-                # - Auto-generating a secure raw password.
-                # - Hashing the password.
-                # - Setting the user.user_type field.
-                user = form.save(commit=True, user_type=user_type)
+                user = form.save(commit=True, user_type=user_type)  
 
-                # Step 2: Retrieve the raw password.
-                # It's temporarily stored on the user object by CustomUserCreationForm's save method.
                 raw_password = getattr(user, '_raw_password', None)
                 if raw_password is None:
                     logger.error(f"form.save() for {user.username} did not set _raw_password. User creation rolled back.")
                     # Add a non-field error to the form to trigger form_invalid.
                     form.add_error(None, "An internal error occurred: password could not be generated. Please try again.")
                     return self.form_invalid(form)
+
+                print(f"[VIEW DEBUG] Username: {user.username}")
+                print(f"[VIEW DEBUG] Raw Password: {user._raw_password}")
+                print(f"[VIEW DEBUG] Check Password Valid: {user.check_password(user._raw_password)}")
 
                 # Step 3: Create specific profile based on user type and cleaned data.
                 profile_instance = None 
@@ -508,8 +480,7 @@ class UserRegistrationView(CreateView):
                         ip_address=get_client_ip(self.request)
                     )
 
-                # Step 5: Send email with credentials.
-                # This is the most secure way to provide credentials.
+
                 try:
                     subject = f"Your New {user_type.replace('_', ' ').title()} Account at {getattr(settings, 'HOSPITAL_NAME', 'Our Hospital')}"
                     html_message = render_to_string('clinical_app/emails/new_user_credentials.html', {
@@ -529,15 +500,12 @@ class UserRegistrationView(CreateView):
                     messages.warning(self.request, f"User registered, but failed to send credentials email to {user.email}. Please notify them manually. Error: {e}")
                     logger.error(f"Failed to send email to {user.email} for new {user_type} user {user.username}: {e}", exc_info=True)
 
-                # Step 6: Display temporary password (for development/testing ONLY).
-                # REMOVE this in a production environment for security!
                 messages.info(self.request,
                               f"New User: <strong>{user.username}</strong>, Temporary Password: <strong><span class='text-danger'>{raw_password}</span></strong>. "
                               f"Please ensure the user logs in and changes their password immediately. "
                               f"This message is for development purposes and will be removed in production.")
 
         except ValidationError as e:
-            # Catch ValidationErrors explicitly raised within the atomic block for a cleaner message.
             messages.error(self.request, f"Registration failed: {e.message}")
             return self.form_invalid(form)
         except Exception as e:
@@ -545,18 +513,12 @@ class UserRegistrationView(CreateView):
             logger.exception(f"An unexpected error occurred during {user_type} user registration for {form.cleaned_data.get('email')}: {e}")
             messages.error(self.request, "An unexpected error occurred during registration. Please contact support.")
             return self.form_invalid(form)
-
-        # If everything within the atomic block succeeded without raising an exception,
-        # proceed to the success_url.
         return super().form_valid(form)
 
     def form_invalid(self, form):
-        """
-        Handles invalid form submissions by adding a general error message
-        and re-rendering the form with specific field errors.
-        """
         messages.error(self.request, "Please correct the errors below to register the account.")
         return super().form_invalid(form)
+
 
 class UserListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     model = User
@@ -657,22 +619,26 @@ class PatientDetailView(LoginRequiredMixin, IsMedicalStaffMixin, DetailView):
 
 class PatientCreateView(LoginRequiredMixin, IsAdminMixin, CreateView):
     model = Patient
-    form_class = PatientRegistrationForm # This form already contains all necessary fields
+    form_class = PatientRegistrationForm
     template_name = 'clinical_app/patient_form.html'
     success_url = reverse_lazy('patient_list')
 
-    # No need to override get_context_data to add 'user_form'
-    # No need to create two form instances in post()
+    def get_form_kwargs(self):
+        """Pass user_type to the form to ensure proper username generation"""
+        kwargs = super().get_form_kwargs()
+        kwargs['user_type'] = 'Patient'  # Must match USER_TYPE_PREFIXES key exactly
+        return kwargs
 
     def form_valid(self, form):
-        # The 'form' argument here is an instance of PatientRegistrationForm
+        """Handle successful form submission with auto-generated credentials"""
         with transaction.atomic():
-            user = form.save(commit=False) # This saves the User part of PatientRegistrationForm
-            user.user_type = 'patient'
+            # Save the User with auto-generated credentials
+            user = form.save(commit=False)
+            user.user_type = 'Patient'  # Must match USER_TYPE_PREFIXES key exactly
             user.save()
 
-            # The Patient-specific fields are directly on the 'form'
-            patient_profile = Patient.objects.create(
+            # Create Patient profile
+            patient = Patient.objects.create(
                 user=user,
                 blood_group=form.cleaned_data.get('blood_group'),
                 emergency_contact_name=form.cleaned_data.get('emergency_contact_name'),
@@ -681,29 +647,54 @@ class PatientCreateView(LoginRequiredMixin, IsAdminMixin, CreateView):
                 pre_existing_conditions=form.cleaned_data.get('pre_existing_conditions'),
             )
 
+            # Log activity
             log_activity(
                 self.request.user,
                 'CREATE',
-                f'Admin created new patient: {user.get_full_name()} (ID: {patient_profile.pk})',
+                f'Created patient: {user.get_full_name()} (ID: {patient.pk})',
                 model_name='Patient',
-                object_id=patient_profile.pk,
+                object_id=patient.pk,
                 ip_address=get_client_ip(self.request)
             )
-            messages.success(self.request, f"Patient {user.get_full_name()} created successfully.")
-            return super().form_valid(form) # This will redirect to success_url
+
+            # Send welcome email with credentials
+            try:
+                send_mail(
+                    subject='Your Patient Account Credentials',
+                    message=f"""
+                    Your account has been created successfully.
+                    Username: {user.username}
+                    Temporary Password: {user._raw_password}
+                    """,
+                    from_email='noreply@yourhospital.com',
+                    recipient_list=[user.email],
+                    fail_silently=False
+                )
+                email_status = "Credentials have been emailed"
+            except Exception as e:
+                email_status = "Error sending credentials email"
+                logger.error(f"Failed to send credentials email: {str(e)}")
+
+            messages.success(
+                self.request,
+                f"Patient {user.get_full_name()} created successfully. {email_status}."
+            )
+            return redirect(self.success_url)
 
     def form_invalid(self, form):
-        messages.error(self.request, "Error creating patient. Please correct the errors below.")
-        # When form is invalid, CreateView's default behavior is to re-render the template
-        # with the invalid form, which is exactly what we want.
-        # We also need to define 'user_form_fields' for the template
-        user_form_fields = [
-            'username', 'first_name', 'last_name', 'email', 'phone_number',
-            'address', 'date_of_birth', 'gender', 'password', 'password2'
-        ]
-        context = self.get_context_data() # Gets default context from CreateView
-        context['user_form_fields'] = user_form_fields
-        return self.render_to_response(context)
+        """Handle invalid form submission"""
+        messages.error(
+            self.request,
+            "Error creating patient. Please correct the errors below."
+        )
+        return super().form_invalid(form)
+
+    def get_context_data(self, **kwargs):
+        """Add context variables for template rendering"""
+        context = super().get_context_data(**kwargs)
+        # Add any additional context needed for template
+        context['page_title'] = "Register New Patient"
+        return context
 
 # --- Patient Update View ---
 
@@ -2052,6 +2043,263 @@ class LabTestResultCreateView(LoginRequiredMixin, IsLabTechMixin, CreateView): #
         messages.success(self.request, "Lab test result recorded successfully and request marked as complete.")
         return response
 
+# --- NEW VIEWS FOR LAB TEST RESULTS ---
+
+# --- NEW: LabTestRequestListView ---
+class LabTestRequestListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    """
+    Displays a list of Lab Test Requests.
+    Accessible to admins, doctors (their own requests/patient requests), and lab technicians.
+    """
+    model = LabTestRequest
+    template_name = 'clinical_app/lab_test_requests_list.html' # NEW TEMPLATE
+    context_object_name = 'requests' # Different context name from results
+    paginate_by = 20
+    ordering = ['-requested_date'] # Order by request date
+
+    def test_func(self):
+        # Admins, Doctors, and Lab Technicians can view requests
+        return self.request.user.is_authenticated and \
+               self.request.user.user_type in ['admin', 'doctor', 'lab_technician']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        user = self.request.user
+
+        if user.user_type == 'doctor' and hasattr(user, 'doctor'):
+            # Doctors see requests they made OR requests for their patients
+            queryset = queryset.filter(Q(requested_by=user) | Q(encounter__doctor=user.doctor)).distinct()
+        elif user.user_type == 'lab_technician':
+            # Lab Technicians can see all requests to fulfill them
+            # You might want to filter by status here, e.g., 'pending', 'received'
+            pass
+
+        # Optional: Add filters for status, date range etc. if desired
+        status_filter = self.request.GET.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Lab Test Requests'
+        # Assuming LabTestRequest has status_choices defined like ImagingRequest
+        context['status_choices'] = LabTestRequest.status_choices if hasattr(LabTestRequest, 'status_choices') else []
+        context['current_status_filter'] = self.request.GET.get('status', '')
+        return context
+
+class LabTestRequestUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    """
+    Allows a Doctor (who made the request) or an Admin to update a Lab Test Request.
+    Lab Technicians typically only record results, not modify the request itself.
+    """
+    model = LabTestRequest
+    form_class = LabTestRequestForm
+    template_name = 'clinical_app/lab_test_request_form.html'
+    context_object_name = 'object'
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+
+        # Admins can update any request
+        if user.user_type == 'admin':
+            return True
+
+        # Doctors can update requests they made, as long as it's not already completed
+        if user.user_type == 'doctor' and hasattr(user, 'doctor'):
+            lab_request = self.get_object()
+            return lab_request.requested_by == user and lab_request.status != 'completed'
+        return False
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Update Lab Test Request'
+        return context
+
+    def get_success_url(self):
+        return reverse_lazy('lab_test_request_detail', kwargs={'pk': self.object.pk})
+
+
+class LabTestRequestDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    """
+    Allows a Doctor (who made the request) or an Admin to delete a Lab Test Request.
+    Deletion is usually restricted once a result has been recorded.
+    """
+    model = LabTestRequest
+    template_name = 'clinical_app/lab_test_confirm_delete.html' # Re-use generic confirm_delete.html
+    context_object_name = 'object'
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+
+        # Admins can delete any request
+        if user.user_type == 'admin':
+            return True
+
+        # Doctors can delete requests they made, as long as no results have been attached
+        if user.user_type == 'doctor' and hasattr(user, 'doctor'):
+            lab_request = self.get_object()
+            return lab_request.requested_by == user and not lab_request.results.exists() # Check for no results
+        return False
+
+    def get_success_url(self):
+        # Redirect to the list of lab requests after deletion
+        return reverse_lazy('lab_test_requests_list')
+
+
+# --- Optional: LabTestRequestDetailView ---
+class LabTestRequestDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    model = LabTestRequest
+    template_name = 'clinical_app/lab_test_request_detail.html'
+    context_object_name = 'object'
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+
+        if user.user_type in ['admin', 'lab_technician']:
+            return True
+
+        if user.user_type == 'doctor' and hasattr(user, 'doctor'):
+            lab_request = self.get_object()
+            if lab_request.requested_by == user:
+                return True
+            if lab_request.encounter.doctor == user.doctor:
+                return True
+        return False
+
+class LabTestResultListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    """
+    Displays a list of Lab Test Results.
+    Accessible to admins, doctors (for their patients), and lab technicians.
+    """
+    model = LabTestResult
+    template_name = 'clinical_app/lab_test_results_list.html'
+    context_object_name = 'results'
+    paginate_by = 20
+    ordering = ['-result_date'] # Most recent results first
+
+    def test_func(self):
+        # Admins, Lab Technicians can see all results. Doctors can see results for their patients.
+        return self.request.user.is_authenticated and \
+               self.request.user.user_type in ['admin', 'lab_technician', 'doctor']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        user = self.request.user
+
+        if user.user_type == 'doctor' and hasattr(user, 'doctor'):
+            # Doctors see only results for their patients' encounters
+            queryset = queryset.filter(request__encounter__doctor=user.doctor).distinct()
+        elif user.user_type == 'lab_technician' and hasattr(user, 'labtechnician'):
+            # Lab technicians might see all results or just those they performed
+            # For now, let's say they can see all to manage.
+            # If only their own: queryset = queryset.filter(performed_by=user)
+            pass
+
+        # Apply filters from dashboard card links (e.g., for last 30 days)
+        date_range = self.request.GET.get('date_range')
+        if date_range == 'last_30_days':
+            thirty_days_ago = timezone.now() - datetime.timedelta(days=30)
+            queryset = queryset.filter(result_date__gte=thirty_days_ago)
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Lab Test Results'
+        context['active_filters'] = self.request.GET.urlencode() # For pagination
+        context['filtered_by_date_range'] = self.request.GET.get('date_range')
+
+        # Add total for dashboard cards
+        thirty_days_ago = timezone.now() - datetime.timedelta(days=30)
+        context['total_lab_tests_performed_last_30_days'] = LabTestResult.objects.filter(
+            result_date__gte=thirty_days_ago
+        ).count()
+        return context
+
+class LabTestResultDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    """
+    Displays the details of a single Lab Test Result.
+    Accessible to admins, doctors (for their patients), and lab technicians.
+    """
+    model = LabTestResult
+    template_name = 'clinical_app/lab_test_result_detail.html'
+    context_object_name = 'object'
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+
+        # Admins and Lab Technicians can view any result
+        if user.user_type in ['admin', 'lab_technician']:
+            return True
+
+        # Doctors can view results for their patients
+        if user.user_type == 'doctor' and hasattr(user, 'doctor'):
+            lab_result = self.get_object()
+            return lab_result.request.encounter.doctor == user.doctor
+        return False
+
+class LabTestResultUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    """
+    Allows a Lab Technician or Admin to update an existing Lab Test Result.
+    """
+    model = LabTestResult
+    form_class = LabTestResultForm
+    template_name = 'clinical_app/lab_test_result_form.html'
+    context_object_name = 'object'
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        # Only the lab technician who performed it, or an admin, can update
+        if user.user_type == 'admin':
+            return True
+        if user.user_type == 'lab_technician':
+            return self.get_object().performed_by == user
+        return False
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Update Lab Test Result'
+        return context
+
+    def get_success_url(self):
+        return reverse_lazy('lab_test_result_detail', kwargs={'pk': self.object.pk})
+
+class LabTestResultDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    """
+    Allows a Lab Technician or Admin to delete a Lab Test Result.
+    """
+    model = LabTestResult
+    template_name = 'clinical_app/confirm_delete.html' # Re-use generic confirm_delete.html
+    context_object_name = 'object'
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+        # Only the lab technician who performed it, or an admin, can delete
+        if user.user_type == 'admin':
+            return True
+        if user.user_type == 'lab_technician':
+            return self.get_object().performed_by == user
+        return False
+
+    def get_success_url(self):
+        # Redirect to the list after deletion
+        return reverse_lazy('lab_test_results_list')
+
+
 # --- Imaging Result Views ---
 
 class ImagingRequestCreateView(LoginRequiredMixin, IsDoctorMixin, CreateView): # Added ImagingRequestCreateView
@@ -2086,6 +2334,46 @@ class ImagingRequestCreateView(LoginRequiredMixin, IsDoctorMixin, CreateView): #
         messages.success(self.request, "Imaging request submitted successfully.")
         return response
 
+class ImagingRequestListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+    model = ImagingRequest
+    template_name = 'clinical_app/imaging_requests_list.html' 
+    context_object_name = 'requests' # Different context name
+    paginate_by = 20
+    ordering = ['-requested_date'] # Order by request date
+
+    def test_func(self):
+        # Admins, Doctors, and Radiologists can view requests
+        return self.request.user.is_authenticated and \
+               self.request.user.user_type in ['admin', 'doctor', 'radiologist']
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        user = self.request.user
+
+        if user.user_type == 'doctor' and hasattr(user, 'doctor'):
+            # Doctors see only requests they made or for their patients
+            queryset = queryset.filter(Q(requested_by=user) | Q(encounter__doctor=user.doctor)).distinct()
+        elif user.user_type == 'radiologist':
+            # Radiologists might prioritize pending/scheduled requests
+            # Or see all requests.
+            # Example: Show only pending/scheduled for radiologists:
+            # queryset = queryset.filter(status__in=['pending', 'scheduled'])
+            pass # Currently, radiologist can see all requests.
+
+        # Add filtering options if needed, e.g., by status
+        status_filter = self.request.GET.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = 'Imaging Requests'
+        context['status_choices'] = ImagingRequest.status_choices # To populate a filter dropdown
+        context['current_status_filter'] = self.request.GET.get('status', '')
+        # Add other context data as needed, e.g., for dashboard cards
+        return context
 
 class ImagingResultListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     """
@@ -2132,6 +2420,35 @@ class ImagingResultListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         context['active_filters'] = self.request.GET.urlencode() # For pagination
         context['filtered_by_date_range'] = self.request.GET.get('date_range')
         return context
+
+# --- NEW: ImagingRequestDetailView ---
+class ImagingRequestDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    """
+    Displays the details of a single Imaging Request.
+    Accessible to admins, radiologists, and doctors (if it's their patient's request or they requested it).
+    """
+    model = ImagingRequest
+    template_name = 'clinical_app/imaging_request_detail.html'
+    context_object_name = 'object' # Default context name for DetailView is 'object'
+
+    def test_func(self):
+        user = self.request.user
+        if not user.is_authenticated:
+            return False
+
+        # Admins and Radiologists can view any request
+        if user.user_type in ['admin', 'radiologist']:
+            return True
+
+        # Doctors can view requests associated with their patients or requests they made
+        if user.user_type == 'doctor' and hasattr(user, 'doctor'):
+            imaging_request = self.get_object()
+            if imaging_request.requested_by == user: # Doctor made the request
+                return True
+            if imaging_request.encounter.doctor == user.doctor: # Request is for their patient
+                return True
+        return False
+
 
 class ImagingResultCreateView(LoginRequiredMixin, IsRadiologistMixin, CreateView):
     """

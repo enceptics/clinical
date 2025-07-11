@@ -1,0 +1,26 @@
+{# clinical_app/templates/clinical_app/confirm_delete.html #}
+{% extends 'clinical_app/base.html' %}
+
+{% block title %}Confirm Deletion{% endblock %}
+
+{% block content %}
+    <div class="container mt-4">
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">Confirm Deletion</h4>
+            <p>Are you sure you want to delete "{{ object }}"?</p>
+            <p class="mb-0">This action cannot be undone.</p>
+            <hr>
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger me-2">
+                    <i class="fas fa-trash-alt me-2"></i>Yes, Delete
+                </button>
+                {# You might want to customize the "Cancel" URL based on the object type #}
+                {# For a generic template, this might redirect to a default list view or previous page #}
+                <a href="javascript:history.back()" class="btn btn-secondary">
+                    <i class="fas fa-times-circle me-2"></i>Cancel
+                </a>
+            </form>
+        </div>
+    </div>
+{% endblock %}

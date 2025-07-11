@@ -1,0 +1,106 @@
+{% extends 'clinical_app/base.html' %}
+
+{% block title %}Imaging Request Details{% endblock %}
+
+{% block content %}
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="mb-0 text-info"><i class="fas fa-file-alt me-2"></i>Imaging Request Details</h2>
+            <div class="btn-group">
+                <a href="{% url 'imaging_requests_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Requests
+                </a>
+                {% if request.user.user_type == 'radiologist' and not object.result %}
+                    <a href="{% url 'imaging_result_create' imaging_request_pk=object.pk %}" class="btn btn-success">
+                        <i class="fas fa-file-medical me-2"></i>Record Imaging Result
+                    </a>
+                {% elif object.result %}
+                    <a href="{% url 'imaging_result_detail' object.result.pk %}" class="btn btn-secondary">
+                        <i class="fas fa-file-medical me-2"></i>View Imaging Result
+                    </a>
+                {% endif %}
+                 {% if request.user.user_type == 'doctor' or request.user.user_type == 'admin' %}
+                    <!-- <a href="" class="btn btn-primary">
+                        <i class="fas fa-edit me-2"></i>Edit Request
+                    </a>
+                    <a href="" class="btn btn-danger">
+                        <i class="fas fa-trash-alt me-2"></i>Delete Request
+                    </a> -->
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light py-3">
+                <h5 class="mb-0 text-secondary">Request Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Patient:</strong> 
+                        <a href="{% url 'patient_detail' object.encounter.patient.pk %}">
+                            {{ object.encounter.patient.user.get_full_name }}
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Requested By:</strong> {{ object.requested_by.get_full_name|default:"N/A" }}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Imaging Type:</strong> {{ object.imaging_type.name }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Requested Date:</strong> {{ object.requested_date|date:"F d, Y H:i" }}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Status:</strong> 
+                        <span class="badge 
+                            {% if object.status == 'pending' %}bg-warning text-dark
+                            {% elif object.status == 'scheduled' %}bg-info text-white
+                            {% elif object.status == 'performed' %}bg-primary
+                            {% elif object.status == 'reported' %}bg-success
+                            {% elif object.status == 'cancelled' %}bg-danger
+                            {% else %}bg-secondary{% endif %}">
+                            {{ object.get_status_display }}
+                        </span>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Body Part:</strong> {{ object.body_part|default:"N/A" }}
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <strong>Reason for Exam:</strong>
+                    <p class="card-text border p-3 rounded bg-light">{{ object.reason_for_exam }}</p>
+                </div>
+                {% if object.imaging_type.price %}
+                    <div class="mb-3">
+                        <strong>Estimated Price:</strong> Ksh. {{ object.imaging_type.price }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if object.result %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light py-3">
+                    <h5 class="mb-0 text-secondary">Associated Imaging Result</h5>
+                </div>
+                <div class="card-body">
+                    <p>A result for this request has been recorded:</p>
+                    <ul>
+                        <li><strong>Report Date:</strong> {{ object.result.report_date|date:"F d, Y H:i" }}</li>
+                        <li><strong>Radiologist:</strong> {{ object.result.radiologist.user.get_full_name|default:"N/A" }}</li>
+                        <li><strong>Findings:</strong> {{ object.result.findings|truncatechars:100 }}</li>
+                        <li><strong>Impression:</strong> {{ object.result.impression|truncatechars:100 }}</li>
+                    </ul>
+                    <a href="{% url 'imaging_result_detail' object.result.pk %}" class="btn btn-sm btn-info">
+                        <i class="fas fa-eye me-1"></i> View Full Result
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

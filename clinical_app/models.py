@@ -1,5 +1,3 @@
-# clinical/models.py (Add these fields to your existing Medication model)
-
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from datetime import date, timedelta # Import timedelta for date calculations
@@ -849,7 +847,6 @@ class ImagingRequest(models.Model):
 class ImagingResult(models.Model):
     request = models.OneToOneField(ImagingRequest, on_delete=models.CASCADE, related_name='result')
     radiologist = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='imaging_results_reported_by_set')
-    # CHANGE THIS LINE: From auto_now_add=True to default=timezone.now
     report_date = models.DateTimeField(default=timezone.now) # Changed
     findings = models.TextField()
     impression = models.TextField()
@@ -858,6 +855,7 @@ class ImagingResult(models.Model):
 
     def __str__(self):
         return f"Imaging Report for {self.request.encounter.patient} ({self.request.imaging_type.name})"
+
 # -----------------------------------------------------------------------------
 # Pharmacy & Medication Management
 # -----------------------------------------------------------------------------

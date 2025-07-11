@@ -1,0 +1,82 @@
+{% extends 'clinical_app/base.html' %}
+
+{% block title %}Lab Test Result Details{% endblock %}
+
+{% block content %}
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="mb-0 text-info"><i class="fas fa-file-medical-alt me-2"></i>Lab Test Result Details</h2>
+            <div class="btn-group">
+                <a href="{% url 'lab_test_results_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Results
+                </a>
+                {% if request.user.user_type == 'lab_technician' or request.user.user_type == 'admin' %}
+                    <a href="{% url 'lab_test_result_update' object.pk %}" class="btn btn-primary">
+                        <i class="fas fa-edit me-2"></i>Edit Result
+                    </a>
+                    <a href="{% url 'lab_test_result_delete' object.pk %}" class="btn btn-danger">
+                        <i class="fas fa-trash-alt me-2"></i>Delete Result
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light py-3">
+                <h5 class="mb-0 text-secondary">Result Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Patient:</strong> 
+                        <a href="{% url 'patient_detail' object.request.encounter.patient.pk %}">
+                            {{ object.request.encounter.patient.user.get_full_name }}
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Test Requested:</strong> {{ object.request.test_type.name }} {# Assuming LabTestRequest has 'test_type' or similar #}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Specific Test Performed:</strong> {{ object.test.name }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Result Date:</strong> {{ object.result_date|date:"F d, Y H:i" }}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Result Value:</strong> {{ object.result_value }} {{ object.result_unit|default:"" }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Normal Range:</strong> {{ object.normal_range_at_time_of_test|default:"N/A" }}
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <strong>Is Abnormal:</strong> 
+                    {% if object.is_abnormal %}
+                        <span class="badge bg-danger">Yes</span>
+                    {% else %}
+                        <span class="badge bg-success">No</span>
+                    {% endif %}
+                </div>
+                <div class="mb-3">
+                    <strong>Comment:</strong>
+                    <p class="card-text border p-3 rounded bg-light">{{ object.comment|default:"No comments." }}</p>
+                </div>
+                <div class="mb-3">
+                    <strong>Performed By:</strong> {{ object.performed_by.get_full_name|default:"N/A" }}
+                </div>
+                {% if object.result_file %}
+                    <div class="mb-3">
+                        <strong>Attached File:</strong>
+                        <a href="{{ object.result_file.url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-file-download me-1"></i> Download File
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

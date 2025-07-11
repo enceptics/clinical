@@ -10,13 +10,14 @@ import secrets # For generating secure temporary passwords
 import string # For password character set
 import json # For handling JSONField in Radiologist form
 from datetime import date # For default value of report_date
+import logging
 
 from .models import (
     User, Patient, Doctor, Nurse, ProcurementOfficer, Department, Appointment,
     VitalSign, MedicalHistory, PhysicalExamination, Diagnosis, TreatmentPlan,
     LabTestRequest, LabTestResult, ImagingRequest, ImagingResult, Prescription,
     ConsentForm, Receptionist, LabTechnician, Radiologist, Pharmacist, ClinicalNote,
-    Medication, Ward, Bed, BirthRecord, MortalityRecord, CancerRegistryReport 
+    Medication, Ward, Bed, BirthRecord, MortalityRecord, CancerRegistryReport, LabTest
 )
 
 # --- Utility Functions ---
@@ -31,17 +32,10 @@ USER_TYPE_PREFIXES = {
     'Receptionist': 'RE',
     'LabTechnician': 'LT',
     'Radiologist': 'RD',
-    'Administrator': 'ADM', # Example for admin, if applicable
+    'Administrator': 'ADM', 
 }
 
-
 def generate_unique_code(prefix):
-    """
-    Generates a unique username based on the prefix and the highest existing ID
-    for users with that prefix.
-    """
-    # Find the last user whose username starts with the prefix and ends with digits.
-    # This regex ensures we only consider usernames that follow the expected pattern.
     last_user = User.objects.filter(username__regex=rf'^{prefix}\d+$').order_by('-username').first()
     
     if last_user:
@@ -81,11 +75,11 @@ def generate_random_password(length=12):
     return ''.join(password_chars)
 
 # --- Base User Registration Form ---
-class CustomUserCreationForm(UserCreationForm):
+
+class CustomUserCreationForm(forms.ModelForm):
     """
-    Base form for creating new User instances. It handles common user fields,
-    auto-generates username and a temporary password, and hides password fields
-    from the form display.
+    Form for creating new User instances with auto-generated username and password.
+    Password fields are completely removed from the form.
     """
     first_name = forms.CharField(max_length=150, required=True)
     last_name = forms.CharField(max_length=150, required=True)
@@ -97,9 +91,9 @@ class CustomUserCreationForm(UserCreationForm):
         required=False,
         help_text='Format: YYYY-MM-DD'
     )
-    gender = forms.ChoiceField(choices=User.gender_choices, required=False) # Assuming User.gender_choices exists
+    gender = forms.ChoiceField(choices=User.gender_choices, required=False)
 
-    class Meta(UserCreationForm.Meta):
+    class Meta:
         model = User
         fields = (
             'first_name', 'last_name', 'email', 'phone_number',
@@ -107,91 +101,84 @@ class CustomUserCreationForm(UserCreationForm):
         )
 
     def __init__(self, *args, **kwargs):
-        # --- IMPORTANT CHANGE HERE ---
-        # Extract 'user_type' from kwargs before passing to the parent __init__
-        self.user_type_from_view = kwargs.pop('user_type', None) 
-        # Store it as an instance attribute if you need to access it later, 
-        # e.g., in the clean() method, though for save() it's passed as an argument.
-        # --- END IMPORTANT CHANGE ---
+        # Remove user_type from kwargs before calling super().__init__
+        self.user_type_from_view = kwargs.pop('user_type', None)
+        super().__init__(*args, **kwargs)
 
-        super().__init__(*args, **kwargs) # Now, user_type is no longer in kwargs for the parent
-
-        # Remove username and password fields as they are auto-generated
-        if 'username' in self.fields:
-            del self.fields['username']
-        # Django's UserCreationForm creates 'password' and 'password2' by default.
-        # We need to remove both.
-        if 'password' in self.fields: 
-            del self.fields['password']
-        if 'password2' in self.fields: 
-            del self.fields['password2']
-
-        # Apply Bootstrap form-control class and placeholders
+        # Apply Bootstrap styling and placeholders
         for field_name, field in self.fields.items():
             if isinstance(field.widget, (forms.TextInput, forms.EmailInput,
                                          forms.DateInput, forms.Textarea,
                                          forms.Select, forms.NumberInput)):
                 field.widget.attrs['class'] = 'form-control'
-            
-            # Set specific placeholders
-            if field_name == 'email':
-                field.widget.attrs['placeholder'] = 'Enter email address'
-            elif field_name == 'first_name':
-                field.widget.attrs['placeholder'] = 'First Name'
-            elif field_name == 'last_name':
-                field.widget.attrs['placeholder'] = 'Last Name'
-            elif field_name == 'phone_number':
-                field.widget.attrs['placeholder'] = 'Phone Number'
-            elif field_name == 'address':
-                field.widget.attrs['placeholder'] = 'Full Address'
-            # Add placeholders for other general fields as needed
+
+            # Set placeholders
+            placeholders = {
+                'email': 'Enter email address',
+                'first_name': 'First Name',
+                'last_name': 'Last Name',
+                'phone_number': 'Phone Number',
+                'address': 'Full Address',
+            }
+            if field_name in placeholders:
+                field.widget.attrs['placeholder'] = placeholders[field_name]
 
     def clean_email(self):
         """Ensure email is unique across all users."""
         email = self.cleaned_data['email']
-        if self.instance and self.instance.pk:
-            if User.objects.filter(email=email).exclude(pk=self.instance.pk).exists():
-                raise forms.ValidationError("This email address is already registered.")
-        elif User.objects.filter(email=email).exists():
+        if User.objects.filter(email=email).exists():
             raise forms.ValidationError("This email address is already registered.")
         return email
 
     def save(self, commit=True, user_type=None):
         """
-        Saves the user instance, auto-generating username and password,
-        and setting the user_type.
+        Saves the user with auto-generated username and secure password.
+        Also returns the raw password for emailing or debugging.
         """
-        user = super().save(commit=False) # Don't commit yet
+        user = super().save(commit=False)
 
-        # Determine the prefix based on user_type passed to save method
-        # Use the user_type passed as an argument first, then fallback to the one from __init__, then default
-        prefix = USER_TYPE_PREFIXES.get(user_type or self.user_type_from_view, 'USR')
+        # Determine user_type and generate username
+        effective_user_type = user_type or self.user_type_from_view
+        if not effective_user_type:
+            raise ValueError("User type is required but was not provided.")
+        prefix = USER_TYPE_PREFIXES.get(effective_user_type, 'USR')
         user.username = generate_unique_code(prefix)
 
+        # Generate secure password and hash it
         raw_password = generate_random_password()
-        user.set_password(raw_password) # Hash the password
+        print(f"[DEBUG] Generated password: {raw_password}")
 
-        if user_type: # Ensure user_type is set on the user object
-            user.user_type = user_type 
+        user.set_password(raw_password)  # This hashes the password
+        print(f"[DEBUG] After set_password: {user.password}")
 
-        # Handle is_staff/is_superuser flags based on user_type if your User model uses them
-        if user_type == 'admin':
+        user.user_type = effective_user_type
+
+        # Set roles based on user type
+        if effective_user_type == 'Administrator':
             user.is_staff = True
             user.is_superuser = True
-        elif user_type in ['doctor', 'nurse', 'pharmacist', 'procurement_officer', 'receptionist', 'lab_tech', 'radiologist']:
+        elif effective_user_type in ['Doctor', 'Nurse', 'Pharmacist', 'ProcurementOfficer']:
             user.is_staff = True
-            user.is_superuser = False # Ensure non-admin staff aren't superusers
-        else: # For 'patient' or 'general'
+            user.is_superuser = False
+        else:
             user.is_staff = False
             user.is_superuser = False
 
+        user.is_active = True  # Enable the user account
+
         if commit:
+            user.user_type = user_type  # ✅ Don't forget this line
+
             user.save()
-        
-        # Store raw password temporarily on the user instance for access in the view (e.g., to email it)
-        # This is a non-persistent attribute and will not be saved to the database.
-        user._raw_password = raw_password 
+            print(f"[DEBUG] Saved user: {user.username}")
+            print(f"[DEBUG] Password check valid: {user.check_password(raw_password)}")
+
+        # Store raw password for email or confirmation
+        user._raw_password = raw_password
+
+        # You can return both if helpful
         return user
+
 
 ## Specific User Type Registration Forms
 
@@ -278,22 +265,34 @@ class PatientRegistrationForm(CustomUserCreationForm):
 
     class Meta(CustomUserCreationForm.Meta):
         model = User
-        fields = CustomUserCreationForm.Meta.fields + (
+        fields = [
+            'first_name', 'last_name', 'email', 'phone_number',
+            'address', 'date_of_birth', 'gender',
             'blood_group', 'emergency_contact_name', 'emergency_contact_phone',
             'allergies', 'pre_existing_conditions',
-        )
+        ]
 
     def __init__(self, *args, **kwargs):
+        self.user_type = kwargs.pop('user_type', 'patient')  # Extract user_type from kwargs
         super().__init__(*args, **kwargs)
-        # Apply Bootstrap class and placeholders to new fields
-        self.fields['blood_group'].widget.attrs['class'] = 'form-control'
-        self.fields['emergency_contact_name'].widget.attrs['class'] = 'form-control'
-        self.fields['emergency_contact_name'].widget.attrs['placeholder'] = 'Emergency Contact Name'
-        self.fields['emergency_contact_phone'].widget.attrs['class'] = 'form-control'
-        self.fields['emergency_contact_phone'].widget.attrs['placeholder'] = 'Emergency Contact Phone'
-        self.fields['allergies'].widget.attrs['class'] = 'form-control'
-        self.fields['pre_existing_conditions'].widget.attrs['class'] = 'form-control'
+        
+        # Remove password fields if handled internally
+        self.fields.pop('password', None)
+        self.fields.pop('password2', None)
 
+        # Add Bootstrap styling and placeholders
+        for field_name, field in self.fields.items():
+            if isinstance(field.widget, (forms.TextInput, forms.Textarea, forms.Select)):
+                field.widget.attrs['class'] = 'form-control'
+            
+            if field_name == 'emergency_contact_name':
+                field.widget.attrs['placeholder'] = 'Emergency Contact Name'
+            elif field_name == 'emergency_contact_phone':
+                field.widget.attrs['placeholder'] = 'Emergency Contact Phone'
+            elif field_name == 'allergies':
+                field.widget.attrs['placeholder'] = 'List known allergies'
+            elif field_name == 'pre_existing_conditions':
+                field.widget.attrs['placeholder'] = 'List chronic conditions'
 
 class DepartmentForm(forms.ModelForm):
     class Meta:
@@ -364,7 +363,6 @@ class DoctorRegistrationForm(CustomUserCreationForm):
         self.fields['specialization'].widget.attrs['placeholder'] = 'e.g., Cardiology, Pediatrics'
         self.fields['medical_license_number'].widget.attrs['placeholder'] = 'e.g., KMPDB/DR/12345'
 
-
 class NurseRegistrationForm(CustomUserCreationForm):
     # This field is expected to be on the Nurse profile model.
     nursing_license_number = forms.CharField(max_length=50, required=True)
@@ -377,7 +375,6 @@ class NurseRegistrationForm(CustomUserCreationForm):
         super().__init__(*args, **kwargs)
         self.fields['nursing_license_number'].widget.attrs['class'] = 'form-control'
         self.fields['nursing_license_number'].widget.attrs['placeholder'] = 'Enter Nursing License Number'
-
 
 class PharmacistRegistrationForm(CustomUserCreationForm):
     # This field is expected to be on the Pharmacist profile model.
@@ -392,7 +389,6 @@ class PharmacistRegistrationForm(CustomUserCreationForm):
         self.fields['pharmacy_license_number'].widget.attrs['class'] = 'form-control'
         self.fields['pharmacy_license_number'].widget.attrs['placeholder'] = 'Enter Pharmacy License Number'
 
-
 class ProcurementOfficerRegistrationForm(CustomUserCreationForm):
     # This field is expected to be on the ProcurementOfficer profile model.
     employee_id = forms.CharField(max_length=50, required=True, help_text="Procurement Officer Employee ID")
@@ -404,7 +400,6 @@ class ProcurementOfficerRegistrationForm(CustomUserCreationForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['employee_id'].widget.attrs['placeholder'] = 'Enter Employee ID'
-
 
 class ReceptionistRegistrationForm(CustomUserCreationForm):
     # These fields are expected to be on the Receptionist profile model.
@@ -419,7 +414,6 @@ class ReceptionistRegistrationForm(CustomUserCreationForm):
         super().__init__(*args, **kwargs)
         self.fields['shift_info'].widget.attrs['placeholder'] = 'Select Shift'
         self.fields['assigned_desk'].widget.attrs['placeholder'] = 'Assigned Desk Number/Area'
-
 
 class LabTechnicianRegistrationForm(CustomUserCreationForm):
     # These fields are expected to be on the LabTechnician profile model.
@@ -925,30 +919,48 @@ class TreatmentPlanForm(forms.ModelForm):
     # No need for __init__ as widgets handle styling
 
 
-# class LabTestResultForm(forms.ModelForm):
-#     class Meta:
-#         model = LabTestResult
-#         # 'request', 'performed_by', and 'result_date' are set in the view
-#         fields = ['result_value', 'request_notes', 'is_normal']
-#         labels = {
-#             'result_value': 'Result Value/Observation',
-#             'request_notes': 'Lab Technician Notes',
-#             'is_normal': 'Is Result Normal?'
-#         }
-#         widgets = {
-#             'result_value': forms.TextInput(attrs={'placeholder': 'e.g., 5.2 mg/dL or "Positive" or "No growth observed"'}),
-#             'request_notes': forms.Textarea(attrs={'rows': 4, 'placeholder': 'Enter any additional notes, interpretation, or details about the test result.'}),
-#             'is_normal': forms.CheckboxInput(),
-#         }
+# NEW FORM: For creating and updating LabTestResults
+class LabTestResultForm(forms.ModelForm):
+    class Meta:
+        model = LabTestResult
+        # Fields that the Lab Technician will fill in
+        fields = [
+            'test', # This will be pre-selected if linked from a specific request's test
+            'result_value',
+            'result_unit',
+            'normal_range_at_time_of_test',
+            'is_abnormal',
+            'comment',
+            'result_file',
+            # 'request' and 'performed_by' will be set in the view
+            # 'result_date' is auto_now_add, so it's not in the form
+        ]
+        widgets = {
+            'comment': forms.Textarea(attrs={'rows': 3}),
+        }
 
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-#         for field_name, field in self.fields.items():
-#             if field_name != 'is_normal': # Checkboxes are styled differently
-#                 if isinstance(field.widget, (forms.TextInput, forms.Textarea, forms.Select)):
-#                     field.widget.attrs['class'] = 'form-control'
-#             else: # For checkbox
-#                 field.widget.attrs['class'] = 'form-check-input'
+    def __init__(self, *args, **kwargs):
+        # Optional: You can filter 'test' choices based on the request if passed
+        # For simplicity, we'll keep it open for now, but a real-world scenario
+        # might pre-select/filter based on LabTestRequest.
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.layout = Layout(
+            Row(
+                Column('test', css_class='form-group col-md-6 mb-0'),
+                Column('result_value', css_class='form-group col-md-3 mb-0'),
+                Column('result_unit', css_class='form-group col-md-3 mb-0'),
+                css_class='form-row'
+            ),
+            Row(
+                Column('normal_range_at_time_of_test', css_class='form-group col-md-6 mb-0'),
+                Column('is_abnormal', css_class='form-group col-md-6 mb-0'),
+                css_class='form-row'
+            ),
+            'comment',
+            'result_file',
+            Submit('submit', 'Save Lab Result', css_class='btn btn-success mt-3')
+        )
 
 class LabTestRequestForm(forms.ModelForm):
     """

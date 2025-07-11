@@ -57,6 +57,11 @@ DATABASES = {
     }
 }
 
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',  # This must be included
+]
+
+
 HOSPITAL_NAME='Hospital Management'
 EMAIL_HOST='smtp.gmail.com'
 EMAIL_PORT=587

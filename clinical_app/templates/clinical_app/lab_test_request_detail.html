@@ -1,0 +1,126 @@
+{% extends 'clinical_app/base.html' %}
+
+{% block title %}Lab Test Request Details{% endblock %}
+
+{% block content %}
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="mb-0 text-info"><i class="fas fa-file-alt me-2"></i>Lab Test Request Details</h2>
+            <div class="btn-group">
+                <a href="{% url 'lab_test_requests_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Requests
+                </a>
+                
+                {# Action buttons for Doctors/Admins #}
+                {% if request.user.user_type == 'doctor' or request.user.user_type == 'admin' %}
+                    {% if object.status != 'completed' %} {# Prevent editing/deleting completed requests typically #}
+                        <a href="{% url 'lab_test_request_update' object.pk %}" class="btn btn-primary">
+                            <i class="fas fa-edit me-2"></i>Edit Request
+                        </a>
+                        {# Only allow delete if no results are attached #}
+                        {% if not object.results.exists %}
+                            <a href="{% url 'lab_test_request_delete' object.pk %}" class="btn btn-danger">
+                                <i class="fas fa-trash-alt me-2"></i>Delete Request
+                            </a>
+                        {% endif %}
+                    {% endif %}
+                {% endif %}
+
+                {# Action button for Lab Technicians #}
+                {% if request.user.user_type == 'lab_technician' %}
+                    {% if not object.results.exists %}
+                        <a href="{% url 'lab_test_result_create' lab_test_request_pk=object.pk %}" class="btn btn-success">
+                            <i class="fas fa-file-medical me-2"></i>Record Result
+                        </a>
+                    {% else %}
+                        {# If a result exists, link to its detail page (assuming one result per request for simplicity) #}
+                        <a href="{% url 'lab_test_result_detail' object.results.first.pk %}" class="btn btn-info">
+                            <i class="fas fa-search me-2"></i>View Result
+                        </a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-light py-3">
+                <h5 class="mb-0 text-secondary">Request Information</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Patient:</strong> 
+                        <a href="{% url 'patient_detail' object.encounter.patient.pk %}" class="text-decoration-none">
+                            {{ object.encounter.patient.user.get_full_name }}
+                        </a>
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Encounter:</strong> {{ object.encounter }}
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <strong>Requested By:</strong> {{ object.requested_by.get_full_name }}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>Requested Date:</strong> {{ object.requested_date|date:"F d, Y H:i" }}
+                    </div>
+                </div>
+                
+                    <div class="col-md-6">
+                        <strong>Status:</strong> 
+                        <span class="badge 
+                            {% if object.status == 'pending' %}bg-warning text-dark
+                            {% elif object.status == 'received' %}bg-info text-white
+                            {% elif object.status == 'processing' %}bg-primary
+                            {% elif object.status == 'completed' %}bg-success
+                            {% elif object.status == 'cancelled' %}bg-danger
+                            {% else %}bg-secondary{% endif %}">
+                            {{ object.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="mb-3 mx-3">
+                    <strong>Reason for Test:</strong>
+                    <p class="card-text border p-3 rounded bg-light">{{ object.request_notes|default:"N/A" }}</p>
+                </div>
+                
+            </div>
+        </div>
+
+        {# Optional: Display associated lab test results #}
+        {% if object.results.all %}
+            <div class="card shadow-sm mt-4">
+                <div class="card-header bg-light py-3">
+                    <h5 class="mb-0 text-secondary">Associated Lab Test Results</h5>
+                </div>
+                <ul class="list-group list-group-flush">
+                    {% for result in object.results.all %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ result.test.name }}:</strong> {{ result.result_value }} {{ result.result_unit|default:"" }} 
+                                <span class="ms-2 badge {% if result.is_abnormal %}bg-danger{% else %}bg-success{% endif %}">
+                                    {% if result.is_abnormal %}Abnormal{% else %}Normal{% endif %}
+                                </span>
+                                <small class="text-muted ms-3">({{ result.result_date|date:"Y-m-d H:i" }} by {{ result.performed_by.get_full_name|default:"N/A" }})</small>
+                            </div>
+                            <a href="{% url 'lab_test_result_detail' result.pk %}" class="btn btn-sm btn-info">View Result</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
+    </script>
+{% endblock %}

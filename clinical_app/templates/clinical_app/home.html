@@ -417,20 +417,20 @@
                         </div>
                     </a>
                 </div>
-                <div class="col-md-4">
-                    <a href="#" class="card custom-styled-card disabled" aria-label="Lab Tests Last 30 Days Card">
-                        <div class="card-body">
-                            <div class="card-text-container">
-                                <h5>Lab Tests (Last 30 Days)</h5>
-                                <h3 class="card-text-value">{{ total_lab_tests_performed_last_30_days }}</h3>
-                                <p class="card-text">Tests performed in the past month.</p>
-                            </div>
-                            <div class="icon-circle">
-                                <i class="fas fa-flask" aria-hidden="true"></i>
-                            </div>
+               <div class="col-md-4">
+                <a href="{% url 'lab_test_results_list' %}?date_range=last_30_days" class="card custom-styled-card">
+                    <div class="card-body">
+                        <div class="card-text-container">
+                            <h5>Lab Tests (Last 30 Days)</h5>
+                            <h3 class="card-text-value">{{ total_lab_tests_performed_last_30_days }}</h3>
+                            <p class="card-text">Tests performed in the past month.</p>
                         </div>
-                    </a>
-                </div>
+                        <div class="icon-circle">
+                            <i class="fas fa-flask" aria-hidden="true"></i>
+                        </div>
+                    </div>
+                </a>
+            </div>
                 <div class="col-md-4">
                     <a href="{% url 'imaging_results_list' %}?date_range=last_30_days" class="card custom-styled-card" aria-label="Imaging Scans Last 30 Days Card">
                         <div class="card-body">
@@ -517,7 +517,7 @@
                     </div>
             </div>
 
-            <hr class="my-4"> {# Separator #}
+            <hr class="my-4"> 
 
             <div class="row mt-4">
                 <div class="col-12 text-center">

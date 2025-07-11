@@ -119,6 +119,24 @@ urlpatterns = [
     path('cancer-reports/<int:pk>/', views.CancerRegistryReportDetailView.as_view(), name='cancer_report_detail'),
     path('cancer-reports/<int:pk>/update/', views.CancerRegistryReportUpdateView.as_view(), name='cancer_report_update'),
     path('cancer-reports/<int:pk>/delete/', views.CancerRegistryReportDeleteView.as_view(), name='cancer_report_delete'),
+    
+    # Imaging Requests URLs (General list/detail/update/delete)
+    path('imaging-requests/', views.ImagingRequestListView.as_view(), name='imaging_requests_list'), 
+    path('imaging-requests/<int:pk>/', views.ImagingRequestDetailView.as_view(), name='imaging_request_detail'),
+
+    # Lab test Result URLs (General list/detail/update/delete)
+
+    # --- Placeholder for Lab Test Request URLs (highly recommended to have) ---
+    path('lab-requests/', views.LabTestRequestListView.as_view(), name='lab_test_requests_list'),
+    path('lab-requests/<int:pk>/', views.LabTestRequestDetailView.as_view(), name='lab_test_request_detail'),
+    path('lab-requests/<int:pk>/update/', views.LabTestRequestUpdateView.as_view(), name='lab_test_request_update'),
+    path('lab-requests/<int:pk>/delete/', views.LabTestRequestDeleteView.as_view(), name='lab_test_request_delete'),
+    
+    path('lab-results/', views.LabTestResultListView.as_view(), name='lab_test_results_list'),
+    path('lab-results/<int:pk>/', views.LabTestResultDetailView.as_view(), name='lab_test_result_detail'),
+    path('lab-results/request/<int:lab_test_request_pk>/new/', views.LabTestResultCreateView.as_view(), name='lab_test_result_create'),
+    path('lab-results/<int:pk>/update/', views.LabTestResultUpdateView.as_view(), name='lab_test_result_update'),
+    path('lab-results/<int:pk>/delete/', views.LabTestResultDeleteView.as_view(), name='lab_test_result_delete'),
 
     # Imaging Result URLs (General list/detail/update/delete)
     path('imaging-results/', views.ImagingResultListView.as_view(), name='imaging_results_list'),

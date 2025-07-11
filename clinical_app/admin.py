@@ -5,7 +5,7 @@ from .models import (
     Diagnosis, TreatmentPlan, LabTestCategory, LabTest, LabTestRequest,
     LabTestResult, ImagingType, ImagingRequest, ImagingResult, Medication,
     Prescription, Ward, Bed, CaseSummary, CancerRegistryReport,
-    BirthRecord, MortalityRecord, ActivityLog
+    BirthRecord, MortalityRecord, ActivityLog, LabTechnician
 )
 
 # Register your models here.
@@ -303,7 +303,9 @@ class ActivityLogAdmin(admin.ModelAdmin):
     )
 
     def has_add_permission(self, request):
-        return False  # Prevent manual addition of logs
+        return False  
 
     def has_change_permission(self, request, obj=None):
-        return False  # Prevent editing of existing logs
+        return False  
+
+admin.site.register(LabTechnician)

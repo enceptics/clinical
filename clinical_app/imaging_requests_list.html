@@ -1,0 +1,187 @@
+{% extends 'clinical_app/base.html' %}
+{% load crispy_forms_tags %} {# Needed if you use crispy forms for filters #}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="mb-0 text-info"><i class="fas fa-clipboard-list me-2"></i>{{ title }}</h2>
+            
+            {% if request.user.user_type == 'radiologist' %}
+                <div class="alert alert-info py-2 px-3 mb-0" role="alert">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Imaging requests are initiated by doctors during patient encounters.
+                    {# Optionally, direct them to view patients or encounters #}
+                    {# <a href="{% url 'patient_list' %}" class="alert-link ms-2">View Patients</a> #}
+                </div>
+            {% endif %}
+            
+        </div>
+
+        {# Filters for requests (e.g., by status) #}
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form method="GET" action="{% url 'imaging_requests_list' %}" class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label for="statusFilter" class="form-label">Filter by Status:</label>
+                        <select name="status" id="statusFilter" class="form-select">
+                            <option value="">All Statuses</option>
+                            {% for status_val, status_display in status_choices %}
+                                <option value="{{ status_val }}" {% if status_val == current_status_filter %}selected{% endif %}>
+                                    {{ status_display }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-auto">
+                        <button type="submit" class="btn btn-primary">Apply Filter</button>
+                    </div>
+                    {% if current_status_filter %}
+                        <div class="col-md-auto">
+                            <a href="{% url 'imaging_requests_list' %}" class="btn btn-outline-secondary">Clear Filter</a>
+                        </div>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
+
+        {% if requests %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light py-3">
+                    <h5 class="mb-0 text-secondary">All Imaging Requests</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Patient</th>
+                                    <th>Imaging Type</th>
+                                    <th>Requested Date</th>
+                                    <th>Reason</th>
+                                    <th>Body Part</th>
+                                    <th>Status</th>
+                                    <th>Requested By</th>
+                                    <th class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for request_obj in requests %} 
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'patient_detail' request_obj.encounter.patient.pk %}" class="text-decoration-none">
+                                                {{ request_obj.encounter.patient.user.get_full_name }}
+                                            </a>
+                                        </td>
+                                        <td>{{ request_obj.imaging_type.name }}</td>
+                                        <td>{{ request_obj.requested_date|date:"Y-m-d H:i" }}</td>
+                                        <td>{{ request_obj.reason_for_exam|truncatechars:50 }}</td>
+                                        <td>{{ request_obj.body_part|default:"N/A" }}</td>
+                                        <td>
+                                            <span class="badge 
+                                                {% if request_obj.status == 'pending' %}bg-warning text-dark
+                                                {% elif request_obj.status == 'scheduled' %}bg-info text-white
+                                                {% elif request_obj.status == 'performed' %}bg-primary
+                                                {% elif request_obj.status == 'reported' %}bg-success
+                                                {% elif request_obj.status == 'cancelled' %}bg-danger
+                                                {% else %}bg-secondary{% endif %}">
+                                                {{ request_obj.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>{{ request_obj.requested_by.get_full_name|default:"N/A" }}</td>
+                                        <td class="text-center">
+                                            <div class="btn-group" role="group" aria-label="Imaging Request Actions">
+                                                <a href="{% url 'imaging_request_detail' request_obj.pk %}" class="btn btn-sm btn-info" data-bs-toggle="tooltip" data-bs-placement="top" title="View Details">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                {# Option to record result if user is radiologist AND result doesn't exist for this request #}
+                                                {% if request.user.user_type == 'radiologist' and not request_obj.result %}
+                                                    <a href="{% url 'imaging_result_create' imaging_request_pk=request_obj.pk %}" class="btn btn-sm btn-success" data-bs-toggle="tooltip" data-bs-placement="top" title="Record Result">
+                                                        <i class="fas fa-file-medical"></i>
+                                                    </a>
+                                                {% elif request_obj.result %}
+                                                    <a href="{% url 'imaging_result_detail' request_obj.result.pk %}" class="btn btn-sm btn-secondary" data-bs-toggle="tooltip" data-bs-placement="top" title="View Result">
+                                                        <i class="fas fa-file-medical"></i>
+                                                    </a>
+                                                {% endif %}
+                                                {% if request.user.user_type == 'doctor' or request.user.user_type == 'admin' %}
+                                                    <a href="{% url 'imaging_request_update' request_obj.pk %}" class="btn btn-sm btn-primary" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit Request">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    <a href="{% url 'imaging_request_delete' request_obj.pk %}" class="btn btn-sm btn-danger" data-bs-toggle="tooltip" data-bs-placement="top" title="Delete Request">
+                                                        <i class="fas fa-trash-alt"></i>
+                                                    </a>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            {% if is_paginated %}
+                <nav aria-label="Page navigation" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&status={{ current_status_filter }}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link" aria-hidden="true">&laquo;</span>
+                            </li>
+                        {% endif %}
+
+                        {% for i in paginator.page_range %}
+                            {% if page_obj.number == i %}
+                                <li class="page-item active" aria-current="page">
+                                    <span class="page-link">{{ i }}</span>
+                                </li>
+                            {% else %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ i }}&status={{ current_status_filter }}">{{ i }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}&status={{ current_status_filter }}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link" aria-hidden="true">&raquo;</span>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            {% endif %}
+
+        {% else %}
+            <div class="alert alert-info text-center py-4 shadow-sm" role="alert">
+                <i class="fas fa-info-circle fa-2x mb-2"></i>
+                <h4>No imaging requests found.</h4>
+                <p>No requests have been made yet or do not match the current filters.</p>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
+    </script>
+{% endblock %}
