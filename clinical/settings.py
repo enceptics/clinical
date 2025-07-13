@@ -17,6 +17,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'clinical_app',
+    'widget_tweaks',
 ]
 
 MIDDLEWARE = [

@@ -28,6 +28,7 @@ from django.contrib.messages.views import SuccessMessageMixin
 import datetime 
 from django.utils.timezone import now
 import uuid
+from django.utils import timezone
 
 from .models import (
     User, Patient, Doctor, Pharmacist, Appointment, Encounter, VitalSign, MedicalHistory,
@@ -237,7 +238,7 @@ class HomeView(LoginRequiredMixin, TemplateView):
                         stock_quantity__lt=F('reorder_level')
                     ).count()
                     context['recent_dispensations'] = Prescription.objects.filter(
-                        dispensed_by=user # Assuming dispensed_by links to User
+                        dispensed_by=pharmacist 
                     ).order_by('-dispensed_date')[:5]
                 except Pharmacist.DoesNotExist:
                     context['error'] = "Pharmacist profile not found."
@@ -338,7 +339,7 @@ USER_TYPE_PREFIXES = {
 
 class UserRegistrationView(CreateView):
     template_name = 'clinical_app/user_management/register.html'
-    success_url = reverse_lazy('login')
+    success_url = reverse_lazy('login') # This will be the fallback if no specific redirect is hit
 
     def get_form_class(self):
         user_type = self.kwargs.get('user_type', None)
@@ -360,15 +361,18 @@ class UserRegistrationView(CreateView):
         elif user_type == 'radiologist':
             return RadiologistRegistrationForm
         elif user_type == 'admin':
-            # This is typically for superusers or staff, might not have a specific profile model
             return CustomUserCreationForm
         else:
             messages.error(self.request, "Invalid or unsupported user type for registration. Please choose a valid type.")
-            return CustomUserCreationForm 
+            # It's better to redirect to a selection page or raise a Http404 here
+            # For now, returning CustomUserCreationForm might lead to immediate form_invalid
+            return CustomUserCreationForm
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
-        kwargs['user_type'] = self.kwargs.get('user_type', None)
+        user_type_from_url = self.kwargs.get('user_type', None)
+        kwargs['user_type'] = user_type_from_url
+        logger.debug(f"##### [UserRegistrationView.get_form_kwargs] user_type from URL kwargs: '{user_type_from_url}'. kwargs passed to form: {kwargs}")
         return kwargs
 
     def get_context_data(self, **kwargs):
@@ -379,25 +383,30 @@ class UserRegistrationView(CreateView):
         return context
 
     def form_valid(self, form):
-        user_type = self.kwargs.get('user_type', 'general')
+        logger.debug(f"##### [UserRegistrationView.form_valid] Form is valid. Attempting to save user.")
+        user_type = self.kwargs.get('user_type', 'general') # Get user_type from URL kwargs
 
         try:
             with transaction.atomic():
-                user = form.save(commit=True, user_type=user_type)  
+                # Pass user_type to form.save() for internal logic (username prefix, is_staff, etc.)
+                # This is the FIRST and ONLY call to form.save() in this view's successful path.
+                user = form.save(commit=True) # user_type is now handled internally by clean/save in the form
 
+                # If the form's save method somehow fails to set _raw_password, handle it
                 raw_password = getattr(user, '_raw_password', None)
                 if raw_password is None:
-                    logger.error(f"form.save() for {user.username} did not set _raw_password. User creation rolled back.")
-                    # Add a non-field error to the form to trigger form_invalid.
+                    logger.error(f"form.save() for {user.username} did not set _raw_password. Transaction rolled back.")
                     form.add_error(None, "An internal error occurred: password could not be generated. Please try again.")
-                    return self.form_invalid(form)
+                    # Manually raise ValidationError to ensure form_invalid is called and transaction rolls back
+                    raise ValidationError("Password generation failed.")
+
 
                 print(f"[VIEW DEBUG] Username: {user.username}")
                 print(f"[VIEW DEBUG] Raw Password: {user._raw_password}")
                 print(f"[VIEW DEBUG] Check Password Valid: {user.check_password(user._raw_password)}")
 
-                # Step 3: Create specific profile based on user type and cleaned data.
-                profile_instance = None 
+                # Create specific profile based on user type and cleaned data.
+                profile_instance = None
 
                 if user_type == 'patient':
                     profile_instance = Patient.objects.create(
@@ -409,31 +418,29 @@ class UserRegistrationView(CreateView):
                         pre_existing_conditions=form.cleaned_data.get('pre_existing_conditions'),
                     )
                 elif user_type == 'doctor':
-                    # Assuming 'department' is a required field in DoctorRegistrationForm and validated there.
                     profile_instance = Doctor.objects.create(
                         user=user,
                         specialization=form.cleaned_data['specialization'],
                         medical_license_number=form.cleaned_data['medical_license_number'],
-                        department=form.cleaned_data['department'], 
-                        years_of_experience=form.cleaned_data.get('years_of_experience'),
+                        department=form.cleaned_data['department'],
+                        years_of_experience=form.cleaned_data.get('years_of_experience'), # Use .get() for optional fields
                     )
                 elif user_type == 'nurse':
                     profile_instance = Nurse.objects.create(
                         user=user,
-                        shift_info=form.cleaned_data.get('shift_info'),
+                        nursing_license_number=form.cleaned_data.get('nursing_license_number'),
                         assigned_ward=form.cleaned_data.get('assigned_ward'),
                     )
                 elif user_type == 'pharmacist':
                     profile_instance = Pharmacist.objects.create(
                         user=user,
                         pharmacy_license_number=form.cleaned_data.get('pharmacy_license_number'),
-                        employee_id=form.cleaned_data.get('employee_id'),
+                        years_of_experience=form.cleaned_data.get('years_of_experience'),
                     )
                 elif user_type == 'procurement_officer':
                     profile_instance = ProcurementOfficer.objects.create(
                         user=user,
                         employee_id=form.cleaned_data.get('employee_id'),
-                        department=form.cleaned_data.get('department'),
                     )
                 elif user_type == 'receptionist':
                     profile_instance = Receptionist.objects.create(
@@ -462,8 +469,8 @@ class UserRegistrationView(CreateView):
                         qualifications=form.cleaned_data.get('qualifications'),
                         status=form.cleaned_data.get('status'),
                     )
-                
-                # Step 4: Log successful user and profile creation.
+
+                # Log successful user and profile creation.
                 log_activity(
                     self.request.user if self.request.user.is_authenticated else None,
                     'CREATE',
@@ -482,13 +489,13 @@ class UserRegistrationView(CreateView):
                         ip_address=get_client_ip(self.request)
                     )
 
-
+                # Attempt to send email
                 try:
                     subject = f"Your New {user_type.replace('_', ' ').title()} Account at {getattr(settings, 'HOSPITAL_NAME', 'Our Hospital')}"
                     html_message = render_to_string('clinical_app/emails/new_user_credentials.html', {
                         'user': user,
                         'username': user.username,
-                        'password': raw_password, 
+                        'password': raw_password,
                         'login_url': self.request.build_absolute_uri(reverse_lazy('login')),
                         'hospital_name': getattr(settings, 'HOSPITAL_NAME', 'Our Hospital')
                     })
@@ -503,23 +510,38 @@ class UserRegistrationView(CreateView):
                     logger.error(f"Failed to send email to {user.email} for new {user_type} user {user.username}: {e}", exc_info=True)
 
                 messages.info(self.request,
-                              f"New User: <strong>{user.username}</strong>, Temporary Password: <strong><span class='text-danger'>{raw_password}</span></strong>. "
-                              f"Please ensure the user logs in and changes their password immediately. "
-                              f"This message is for development purposes and will be removed in production.")
+                                  f"New User: <strong>{user.username}</strong>, Temporary Password: <strong><span class='text-danger'>{raw_password}</span></strong>. "
+                                  f"Please ensure the user logs in and changes their password immediately. "
+                                  f"This message is for development purposes and will be removed in production.")
+
+            # --- Important: Handle Redirection after successful transaction ---
+            # THIS IS WHERE YOU RETURN A REDIRECT, NOT super().form_valid(form)
+            if user_type == 'patient':
+                return redirect('patient_dashboard') # Assuming you have a URL named 'patient_dashboard'
+            elif user_type == 'doctor':
+                return redirect('doctor_dashboard') # Assuming you have 'doctor_dashboard'
+            # Add more specific redirects for other user types if they have dedicated dashboards
+            elif user_type == 'admin':
+                return redirect(reverse_lazy('admin:index')) # Redirect admin to Django admin
+            else:
+                # Fallback redirect for other roles or generic success
+                return redirect('registration_success') # Ensure you have this URL or use 'login'
 
         except ValidationError as e:
+            # Catch specific form validation errors (e.g., from clean() or form.add_error in save())
+            logger.warning(f"Form ValidationError during registration: {e.message}")
             messages.error(self.request, f"Registration failed: {e.message}")
-            return self.form_invalid(form)
+            return self.form_invalid(form) # Re-render form with errors
         except Exception as e:
-            # Catch any other unexpected errors during the transaction.
+            # Catch any other unexpected errors during the transaction
             logger.exception(f"An unexpected error occurred during {user_type} user registration for {form.cleaned_data.get('email')}: {e}")
             messages.error(self.request, "An unexpected error occurred during registration. Please contact support.")
-            return self.form_invalid(form)
-        return super().form_valid(form)
+            return self.form_invalid(form) # Re-render form with errors
 
     def form_invalid(self, form):
         messages.error(self.request, "Please correct the errors below to register the account.")
-        return super().form_invalid(form)
+        logger.debug(f"##### [UserRegistrationView.form_invalid] Form errors: {form.errors}")
+        return super().form_invalid(form) # This will render the form again with errors
 
 
 class UserListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
@@ -2430,7 +2452,7 @@ class ImagingResultCreateView(LoginRequiredMixin, IsRadiologistMixin, CreateView
         # form.instance.radiologist = self.request.user.doctor if hasattr(self.request.user, 'doctor') else None
         # Or, if you have a dedicated Radiologist model linked to User:
         if hasattr(self.request.user, 'radiologist'): # Assuming `user.radiologist` exists
-            form.instance.radiologist = self.request.user.radiologist
+            form.instance.radiologist = self.request.user
         else:
             # Handle case where user is radiologist type but no radiologist profile linked
             # This might indicate a data setup issue or require a fallback
@@ -2450,7 +2472,7 @@ class ImagingResultCreateView(LoginRequiredMixin, IsRadiologistMixin, CreateView
                 log_activity(
                     self.request.user,
                     'UPDATE',
-                    f'Imaging request status updated to completed for {imaging_request.patient.user.get_full_name()} (Request ID: {imaging_request.pk})',
+                    f'Imaging request status updated to completed for {imaging_request.encounter.patient.user.get_full_name()} (Request ID: {imaging_request.pk})',
                     model_name='ImagingRequest',
                     object_id=imaging_request.pk,
                     ip_address=get_client_ip(self.request),
@@ -2460,7 +2482,7 @@ class ImagingResultCreateView(LoginRequiredMixin, IsRadiologistMixin, CreateView
             log_activity(
                 self.request.user,
                 'CREATE',
-                f'Recorded imaging result for patient {imaging_request.patient.user.get_full_name()} (Request ID: {imaging_request.pk}, Result ID: {form.instance.pk})',
+                f'Recorded imaging result for patient {imaging_request.encounter.patient.user.get_full_name()} (Request ID: {imaging_request.pk}, Result ID: {form.instance.pk})',
                 model_name='ImagingResult',
                 object_id=form.instance.pk,
                 ip_address=get_client_ip(self.request)

@@ -12,6 +12,8 @@ import json # For handling JSONField in Radiologist form
 from datetime import date # For default value of report_date
 import logging
 from django.forms import DateTimeInput 
+from django.utils import timezone
+
 from .models import (
     User, Patient, Doctor, Nurse, ProcurementOfficer, Department, Appointment,
     VitalSign, MedicalHistory, PhysicalExamination, Diagnosis, TreatmentPlan,
@@ -20,7 +22,7 @@ from .models import (
     Medication, Ward, Bed, BirthRecord, MortalityRecord, CancerRegistryReport, LabTest
 )
 
-# --- Utility Functions ---
+logger = logging.getLogger(__name__)
 
 # Define prefixes for auto-generated usernames
 USER_TYPE_PREFIXES = {
@@ -131,47 +133,77 @@ class CustomUserCreationForm(forms.ModelForm):
         return email
 
     def save(self, commit=True, user_type=None):
-        """
-        Saves the user with auto-generated username and secure password.
-        Also returns the raw password for emailing or debugging.
-        """
-        user = super().save(commit=False)
+        logger.debug(f"[CustomUserCreationForm.save] Starting save process.")
+        logger.debug(f"[CustomUserCreationForm.save] commit: {commit}, user_type argument: {user_type}")
+
+        # Call the parent's save method to get the user instance, but don't commit yet.
+        # This populates the user object with fields from Meta.fields
+        try:
+            user = super().save(commit=False)
+            logger.debug(f"[CustomUserCreationForm.save] User object from super().save(commit=False): {user}")
+            if user is None:
+                logger.error("[CustomUserCreationForm.save] super().save(commit=False) returned None. This is unexpected.")
+                raise Exception("ModelForm's save(commit=False) returned None.")
+        except Exception as e:
+            logger.error(f"[CustomUserCreationForm.save] Error during super().save(commit=False): {e}", exc_info=True)
+            raise # Re-raise to propagate the error
 
         effective_user_type = user_type or getattr(self, 'user_type_from_view', None)
+        logger.debug(f"[CustomUserCreationForm.save] Effective user type determined: {effective_user_type}")
+
         if not effective_user_type:
-            # Instead of raising an error, return None
-            print("[ERROR] User type not provided.")
-            return None
+            error_msg = "User type not provided to CustomUserCreationForm.save(). Cannot create user."
+            logger.error(f"[CustomUserCreationForm.save] {error_msg}")
+            # If user_type is critical, you should raise a ValidationError here
+            # or ensure the view handles this case (e.g., by making get_form_class
+            # always return a valid form that sets the user_type).
+            # For now, we'll raise an error to indicate a problem.
+            raise ValidationError(error_msg)
+
 
         prefix = USER_TYPE_PREFIXES.get(effective_user_type, 'USR')
         user.username = generate_unique_code(prefix)
+        logger.debug(f"[CustomUserCreationForm.save] Generated username: {user.username}")
 
         raw_password = generate_random_password()
-        print(f"[DEBUG] Generated password: {raw_password}")
+        logger.debug(f"[CustomUserCreationForm.save] Generated raw password (first 5 chars): {raw_password[:5]}...")
 
         user.set_password(raw_password)
-        print(f"[DEBUG] After set_password: {user.password}")
+        logger.debug(f"[CustomUserCreationForm.save] Password set on user object.")
 
         user.user_type = effective_user_type
+        logger.debug(f"[CustomUserCreationForm.save] User type set to: {user.user_type}")
 
-        if effective_user_type == 'Administrator':
+        # Set staff/superuser status based on user type
+        if effective_user_type == 'admin': # Use 'admin' as per your USER_TYPE_CHOICES tuple
             user.is_staff = True
             user.is_superuser = True
-        elif effective_user_type in ['Doctor', 'Nurse', 'Pharmacist', 'ProcurementOfficer']:
+        # Note: Your original code had 'Administrator', 'Doctor', etc. Make sure these
+        # strings match the keys in USER_TYPE_CHOICES and USER_TYPE_PREFIXES.
+        # It should be the values from USER_TYPE_CHOICES, e.g., 'doctor', 'nurse', etc.
+        elif effective_user_type in ['doctor', 'nurse', 'pharmacist', 'procurement_officer', 'lab_tech', 'radiologist', 'receptionist']:
             user.is_staff = True
             user.is_superuser = False
-        else:
+        else: # This covers 'patient' and any unhandled types
             user.is_staff = False
             user.is_superuser = False
+        logger.debug(f"[CustomUserCreationForm.save] is_staff: {user.is_staff}, is_superuser: {user.is_superuser}")
 
         user.is_active = True
 
         if commit:
-            user.save()
-            print(f"[DEBUG] Saved user: {user.username}")
-            print(f"[DEBUG] Password check valid: {user.check_password(raw_password)}")
+            try:
+                user.save()
+                logger.debug(f"[CustomUserCreationForm.save] User committed to database: {user.username}")
+                # For debugging:
+                logger.debug(f"[CustomUserCreationForm.save] Password check valid: {user.check_password(raw_password)}")
+            except Exception as e:
+                logger.error(f"[CustomUserCreationForm.save] Error committing user to database: {e}", exc_info=True)
+                raise # Re-raise to ensure transaction rollback if within one
 
+        # Store the raw password on the user object for external use (e.g., email)
         user._raw_password = raw_password
+        logger.debug(f"[CustomUserCreationForm.save] Raw password stored on user._raw_password.")
 
         return user
 

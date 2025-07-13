@@ -927,9 +927,13 @@
                                 <ul class="list-group list-group-flush">
                                     {% for result in recent_imaging_results %}
                                         <li class="list-group-item">
-                                            <div><strong>Patient:</strong> {{ result.patient.user.get_full_name|default:result.patient.user.username }}</div>
-                                            <div><strong>Type:</strong> {{ result.imaging_type }}</div>
-                                            <div><strong>Status:</strong> {{ result.status }}</div>
+                                            {# CORRECTED LINE based on your model relationships #}
+                                            <div><strong>Patient:</strong> {{ result.request.encounter.patient.user.get_full_name|default:result.request.encounter.patient.user.username }}</div>
+
+                                            {# Also correcting the type and status based on relationships #}
+                                            <div><strong>Type:</strong> {{ result.request.imaging_type.name }}</div>
+                                            <div><strong>Status:</strong> {{ result.request.status }}</div>
+
                                             <div><strong>Date:</strong> <span class="date-time">{{ result.report_date|date:"F d, Y P" }}</span></div>
                                             <a href="{% url 'imaging_result_detail' result.pk %}" class="btn btn-link btn-sm mt-2">View Report</a>
                                         </li>

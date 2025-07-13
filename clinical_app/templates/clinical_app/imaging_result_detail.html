@@ -3,93 +3,169 @@
 {% block title %}{{ title }} - {{ result.request.imaging_type.name }}{% endblock %}
 
 {% block content %}
-    <div class="container mt-4">
-        <div class="row justify-content-center">
-            <div class="col-md-10">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                        <h4 class="mb-0">{{ title }}</h4>
-                        {% if request.user.user_type == 'radiologist' or request.user.user_type == 'admin' %}
-                            <div>
-                                <a href="{% url 'imaging_result_update' result.pk %}" class="btn btn-light btn-sm me-2"><i class="fas fa-edit"></i> Edit</a>
-                                <a href="{% url 'imaging_result_delete' result.pk %}" class="btn btn-danger btn-sm"><i class="fas fa-trash-alt"></i> Delete</a>
-                            </div>
-                        {% endif %}
-                    </div>
-                    <div class="card-body">
-                        <dl class="row">
-                            <dt class="col-sm-4">Patient:</dt>
-                            <dd class="col-sm-8">
-                                <a href="{% url 'patient_detail' result.request.patient.pk %}">
-                                    {{ result.request.patient.user.get_full_name }} (ID: {{ result.request.patient.user.id_number }})
-                                </a>
-                            </dd>
+<style>
+    /* Custom Styles for a Modern Look */
+    .card {
+        border-radius: 12px; /* Softer rounded corners */
+        overflow: hidden; /* Ensures shadow respects border-radius */
+    }
 
-                            <dt class="col-sm-4">Imaging Request:</dt>
-                            <dd class="col-sm-8">
-                                {% if result.request %}
-                                    <a href="{% url 'imaging_request_detail' result.request.pk %}"> {# Assuming you have an imaging_request_detail URL #}
-                                        {{ result.request.imaging_type.name }} (Requested: {{ result.request.request_date|date:"Y-m-d H:i" }})
+    .card-header {
+        background-color: #f8f9fa; /* Light background for header */
+        border-bottom: 1px solid #e9ecef;
+        padding: 1.25rem 1.5rem; /* More generous padding */
+    }
+
+    .card-title {
+        font-weight: 600; /* Slightly bolder title */
+        color: #343a40; /* Darker title color */
+    }
+
+    .dl-horizontal dt {
+        font-weight: 500; /* Medium font weight for terms */
+        color: #495057; /* Slightly darker grey for terms */
+    }
+
+    .dl-horizontal dd {
+        color: #212529; /* Darker text for descriptions */
+        margin-bottom: 0.75rem; /* Space between dd elements */
+    }
+
+    .text-primary {
+        color: #007bff !important; /* Ensure primary color is vibrant */
+    }
+
+    .btn-light {
+        color: #6c757d;
+        border-color: #ced4da;
+    }
+
+    .btn-light:hover {
+        color: #495057;
+        background-color: #e2e6ea;
+        border-color: #dae0e5;
+    }
+
+    pre.card {
+        background-color: #e9ecef; /* Lighter background for code/findings */
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        font-family: 'Roboto Mono', monospace; /* Monospaced font for findings */
+        font-size: 0.9rem;
+        white-space: pre-wrap; /* Ensures text wraps */
+        word-wrap: break-word; /* Breaks long words */
+    }
+
+    .badge {
+        padding: 0.5em 0.75em; /* Larger badges */
+        border-radius: 0.5rem; /* Softer badge corners */
+        font-weight: 600;
+    }
+</style>
+
+<div class="container mt-5 mb-5"> {# Increased top and bottom margin for better visual separation #}
+    <div class="row justify-content-center">
+        <div class="col-md-10 col-lg-8">
+            <div class="card shadow-lg animate__animated animate__fadeInUp"> {# Enhanced shadow and ensured fadeInUp #}
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0 card-title">
+                        <i class="fas fa-file-alt me-2"></i>
+                        {{ title }}
+                    </h4>
+                    {% if request.user.user_type == 'radiologist' or request.user.user_type == 'admin' %}
+                        <div class="d-flex align-items-center"> {# Use flex for button alignment #}
+                            <a href="{% url 'imaging_result_update' result.pk %}" class="btn btn-light btn-sm me-2">
+                                <i class="fas fa-edit me-1"></i> Edit
+                            </a>
+                            <a href="{% url 'imaging_result_delete' result.pk %}" class="btn btn-danger btn-sm">
+                                <i class="fas fa-trash-alt me-1"></i> Delete
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <h5 class="mb-4 text-primary fw-bold border-bottom pb-2">
+                        <i class="fas fa-user-circle me-2"></i>Patient Information
+                    </h5>
+                    <dl class="row dl-horizontal mb-4"> {# Removed redundant border-bottom from dl #}
+                        <dt class="col-sm-4">Full Name:</dt>
+                        <dd class="col-sm-8 text-break">
+                            <a href="{% url 'patient_detail' result.request.encounter.patient.pk %}" class="text-decoration-none text-primary">
+                                {{ result.request.encounter.patient.user.get_full_name }}
+                            </a>
+                        </dd>
+
+                        <dt class="col-sm-4">Patient ID:</dt>
+                        <dd class="col-sm-8">{{ result.request.encounter.patient.patient_id }}</dd>
+
+                    </dl>
+
+                    <h5 class="mb-4 text-primary fw-bold border-bottom pb-2">
+                        <i class="fas fa-file-medical-alt me-2"></i>Imaging Result Details
+                    </h5>
+                    <dl class="row dl-horizontal">
+                        <dt class="col-sm-4">Imaging Request:</dt>
+                        <dd class="col-sm-8">
+                            {% if result.request %}
+                                <a href="{% url 'imaging_request_detail' result.request.pk %}" class="text-decoration-none text-primary">
+                                    {{ result.request.imaging_type.name }} (Requested: {{ result.request.request_date|date:"F d, Y H:i" }})
+                                </a>
+                            {% else %}
+                                <span class="text-muted fst-italic">N/A</span>
+                            {% endif %}
+                        </dd>
+                        
+                        <dt class="col-sm-4">Radiologist:</dt>
+                        <dd class="col-sm-8">{{ result.radiologist.user.get_full_name|default:"N/A" }}</dd>
+                        <dt class="col-sm-4">Result Date:</dt>
+                        <dd class="col-sm-8">{{ result.impression|date:"F d, Y H:i" }}</dd>
+
+                        <dt class="col-sm-4">Findings:</dt>
+                        <dd class="col-sm-8">
+                            {% if result.findings %}
+                                <pre class="card p-3">{{ result.findings }}</pre>
+                            {% else %}
+                                <p class="text-muted fst-italic">No findings recorded.</p>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-4">Image Files:</dt>
+                        <dd class="col-sm-8">
+                            {% if result.image_files %}
+                                {% if result.image_files.url %}
+                                    <a href="{{ result.image_files.url }}" target="_blank" class="btn btn-outline-primary mt-1">
+                                        <i class="fas fa-image me-1"></i> View Image
                                     </a>
                                 {% else %}
-                                    N/A
+                                    <p class="text-muted fst-italic">No specific file attached.</p>
                                 {% endif %}
-                            </dd>
-
-                            <dt class="col-sm-4">Radiologist:</dt>
-                            <dd class="col-sm-8">{{ result.radiologist.user.get_full_name|default:"N/A" }}</dd>
-
-                            <dt class="col-sm-4">Result Date:</dt>
-                            <dd class="col-sm-8">{{ result.result_date|date:"F d, Y H:i" }}</dd>
-
-                            <dt class="col-sm-4">Status:</dt>
-                            <dd class="col-sm-8">
-                                <span class="badge {% if result.status == 'finalized' %}bg-success{% elif result.status == 'preliminary' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
-                                    {{ result.get_status_display }}
-                                </span>
-                            </dd>
-
-                            <dt class="col-sm-4">Findings:</dt>
-                            <dd class="col-sm-8">
-                                {% if result.findings %}
-                                    <pre class="card p-2 bg-light">{{ result.findings }}</pre>
-                                {% else %}
-                                    N/A
-                                {% endif %}
-                            </dd>
-
-                            <dt class="col-sm-4">Conclusion:</dt>
-                            <dd class="col-sm-8">
-                                {% if result.conclusion %}
-                                    <pre class="card p-2 bg-light">{{ result.conclusion }}</pre>
-                                {% else %}
-                                    N/A
-                                {% endif %}
-                            </dd>
-
-                            <dt class="col-sm-4">Image Files:</dt>
-                            <dd class="col-sm-8">
-                                {% if result.image_files %}
-                                    {# Assuming ImageField for single file or comma-separated string for multiple #}
-                                    {# If using a custom ManyToMany field with separate Image model, you'd iterate #}
-                                    {% if result.image_files.url %}
-                                        <a href="{{ result.image_files.url }}" target="_blank" class="btn btn-sm btn-outline-primary mt-1">
-                                            <i class="fas fa-image me-1"></i> View Image
-                                        </a>
-                                    {% else %}
-                                        N/A (No specific file attached)
-                                    {% endif %}
-                                {% else %}
-                                    No files attached.
-                                {% endif %}
-                            </dd>
-                        </dl>
-                    </div>
-                    <div class="card-footer text-end">
-                        <a href="{% url 'imaging_results_list' %}" class="btn btn-secondary">Back to Results List</a>
-                    </div>
+                            {% else %}
+                                <p class="text-muted fst-italic">No files attached.</p>
+                            {% endif %}
+                        </dd>
+                    </dl>
+                </div>
+                <div class="card-footer text-end bg-light border-top"> {# Light background and border for footer #}
+                    <a href="{% url 'imaging_results_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i> Back to Results List
+                    </a>
                 </div>
             </div>
         </div>
     </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // This ensures Animate.css classes are applied.
+            // If animate__fadeInUp is already in the HTML, this specific JS isn't strictly necessary for that.
+            // But it's good practice for dynamic animations or if you want to trigger them on interaction.
+            const card = document.querySelector('.card.animate__animated');
+            if (card) {
+                card.classList.add('animate__fadeInUp');
+            }
+        });
+    </script>
 {% endblock %}

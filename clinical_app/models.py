@@ -126,21 +126,82 @@ class Doctor(models.Model):
     def __str__(self):
         return f"Dr. {self.user.first_name} {self.user.last_name} ({self.specialization})"
 
+class Ward(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    ward_type_choices = (
+        ('general', 'General'),
+        ('private', 'Private'),
+        ('icu', 'Intensive Care Unit'),
+        ('maternity', 'Maternity'),
+        ('pediatric', 'Pediatric'),
+        ('oncology', 'Oncology'),
+    )
+    ward_type = models.CharField(max_length=50, choices=ward_type_choices, default='general')
+    capacity = models.IntegerField()
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def current_occupancy(self):
+        """Calculates the number of currently occupied beds in this ward."""
+        # This filters related beds where the 'patient' field is NOT NULL
+        return self.beds.filter(patient__isnull=False).count()
+
+    @property
+    def available_beds_count(self):
+        """Calculates the number of available (unoccupied) beds in this ward."""
+        # This filters related beds where the 'patient' field IS NULL
+        return self.beds.filter(patient__isnull=True).count()
+
 class Nurse(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True, limit_choices_to={'user_type': 'nurse'})
     nursing_license_number = models.CharField(max_length=50, unique=True, null=True, blank=True)
+    assigned_ward = models.ForeignKey(Ward, on_delete=models.SET_NULL, null=True, blank=True, related_name='nurses_assigned')
+
     # Add nurse-specific fields if any
 
     def __str__(self):
         return f"Nurse {self.user.first_name} {self.user.last_name}"
 
+class Bed(models.Model):
+    ward = models.ForeignKey(Ward, on_delete=models.CASCADE, related_name='beds')
+    bed_number = models.CharField(max_length=20)
+    assigned_nurse = models.ForeignKey(Nurse, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_beds')
+    patient = models.OneToOneField('Patient', on_delete=models.SET_NULL, null=True, blank=True, related_name='bed_assigned') # Assuming you have a Patient model
+
+    # The `is_occupied` field becomes redundant if `patient` is present.
+    # We can remove it and use a property, or keep it and update it via save/forms.
+    # For now, let's keep it but rely on the patient field.
+    is_occupied = models.BooleanField(default=False) # Will be updated by save method or form
+
+    # Add the foreign key to Patient
+    patient = models.OneToOneField(
+        'Patient',            # 'Patient' as string if Patient is defined later in the file
+        on_delete=models.SET_NULL, # When a patient record is deleted, set this bed's patient to NULL
+        null=True,             # A bed can be empty
+        blank=True,            # Allow empty in forms
+        related_name='current_bed', # Allows patient.current_bed to get the bed object
+        help_text="The patient currently assigned to this bed. Null if bed is empty."
+    )
+
+    class Meta:
+        unique_together = ('ward', 'bed_number')
+
+    def __str__(self):
+        status = "Occupied" if self.patient else "Available"
+        patient_name = f" ({self.patient.get_full_name()})" if self.patient and hasattr(self.patient, 'get_full_name') else ""
+        return f"{self.ward.name} - Bed {self.bed_number} ({status}{patient_name})"
+
+    # Optional: Override save method to keep is_occupied in sync
+    def save(self, *args, **kwargs):
+        self.is_occupied = self.patient is not None
+        super().save(*args, **kwargs)
+
 class Pharmacist(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True, limit_choices_to={'user_type': 'pharmacist'})
     pharmacy_license_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
-    years_of_experience = models.IntegerField(default=0, help_text="Years of experience in pharmacy.")
-    # Add other relevant fields for a Pharmacist here, e.g.:
-    # registered_date = models.DateField(auto_now_add=True)
-    # specialized_area = models.CharField(max_length=100, blank=True, null=True)
+    years_of_experience = models.IntegerField(default=0, blank=True, null=True, help_text="Years of experience in pharmacy.")
 
     def __str__(self):
         return f"Pharmacist {self.user.first_name} {self.user.last_name}"
@@ -148,10 +209,7 @@ class Pharmacist(models.Model):
 class ProcurementOfficer(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True, limit_choices_to={'user_type': 'procurement_officer'})
     employee_id = models.CharField(max_length=50, unique=True, blank=True, null=True)
-    # You might want to link to a 'Department' model specifically for this role if it's different
-    # from the general user's department, or if you need to track their specific procurement department.
-    # department = models.ForeignKey('Department', on_delete=models.SET_NULL, null=True, blank=True)
-    
+
     def __str__(self):
         return f"Procurement Officer {self.user.first_name} {self.user.last_name}"
 
@@ -500,6 +558,8 @@ class Encounter(models.Model):
     doctor = models.ForeignKey(Doctor, on_delete=models.SET_NULL, null=True, blank=True, related_name='encounters')
     appointment = models.OneToOneField(Appointment, on_delete=models.SET_NULL, null=True, blank=True, related_name='encounter')
     encounter_date = models.DateTimeField(auto_now_add=True)
+    nurse = models.ForeignKey('Nurse', on_delete=models.SET_NULL, null=True, blank=True, related_name='encounters_managed') # Changed from 'nurse' to 'nurse_assigned' or 'primary_nurse' for clarity if needed
+
     encounter_type_choices = (
         ('outpatient', 'Outpatient'),
         ('inpatient', 'Inpatient'),
@@ -903,65 +963,6 @@ class Prescription(models.Model):
 # -----------------------------------------------------------------------------
 # Inpatient Management (Ward & Bed)
 # -----------------------------------------------------------------------------
-
-class Ward(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    ward_type_choices = (
-        ('general', 'General'),
-        ('private', 'Private'),
-        ('icu', 'Intensive Care Unit'),
-        ('maternity', 'Maternity'),
-        ('pediatric', 'Pediatric'),
-        ('oncology', 'Oncology'),
-    )
-    ward_type = models.CharField(max_length=50, choices=ward_type_choices, default='general')
-    capacity = models.IntegerField()
-
-    def __str__(self):
-        return self.name
-
-    @property
-    def current_occupancy(self):
-        """Calculates the number of currently occupied beds in this ward."""
-        # This filters related beds where the 'patient' field is NOT NULL
-        return self.beds.filter(patient__isnull=False).count()
-
-    @property
-    def available_beds_count(self):
-        """Calculates the number of available (unoccupied) beds in this ward."""
-        # This filters related beds where the 'patient' field IS NULL
-        return self.beds.filter(patient__isnull=True).count()
-
-class Bed(models.Model):
-    ward = models.ForeignKey(Ward, on_delete=models.CASCADE, related_name='beds')
-    bed_number = models.CharField(max_length=20)
-    # The `is_occupied` field becomes redundant if `patient` is present.
-    # We can remove it and use a property, or keep it and update it via save/forms.
-    # For now, let's keep it but rely on the patient field.
-    is_occupied = models.BooleanField(default=False) # Will be updated by save method or form
-
-    # Add the foreign key to Patient
-    patient = models.OneToOneField(
-        'Patient',            # 'Patient' as string if Patient is defined later in the file
-        on_delete=models.SET_NULL, # When a patient record is deleted, set this bed's patient to NULL
-        null=True,             # A bed can be empty
-        blank=True,            # Allow empty in forms
-        related_name='current_bed', # Allows patient.current_bed to get the bed object
-        help_text="The patient currently assigned to this bed. Null if bed is empty."
-    )
-
-    class Meta:
-        unique_together = ('ward', 'bed_number')
-
-    def __str__(self):
-        status = "Occupied" if self.patient else "Available"
-        patient_name = f" ({self.patient.get_full_name()})" if self.patient and hasattr(self.patient, 'get_full_name') else ""
-        return f"{self.ward.name} - Bed {self.bed_number} ({status}{patient_name})"
-
-    # Optional: Override save method to keep is_occupied in sync
-    def save(self, *args, **kwargs):
-        self.is_occupied = self.patient is not None
-        super().save(*args, **kwargs)
 
 # -----------------------------------------------------------------------------
 # Case Summary & Reporting
