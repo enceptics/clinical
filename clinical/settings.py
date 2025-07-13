@@ -104,3 +104,6 @@ LOGIN_URL = 'login'
 
 AUTH_USER_MODEL = 'clinical_app.User'
 # LOGOUT_REDIRECT_URL = '/'
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media') # BASE_DIR should be defined at the top of settings.py

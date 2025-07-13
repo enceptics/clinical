@@ -123,8 +123,6 @@ class Doctor(models.Model):
     department = models.ForeignKey('Department', on_delete=models.SET_NULL, null=True, blank=True)
     years_of_experience = models.IntegerField(default=0, null=True, blank=True, help_text="Years of experience as a doctor.")
 
-    # Add more doctor-specific fields like availability, schedule, etc.
-
     def __str__(self):
         return f"Dr. {self.user.first_name} {self.user.last_name} ({self.specialization})"
 
@@ -264,10 +262,8 @@ class ConsentForm(models.Model):
     consent_text = models.TextField()
     is_signed = models.BooleanField(default=False)
     signed_date = models.DateTimeField(null=True, blank=True)
-    # For digital signature, you might store a hash, an image, or integrate with a digital signature service
-    digital_signature_hash = models.CharField(max_length=255, blank=True, null=True)
     signed_by_staff = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='consents_obtained')
-    document_file = models.FileField(upload_to='consent_forms/', blank=True, null=True) # To upload scanned copies
+    signature_image = models.ImageField(upload_to='consent_signatures/', null=True, blank=True)
 
     def __str__(self):
         return f"{self.consent_type} for {self.patient}"
@@ -874,6 +870,20 @@ class Medication(models.Model):
         return f"{self.name} {self.strength}"
 
 class Prescription(models.Model):
+
+    ROUTE_CHOICES = (
+        ('oral', 'Oral'),
+        ('iv', 'Intravenous (IV)'),
+        ('im', 'Intramuscular (IM)'),
+        ('sc', 'Subcutaneous (SC)'),
+        ('topical', 'Topical'),
+        ('rectal', 'Rectal'),
+        ('vaginal', 'Vaginal'),
+        ('inhalational', 'Inhalational'),
+        ('sublingual', 'Sublingual'),
+        # Add more as needed
+    )
+    
     encounter = models.ForeignKey(Encounter, on_delete=models.CASCADE, related_name='prescriptions')
     prescribed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='prescriptions_prescribed_by_set')
     prescription_date = models.DateTimeField(auto_now_add=True)
@@ -881,7 +891,7 @@ class Prescription(models.Model):
     dosage = models.CharField(max_length=100) # e.g., "1 tablet", "5 mL"
     frequency = models.CharField(max_length=100) # e.g., "Twice daily", "Every 8 hours"
     duration = models.CharField(max_length=100) # e.g., "7 days", "Until finished"
-    route = models.CharField(max_length=50, blank=True, null=True) # e.g., "Oral", "IV", "Topical"
+    route = models.CharField(max_length=50, choices=ROUTE_CHOICES, blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
     is_dispensed = models.BooleanField(default=False)
     dispensed_by = models.ForeignKey(Pharmacist, on_delete=models.SET_NULL, null=True, blank=True, related_name='prescriptions_dispensed')

@@ -323,8 +323,36 @@
         }
     </style>
 <div class="container-fluid py-4"> {# Added py-4 for vertical padding #}
-    <h3 class="mb-4 text-center text-md-start">Welcome, {{ user.get_full_name|default:user.username }}!</h3>
-
+<div class="text-center text-md-start " style="margin-bottom: 30px;">
+        <h3 class="display-6 fw-bold text-primary mb-1">
+            <i class="fas fa-hand-sparkles me-3 text-warning"></i> Welcome, {{ user.get_full_name|default:user.username|capfirst }}!
+        </h3>
+<p class="lead text-muted mb-0">
+    You are logged in as
+    {% if user.user_type == 'admin' %}
+        <span class="badge bg-danger rounded-pill fs-6 py-2 px-3"><i class="fas fa-shield-alt me-1"></i> An Administrator</span>
+    {% elif user.user_type == 'doctor' %}
+        <span class="badge bg-primary rounded-pill fs-6 py-2 px-3"><i class="fas fa-user-md me-1"></i> A Doctor</span>
+    {% elif user.user_type == 'nurse' %}
+        <span class="badge bg-info text-dark rounded-pill fs-6 py-2 px-3"><i class="fas fa-user-nurse me-1"></i> A Nurse</span>
+    {% elif user.user_type == 'pharmacist' %}
+        <span class="badge bg-success rounded-pill fs-6 py-2 px-3"><i class="fas fa-pills me-1"></i> A Pharmacist</span>
+    {% elif user.user_type == 'lab_tech' %}
+        <span class="badge bg-secondary rounded-pill fs-6 py-2 px-3"><i class="fas fa-flask me-1"></i> A Lab Technician</span>
+    {% elif user.user_type == 'radiologist' %}
+        <span class="badge bg-dark rounded-pill fs-6 py-2 px-3"><i class="fas fa-x-ray me-1"></i> A Radiologist</span>
+    {% elif user.user_type == 'patient' %}
+        <span class="badge bg-success rounded-pill fs-6 py-2 px-3"><i class="fas fa-user-injured me-1"></i> A Patient</span>
+    {% elif user.user_type == 'receptionist' %}
+        <span class="badge bg-warning text-dark rounded-pill fs-6 py-2 px-3"><i class="fas fa-headset me-1"></i> A Receptionist</span>
+    {% elif user.user_type == 'procurement_officer' %}
+        <span class="badge bg-dark rounded-pill fs-6 py-2 px-3"><i class="fas fa-truck me-1"></i> A Procurement Officer</span>
+    {% else %}
+        <span class="badge bg-secondary rounded-pill fs-6 py-2 px-3"><i class="fas fa-user me-1"></i> A Standard User</span>
+    {% endif %}
+  
+</p>
+    </div>
     {% if user.is_authenticated %}
         {% if user_type == 'admin' %}
             <div class="row">

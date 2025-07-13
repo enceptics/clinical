@@ -3,287 +3,426 @@
 {% block title %}Encounter Details - {{ encounter.patient.user.get_full_name }}{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <h1 class="mb-4">Encounter Details for <a href="{% url 'patient_detail' encounter.patient.pk %}">{{ encounter.patient.user.get_full_name }}</a></h1>
+<div class="container-fluid py-4"> {# Added py-4 for vertical padding #}
 
-    <div class="mb-4">
-        <a href="{% url 'patient_detail' encounter.patient.pk %}" class="btn btn-secondary btn-sm">Back to Patient</a>
+    {# Page Header and Navigation #}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-5 fw-bold text-primary mb-0">
+            <i class="fas fa-notes-medical me-3"></i> Encounter Details
+        </h1>
+        <div class="d-flex gap-2"> {# Use gap-2 for consistent spacing between buttons #}
+            <a href="{% url 'patient_detail' encounter.patient.pk %}" class="btn btn-outline-secondary btn-lg d-flex align-items-center">
+                <i class="fas fa-arrow-left me-2"></i> Back to Patient
+            </a>
+            {# Add more encounter-level actions here if needed, e.g., Edit Encounter #}
+            {% comment %}
+            <a href="{% url 'encounter_update' encounter.pk %}" class="btn btn-warning btn-lg d-flex align-items-center">
+                <i class="fas fa-edit me-2"></i> Edit Encounter Info
+            </a>
+            {% endcomment %}
+        </div>
+    </div>
+
+    {# Patient & Encounter Overview Card #}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white d-flex align-items-center py-3">
+            <i class="fas fa-user-injured me-2"></i>
+            <h5 class="mb-0 fw-bold">Patient: <a href="{% url 'patient_detail' encounter.patient.pk %}" class="text-white text-decoration-none">{{ encounter.patient.user.get_full_name }}</a></h5>
+            <span class="badge bg-light text-primary ms-auto fs-6">Patient ID: {{ encounter.patient.patient_id }}</span>
+        </div>
+        <div class="card-body p-3"> {# Reduced padding for tighter layout #}
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <p class="mb-1"><strong>Encounter Date/Time:</strong> {{ encounter.encounter_date|date:"M d, Y P" }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p class="mb-1"><strong>Attending Doctor:</strong> {{ encounter.doctor.user.get_full_name|default:"N/A" }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p class="mb-1"><strong>Encounter Type:</strong> {{ encounter.get_encounter_type_display }}</p>
+                </div>
+                {% if encounter.ward %}
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Ward:</strong> {{ encounter.ward }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Bed:</strong> {{ encounter.bed }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Admission Date:</strong> {{ encounter.admission_date|date:"M d, Y P"|default:"N/A" }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Discharge Date:</strong> {{ encounter.discharge_date|date:"M d, Y P"|default:"N/A" }}</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
     </div>
 
     <div class="row">
-        <div class="col-md-6">
-            <div class="card mb-4">
-                <div class="card-header bg-primary text-white">Encounter Information</div>
+        {# Left Column: Medical History, Vitals, Physical Exam, Clinical Notes #}
+        <div class="col-lg-6 col-md-12">
+
+            {# Clinical Note Section #}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-dark text-white d-flex align-items-center py-3">
+                    <i class="fas fa-file-alt me-2"></i>
+                    <h5 class="mb-0 fw-bold">Clinical Note</h5>
+                </div>
                 <div class="card-body">
-                    <p><strong>Patient:</strong> <a href="{% url 'patient_detail' encounter.patient.pk %}">{{ encounter.patient.user.get_full_name }} ({{ encounter.patient.patient_id }})</a></p>
-                    <p><strong>Doctor:</strong> {{ encounter.doctor.user.get_full_name|default:"N/A" }}</p>
-                    <p><strong>Date/Time:</strong> {{ encounter.encounter_date|date:"M d, Y P" }}</p>
-                    <p><strong>Type:</strong> {{ encounter.get_encounter_type_display }}</p>
-                    {% if encounter.ward %}
-                        <p><strong>Ward:</strong> {{ encounter.ward }}</p>
-                        <p><strong>Bed:</strong> {{ encounter.bed }}</p>
-                        <p><strong>Admission Date:</strong> {{ encounter.admission_date|date:"M d, Y P"|default:"N/A" }}</p>
-                        <p><strong>Discharge Date:</strong> {{ encounter.discharge_date|date:"M d, Y P"|default:"N/A" }}</p>
+                    {% if encounter.clinical_note %}
+                        <div class="alert alert-success d-flex align-items-center" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <div>A clinical note has been recorded for this encounter.</div>
+                            <div class="ms-auto d-flex gap-2">
+                                <a href="{% url 'clinical_note_detail' encounter_pk=encounter.pk pk=encounter.clinical_note.pk %}" class="btn btn-sm btn-outline-success">View</a>
+                                <a href="{% url 'clinical_note_update' encounter_pk=encounter.pk pk=encounter.clinical_note.pk %}" class="btn btn-sm btn-outline-warning">Edit</a>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info d-flex align-items-center" role="alert">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <div>No clinical note recorded for this encounter yet.</div>
+                            <a href="{% url 'clinical_note_create' encounter_pk=encounter.pk %}" class="btn btn-sm btn-primary ms-auto">Add Note</a>
+                        </div>
                     {% endif %}
                 </div>
             </div>
 
-            <div class="card mb-4">
-                <div class="card-header bg-info text-white">Medical History (from Patient Profile) <a href="{% url 'medical_history_create' encounter.patient.pk %}" class="btn btn-sm btn-light float-right">Add/Update</a></div>
+            {# Medical History Card #}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info text-white d-flex align-items-center py-3">
+                    <i class="fas fa-history me-2"></i>
+                    <h5 class="mb-0 fw-bold">Medical History (from Patient Profile)</h5>
+                    <a href="{% url 'medical_history_create' encounter.patient.pk %}" class="btn btn-sm btn-light ms-auto d-flex align-items-center">
+                        <i class="fas fa-plus me-2"></i> Add/Update
+                    </a>
+                </div>
                 <div class="card-body">
                     {% if medical_history %}
                         {% with latest_history=medical_history.first %}
-                        <p><strong>Chief Complaint:</strong> {{ latest_history.chief_complaint|default:"N/A" }}</p>
-                        <p><strong>History of Present Illness:</strong> {{ latest_history.history_of_present_illness|default:"N/A" }}</p>
-                        <p><strong>Past Medical History:</strong> {{ latest_history.past_medical_history|default:"N/A" }}</p>
-                        <p><strong>Surgical History:</strong> {{ latest_history.surgical_history|default:"N/A" }}</p>
-                        <p><strong>Family History:</strong> {{ latest_history.family_history|default:"N/A" }}</p>
-                        <p><strong>Social History:</strong> {{ latest_history.social_history|default:"N/A" }}</p>
-                        <p><strong>Medication History:</strong> {{ latest_history.medication_history|default:"N/A" }}</p>
-                        <p class="text-muted"><em>Last updated: {{ latest_history.recorded_date|date:"M d, Y P" }} by {{ latest_history.recorded_by.user.get_full_name }}</em></p>
+                        <p class="mb-1"><strong>Chief Complaint:</strong> {{ latest_history.chief_complaint|default:"N/A" }}</p>
+                        <p class="mb-1"><strong>History of Present Illness:</strong> {{ latest_history.history_of_present_illness|default:"N/A"|truncatechars:200 }}</p>
+                        <p class="mb-1"><strong>Past Medical History:</strong> {{ latest_history.past_medical_history|default:"N/A"|truncatechars:200 }}</p>
+                        <p class="mb-1"><strong>Surgical History:</strong> {{ latest_history.surgical_history|default:"N/A"|truncatechars:200 }}</p>
+                        <p class="mb-1"><strong>Family History:</strong> {{ latest_history.family_history|default:"N/A"|truncatechars:200 }}</p>
+                        <p class="mb-1"><strong>Social History:</strong> {{ latest_history.social_history|default:"N/A"|truncatechars:200 }}</p>
+                        <p class="mb-1"><strong>Medication History:</strong> {{ latest_history.medication_history|default:"N/A"|truncatechars:200 }}</p>
+                        <small class="text-muted d-block mt-2"><em>Last updated: {{ latest_history.recorded_date|date:"M d, Y P" }} by {{ latest_history.recorded_by.user.get_full_name }}</em></small>
                         {% endwith %}
                     {% else %}
-                        <p>No medical history recorded for this patient.</p>
+                        <p class="text-muted">No medical history recorded for this patient.</p>
                     {% endif %}
                 </div>
             </div>
 
-            <div class="card mb-4">
-                <div class="card-header bg-success text-white">Vital Signs <a href="{% url 'vitals_create' encounter.pk %}" class="btn btn-sm btn-light float-right">Add Vitals</a></div>
+            {# Vital Signs Card #}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white d-flex align-items-center py-3">
+                    <i class="fas fa-heartbeat me-2"></i>
+                    <h5 class="mb-0 fw-bold">Vital Signs</h5>
+                    <a href="{% url 'vitals_create' encounter.pk %}" class="btn btn-sm btn-light ms-auto d-flex align-items-center">
+                        <i class="fas fa-plus me-2"></i> Add Vitals
+                    </a>
+                </div>
                 <div class="card-body">
                     {% if vitals %}
                         <ul class="list-group list-group-flush">
                             {% for vital in vitals %}
                                 <li class="list-group-item">
-                                    <strong>{{ vital.timestamp|date:"M d, Y P" }}</strong> -
-                                    Temp: {{ vital.temperature|default:"N/A" }}°C,
-                                    BP: {{ vital.blood_pressure_systolic|default:"N/A" }}/{{ vital.blood_pressure_diastolic|default:"N/A" }} mmHg,
-                                    HR: {{ vital.heart_rate|default:"N/A" }} bpm,
-                                    RR: {{ vital.respiratory_rate|default:"N/A" }} rpm,
-                                    SpO2: {{ vital.oxygen_saturation|default:"N/A" }}%
-                                    {% if vital.weight_kg or vital.height_cm %}
-                                        <br>
-                                        Weight: {{ vital.weight_kg|default:"N/A" }} kg,
-                                        Height: {{ vital.height_cm|default:"N/A" }} cm,
-                                        {% if vital.bmi %}
-                                            BMI: {{ vital.bmi|floatformat:2 }}
-                                        {% else %}
-                                            BMI: N/A
-                                        {% endif %}
-                                    {% endif %}
-
-                                    <small class="text-muted">Recorded by: {{ vital.recorded_by.get_full_name|default:"N/A" }}</small>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <strong>{{ vital.timestamp|date:"M d, Y P" }}</strong> -
+                                            Temp: {{ vital.temperature|default:"N/A" }}°C,
+                                            BP: {{ vital.blood_pressure_systolic|default:"N/A" }}/{{ vital.blood_pressure_diastolic|default:"N/A" }} mmHg,
+                                            HR: {{ vital.heart_rate|default:"N/A" }} bpm,
+                                            RR: {{ vital.respiratory_rate|default:"N/A" }} rpm,
+                                            SpO2: {{ vital.oxygen_saturation|default:"N/A" }}%
+                                            {% if vital.weight_kg or vital.height_cm %}
+                                                <br>
+                                                Weight: {{ vital.weight_kg|default:"N/A" }} kg,
+                                                Height: {{ vital.height_cm|default:"N/A" }} cm,
+                                                {% if vital.bmi %}
+                                                    BMI: {{ vital.bmi|floatformat:2 }}
+                                                {% else %}
+                                                    BMI: N/A
+                                                {% endif %}
+                                            {% endif %}
+                                        </div>
+                                        <small class="text-muted ms-3">By: {{ vital.recorded_by.get_full_name|default:"N/A" }}</small>
+                                    </div>
                                 </li>
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <p>No vital signs recorded for this encounter.</p>
+                        <p class="text-muted">No vital signs recorded for this encounter.</p>
                     {% endif %}
                 </div>
             </div>
 
-            <div class="card mb-4">
-                <div class="card-header bg-danger text-white">Physical Examination <a href="{% url 'physical_exam_create' encounter.pk %}" class="btn btn-sm btn-light float-right">Add Exam</a></div>
+            {# Physical Examination Card #}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-danger text-white d-flex align-items-center py-3">
+                    <i class="fas fa-notes-medical me-2"></i>
+                    <h5 class="mb-0 fw-bold">Physical Examination</h5>
+                    <a href="{% url 'physical_exam_create' encounter.pk %}" class="btn btn-sm btn-light ms-auto d-flex align-items-center">
+                        <i class="fas fa-plus me-2"></i> Add Exam
+                    </a>
+                </div>
                 <div class="card-body">
                     {% if physical_examinations %}
                         {% with latest_exam=physical_examinations.first %}
-                        <p><strong>General Appearance:</strong> {{ latest_exam.general_appearance|default:"N/A" }}</p>
-                        <p><strong>Head and Neck:</strong> {{ latest_exam.head_and_neck|default:"N/A" }}</p>
-                        <p><strong>Chest and Lungs:</strong> {{ latest_exam.chest_and_lungs|default:"N/A" }}</p>
-                        <p><strong>Heart and Circulation:</strong> {{ latest_exam.heart_and_circulation|default:"N/A" }}</p>
-                        <p><strong>Abdomen:</strong> {{ latest_exam.abdomen|default:"N/A" }}</p>
-                        <p><strong>Musculoskeletal:</strong> {{ latest_exam.musculoskeletal|default:"N/A" }}</p>
-                        <p><strong>Neurological:</strong> {{ latest_exam.neurological|default:"N/A" }}</p>
-                        <p><strong>Skin:</strong> {{ latest_exam.skin|default:"N/A" }}</p>
-                        <p><strong>Other Findings:</strong> {{ latest_exam.other_findings|default:"N/A" }}</p>
-                        <p class="text-muted"><em>Last updated: {{ latest_exam.examination_date|date:"M d, Y P" }} by {{ latest_exam.examined_by.user.get_full_name }}</em></p>
+                        <p class="mb-1"><strong>General Appearance:</strong> {{ latest_exam.general_appearance|default:"N/A"|truncatechars:200 }}</p>
+                        <p class="mb-1"><strong>Head and Neck:</strong> {{ latest_exam.head_and_neck|default:"N/A"|truncatechars:200 }}</p>
+                        <p class="mb-1"><strong>Chest and Lungs:</strong> {{ latest_exam.chest_and_lungs|default:"N/A"|truncatechars:200 }}</p>
+                        <p class="mb-1"><strong>Heart and Circulation:</strong> {{ latest_exam.heart_and_circulation|default:"N/A"|truncatechars:200 }}</p>
+                        <p class="mb-1"><strong>Abdomen:</strong> {{ latest_exam.abdomen|default:"N/A"|truncatechars:200 }}</p>
+                        <p class="mb-1"><strong>Musculoskeletal:</strong> {{ latest_exam.musculoskeletal|default:"N/A"|truncatechars:200 }}</p>
+                        <p class="mb-1"><strong>Neurological:</strong> {{ latest_exam.neurological|default:"N/A"|truncatechars:200 }}</p>
+                        <p class="mb-1"><strong>Skin:</strong> {{ latest_exam.skin|default:"N/A"|truncatechars:200 }}</p>
+                        <p class="mb-1"><strong>Other Findings:</strong> {{ latest_exam.other_findings|default:"N/A"|truncatechars:200 }}</p>
+                        <small class="text-muted d-block mt-2"><em>Last updated: {{ latest_exam.examination_date|date:"M d, Y P" }} by {{ latest_exam.examined_by.user.get_full_name }}</em></small>
                         {% endwith %}
                     {% else %}
-                        <p>No physical examination recorded for this encounter.</p>
+                        <p class="text-muted">No physical examination recorded for this encounter.</p>
                     {% endif %}
                 </div>
             </div>
+        </div> {# End col-lg-6 (left) #}
 
-        </div> {# End col-md-6 (left) #}
-
-        <div class="col-md-6">
-            <div class="card mb-4">
-                <div class="card-header bg-dark text-white">Diagnoses <a href="{% url 'diagnosis_create' encounter.pk %}" class="btn btn-sm btn-light float-right">Add Diagnosis</a></div>
+        {# Right Column: Diagnoses, Treatment Plans, Lab/Imaging Requests, Prescriptions, Case Summary #}
+        <div class="col-lg-6 col-md-12">
+            {# Diagnoses Card #}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-dark text-white d-flex align-items-center py-3">
+                    <i class="fas fa-diagnoses me-2"></i>
+                    <h5 class="mb-0 fw-bold">Diagnoses</h5>
+                    <a href="{% url 'diagnosis_create' encounter.pk %}" class="btn btn-sm btn-light ms-auto d-flex align-items-center">
+                        <i class="fas fa-plus me-2"></i> Add Diagnosis
+                    </a>
+                </div>
                 <div class="card-body">
                     {% if diagnoses %}
                         <ul class="list-group list-group-flush">
                             {% for diagnosis in diagnoses %}
                                 <li class="list-group-item">
-                                    <strong>{{ diagnosis.diagnosis_date|date:"M d, Y" }}:</strong>
-                                    {{ diagnosis.diagnosis_text }} ({{ diagnosis.icd10_code|default:"N/A" }})
-                                    {% if diagnosis.is_primary %}<span class="badge badge-primary ml-2">Primary</span>{% endif %}
-                                    <br><small class="text-muted">Diagnosed by: {{ diagnosis.diagnosed_by.user.get_full_name }}</small>
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <strong>{{ diagnosis.diagnosis_date|date:"M d, Y" }}:</strong>
+                                            {{ diagnosis.diagnosis_text }} ({{ diagnosis.icd10_code|default:"N/A" }})
+                                            {% if diagnosis.is_primary %}<span class="badge bg-primary ms-2"><i class="fas fa-star me-1"></i> Primary</span>{% endif %}
+                                            <br><small class="text-muted">Diagnosed by: {{ diagnosis.diagnosed_by.first_name }} {{ diagnosis.diagnosed_by.last_name }}</small>
+                                        </div>
+                                        {# Add edit/delete diagnosis buttons here if needed #}
+                                    </div>
                                 </li>
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <p>No diagnoses recorded for this encounter.</p>
+                        <p class="text-muted">No diagnoses recorded for this encounter.</p>
                     {% endif %}
                 </div>
             </div>
 
-            <div class="card mb-4">
-                <div class="card-header bg-secondary text-white">Treatment Plans <a href="{% url 'treatment_plan_create' encounter.pk %}" class="btn btn-sm btn-light float-right">Add Plan</a></div>
+            {# Treatment Plans Card #}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-secondary text-white d-flex align-items-center py-3">
+                    <i class="fas fa-clipboard-list me-2"></i>
+                    <h5 class="mb-0 fw-bold">Treatment Plans</h5>
+                    <a href="{% url 'treatment_plan_create' encounter.pk %}" class="btn btn-sm btn-light ms-auto d-flex align-items-center">
+                        <i class="fas fa-plus me-2"></i> Add Plan
+                    </a>
+                </div>
                 <div class="card-body">
                     {% if treatment_plans %}
                         <ul class="list-group list-group-flush">
                             {% for plan in treatment_plans %}
                                 <li class="list-group-item">
-                                    <strong>Created:</strong> {{ plan.created_date|date:"M d, Y" }}<br>
-                                    <strong>Description:</strong> {{ plan.treatment_description }}<br>
-                                    <strong>Recommendations:</strong> {{ plan.recommendations|default:"None" }}<br>
-                                    <strong>Expected Return:</strong> {{ plan.expected_return_date|date:"M d, Y"|default:"N/A" }}<br>
-                                    <strong>Status:</strong> <span class="badge badge-info">{{ plan.get_status_display }}</span>
-                                    <br><small class="text-muted">Created by: {{ plan.created_by.user.get_full_name }}</small>
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <p class="mb-1"><strong>Created:</strong> {{ plan.created_date|date:"M d, Y" }}</p>
+                                            <p class="mb-1"><strong>Description:</strong> {{ plan.treatment_description|truncatechars:200 }}</p>
+                                            <p class="mb-1"><strong>Recommendations:</strong> {{ plan.recommendations|default:"None"|truncatechars:200 }}</p>
+                                            <p class="mb-1"><strong>Expected Return:</strong> {{ plan.expected_return_date|date:"M d, Y"|default:"N/A" }}</p>
+                                            <p class="mb-1"><strong>Status:</strong> <span class="badge bg-info">{{ plan.get_status_display }}</span></p>
+                                        </div>
+                                        <small class="text-muted ms-3">By: {{ plan.created_by.first_name }} {{ plan.created_by.last_name }}</small>
+                                    </div>
                                 </li>
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <p>No treatment plans recorded for this encounter.</p>
+                        <p class="text-muted">No treatment plans recorded for this encounter.</p>
                     {% endif %}
                 </div>
             </div>
 
-         <div class="card mb-4">
-                <div class="card-header bg-warning text-white">Lab Test Requests <a href="{% url 'lab_request_create' encounter.pk %}" class="btn btn-sm btn-light float-right">Request Lab</a></div>
+            {# Lab Test Requests Card #}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-warning text-dark d-flex align-items-center py-3"> {# Changed text to dark for warning bg #}
+                    <i class="fas fa-flask me-2"></i>
+                    <h5 class="mb-0 fw-bold">Lab Test Requests</h5>
+                    <a href="{% url 'lab_request_create' encounter.pk %}" class="btn btn-sm btn-light ms-auto d-flex align-items-center">
+                        <i class="fas fa-plus me-2"></i> Request Lab
+                    </a>
+                </div>
                 <div class="card-body">
                     {% if lab_requests %}
                         <ul class="list-group list-group-flush">
                             {% for req in lab_requests %}
                                 <li class="list-group-item">
-                                    <strong>Requested On:</strong> {{ req.requested_date|date:"M d, Y P" }}<br>
-                                    <strong>Requested By:</strong> {{ req.requested_by.user.get_full_name|default:"N/A" }}<br>
-                                    <strong>Tests:</strong>
-                                    <ul>
-                                        {% for test in req.tests.all %}
-                                            <li>{{ test.name }}</li>
-                                        {% endfor %}
-                                    </ul>
-                                    <strong>Notes:</strong> {{ req.request_notes|default:"N/A"|truncatechars:100 }}<br>
-                                                        <strong>Status:</strong> <span class="badge {{ req.badge_class }}">{{ req.get_status_display }}</span>
-
-                                    <br>
-                                    {% if req.status != 'completed' and user.user_type == 'lab_tech' %}
-                                        <a href="{% url 'lab_result_create' req.pk %}" class="btn btn-outline-success btn-sm mt-2">Add Result</a>
-                                    {% elif req.results.exists %}
-                                        <div class="mt-2">
-                                            <strong>Results:</strong>
-                                            <ul>
-                                                {% for result in req.results.all %}
-                                                    <li>
-                                                        {{ result.test.name }}: {{ result.result_value }} {{ result.result_unit }}
-                                                        {% if result.is_abnormal %}<span class="badge badge-danger ml-1">Abnormal</span>{% endif %}
-                                                        {% if result.result_file %}
-                                                            <a href="{{ result.result_file.url }}" target="_blank" class="ml-2">View File</a>
-                                                        {% endif %}
-                                                    </li>
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <p class="mb-1"><strong>Requested On:</strong> {{ req.requested_date|date:"M d, Y P" }}</p>
+                                            <p class="mb-1"><strong>Requested By:</strong> {{ req.requested_by.user.get_full_name|default:"N/A" }}</p>
+                                            <p class="mb-1"><strong>Tests:</strong></p>
+                                            <ul class="list-unstyled ms-3 small mb-1"> {# Adjusted styling for nested list #}
+                                                {% for test in req.tests.all %}
+                                                    <li><i class="fas fa-vial me-1 text-muted"></i> {{ test.name }}</li>
                                                 {% endfor %}
                                             </ul>
+                                            <p class="mb-1"><strong>Notes:</strong> {{ req.request_notes|default:"N/A"|truncatechars:100 }}</p>
+                                            <p class="mb-1"><strong>Status:</strong> <span class="badge bg-{{ req.badge_class }}">{{ req.get_status_display }}</span></p>
+
+                                            {% if req.status != 'completed' and user.user_type == 'lab_tech' %}
+                                                <a href="{% url 'lab_result_create' req.pk %}" class="btn btn-outline-success btn-sm mt-2"><i class="fas fa-plus me-1"></i> Add Result</a>
+                                            {% elif req.results.exists %}
+                                                <div class="mt-2">
+                                                    <p class="mb-1"><strong>Results:</strong></p>
+                                                    <ul class="list-unstyled ms-3 small mb-1">
+                                                        {% for result in req.results.all %}
+                                                            <li>
+                                                                <i class="fas fa-chart-bar me-1 text-muted"></i> {{ result.test.name }}: {{ result.result_value }} {{ result.result_unit }}
+                                                                {% if result.is_abnormal %}<span class="badge bg-danger ms-1"><i class="fas fa-exclamation-triangle me-1"></i> Abnormal</span>{% endif %}
+                                                                {% if result.result_file %}
+                                                                    <a href="{{ result.result_file.url }}" target="_blank" class="ms-2 text-decoration-none"><i class="fas fa-file-download me-1"></i> View File</a>
+                                                                {% endif %}
+                                                            </li>
+                                                        {% endfor %}
+                                                    </ul>
+                                                </div>
+                                            {% endif %}
                                         </div>
-                                    {% endif %}
+                                    </div>
                                 </li>
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <p>No lab test requests for this encounter.</p>
+                        <p class="text-muted">No lab test requests for this encounter.</p>
                     {% endif %}
                 </div>
             </div>
 
-            <div class="card mb-4">
-                <div class="card-header bg-danger text-white">Imaging Requests <a href="{% url 'imaging_request_create' encounter.pk %}" class="btn btn-sm btn-light float-right">Request Imaging</a></div>
+            {# Imaging Requests Card #}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-danger text-white d-flex align-items-center py-3">
+                    <i class="fas fa-x-ray me-2"></i>
+                    <h5 class="mb-0 fw-bold">Imaging Requests</h5>
+                    <a href="{% url 'imaging_request_create' encounter.pk %}" class="btn btn-sm btn-light ms-auto d-flex align-items-center">
+                        <i class="fas fa-plus me-2"></i> Request Imaging
+                    </a>
+                </div>
                 <div class="card-body">
                     {% if imaging_requests %}
                         <ul class="list-group list-group-flush">
                             {% for req in imaging_requests %}
                                 <li class="list-group-item">
-                                    <strong>Requested:</strong> {{ req.requested_date|date:"M d, Y P" }}<br>
-                                    <strong>Type:</strong> {{ req.imaging_type.name }}<br>
-                                    <strong>Reason:</strong> {{ req.reason_for_exam|truncatechars:100 }}<br>
-                                    <strong>Status:</strong> <span class="badge badge-{% if req.status == 'reported' %}success{% elif req.status == 'pending' %}warning{% else %}info{% endif %}">{{ req.get_status_display }}</span><br>
-                                    {% if req.status != 'reported' and user.user_type == 'radiologist' %}
-                                        <a href="{% url 'imaging_result_create' req.pk %}" class="btn btn-outline-success btn-sm mt-2">Add Report</a>
-                                    {% elif req.result %}
-                                        <div class="mt-2">
-                                            <strong>Report:</strong><br>
-                                            <p><strong>Findings:</strong> {{ req.result.findings|truncatechars:150 }}</p>
-                                            <p><strong>Impression:</strong> {{ req.result.impression|truncatechars:100 }}</p>
-                                            {% if req.result.image_files %}<a href="{{ req.result.image_files.url }}" target="_blank">View Images</a>{% endif %}
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <p class="mb-1"><strong>Requested:</strong> {{ req.requested_date|date:"M d, Y P" }}</p>
+                                            <p class="mb-1"><strong>Type:</strong> {{ req.imaging_type.name }}</p>
+                                            <p class="mb-1"><strong>Reason:</strong> {{ req.reason_for_exam|truncatechars:100 }}</p>
+                                            <p class="mb-1"><strong>Status:</strong> <span class="badge bg-{% if req.status == 'reported' %}success{% elif req.status == 'pending' %}warning{% else %}info{% endif %}">{{ req.get_status_display }}</span></p>
+
+                                            {% if req.status != 'reported' and user.user_type == 'radiologist' %}
+                                                <a href="{% url 'imaging_result_create' req.pk %}" class="btn btn-outline-success btn-sm mt-2"><i class="fas fa-plus me-1"></i> Add Report</a>
+                                            {% elif req.result %}
+                                                <div class="mt-2">
+                                                    <p class="mb-1"><strong>Report:</strong></p>
+                                                    <ul class="list-unstyled ms-3 small mb-1">
+                                                        <li><i class="fas fa-file-medical-alt me-1 text-muted"></i> <strong>Findings:</strong> {{ req.result.findings|truncatechars:150 }}</li>
+                                                        <li><i class="fas fa-lightbulb me-1 text-muted"></i> <strong>Impression:</strong> {{ req.result.impression|truncatechars:100 }}</li>
+                                                        {% if req.result.image_files %}
+                                                            <li><a href="{{ req.result.image_files.url }}" target="_blank" class="text-decoration-none"><i class="fas fa-image me-1"></i> View Images</a></li>
+                                                        {% endif %}
+                                                    </ul>
+                                                </div>
+                                            {% endif %}
                                         </div>
-                                    {% endif %}
+                                    </div>
                                 </li>
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <p>No imaging requests for this encounter.</p>
+                        <p class="text-muted">No imaging requests for this encounter.</p>
                     {% endif %}
                 </div>
             </div>
 
-            <div class="card mb-4">
-                <div class="card-header bg-info text-white">Prescriptions <a href="{% url 'prescription_create' encounter.pk %}" class="btn btn-sm btn-light float-right">Add Prescription</a></div>
+            {# Prescriptions Card #}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info text-white d-flex align-items-center py-3">
+                    <i class="fas fa-prescription-bottle-alt me-2"></i>
+                    <h5 class="mb-0 fw-bold">Prescriptions</h5>
+                    <a href="{% url 'prescription_create' encounter.pk %}" class="btn btn-sm btn-light ms-auto d-flex align-items-center">
+                        <i class="fas fa-plus me-2"></i> Add Prescription
+                    </a>
+                </div>
                 <div class="card-body">
                     {% if prescriptions %}
                         <ul class="list-group list-group-flush">
                             {% for rx in prescriptions %}
                                 <li class="list-group-item">
-                                    <strong>Medication:</strong> {{ rx.medication.name }} {{ rx.medication.strength }} {{ rx.medication.form }}<br>
-                                    <strong>Dosage:</strong> {{ rx.dosage }} {{ rx.frequency }} for {{ rx.duration }} ({{ rx.route }})<br>
-                                    <strong>Prescribed:</strong> {{ rx.prescription_date|date:"M d, Y P" }} by {{ rx.prescribed_by.user.get_full_name }}<br>
-                                    <strong>Dispensed:</strong> {{ rx.is_dispensed|yesno:"Yes,No" }} {% if rx.dispensed_date %}({{ rx.dispensed_date|date:"M d, Y P" }}){% endif %}
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <p class="mb-1"><strong>Medication:</strong> {{ rx.medication.name }} {{ rx.medication.strength }} {{ rx.medication.form }}</p>
+                                            <p class="mb-1"><strong>Dosage:</strong> {{ rx.dosage }} {{ rx.frequency }} for {{ rx.duration }} ({{ rx.route }})</p>
+                                            <p class="mb-1"><strong>Prescribed:</strong> {{ rx.prescription_date|date:"M d, Y P" }} by {{ rx.prescribed_by.user.get_full_name }}</p>
+                                            <p class="mb-1"><strong>Dispensed:</strong> {{ rx.is_dispensed|yesno:"Yes,No" }} {% if rx.dispensed_date %}({{ rx.dispensed_date|date:"M d, Y P" }}){% endif %}</p>
+                                        </div>
+                                    </div>
                                 </li>
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <p>No prescriptions for this encounter.</p>
+                        <p class="text-muted">No prescriptions for this encounter.</p>
                     {% endif %}
                 </div>
             </div>
 
-        <h4>Clinical Notes</h4>
-        {% if encounter.clinical_note %} {# Check if a clinical note already exists for this encounter #}
-            <div class="alert alert-success" role="alert">
-                A clinical note has been recorded for this encounter.
-                <a href="{% url 'clinical_note_detail' encounter_pk=encounter.pk pk=encounter.clinical_note.pk %}" class="btn btn-sm btn-outline-success ml-2">View Clinical Note</a>
-                <a href="{% url 'clinical_note_update' encounter_pk=encounter.pk pk=encounter.clinical_note.pk %}" class="btn btn-sm btn-outline-warning ml-2">Edit Clinical Note</a>
-            </div>
-        {% else %}
-            <div class="alert alert-info" role="alert">
-                No clinical note recorded for this encounter yet.
-                <a href="{% url 'clinical_note_create' encounter_pk=encounter.pk %}" class="btn btn-sm btn-primary ml-2">Add Clinical Note</a>
-            </div>
-        {% endif %}
-
-            <div class="card mb-4">
-                <div class="card-header bg-primary text-white">Case Summary</div>
+            {# Case Summary Card #}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white d-flex align-items-center py-3">
+                    <i class="fas fa-file-medical me-2"></i>
+                    <h5 class="mb-0 fw-bold">Case Summary</h5>
+                </div>
                 <div class="card-body">
-                    <h4>Case Summary</h4>
-    {% if encounter.case_summary %}
-        <div class="detail-card">
-            <p><strong>Status:</strong> Case Summary Available</p>
-            <p><strong>Prepared By:</strong> {{ encounter.case_summary.prepared_by.user.get_full_name|default:"N/A" }}</p>
-            <p><strong>Summary Date:</strong> {{ encounter.case_summary.summary_date|date:"Y-m-d H:i" }}</p>
-
-            <a href="{% url 'case_summary_detail' encounter.case_summary.pk %}" class="btn btn-primary">View Full Case Summary</a>            
-        </div>
-    {% else %}
-        <p>No case summary available for this encounter.
-           {# THIS IS THE CRUCIAL PART FOR FIRST-TIME GENERATION #}
-           <form action="{% url 'generate_case_summary' encounter.pk %}" method="post" style="display:inline;">
-               {% csrf_token %}
-               <button type="submit" class="btn btn-primary">Generate Case Summary</button>
-           </form>
-        </p>
-    {% endif %}
+                    {% if encounter.case_summary %}
+                        <div class="alert alert-success d-flex align-items-center" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <div>Case Summary Available</div>
+                            <div class="ms-auto d-flex gap-2">
+                                <a href="{% url 'case_summary_detail' encounter.case_summary.pk %}" class="btn btn-sm btn-outline-success">View Summary</a>
+                                {% comment %} <a href="{% url 'case_summary_update' encounter.case_summary.pk %}" class="btn btn-sm btn-outline-warning">Edit Summary</a> {% endcomment %}
+                            </div>
+                        </div>
+                        <p class="mb-1"><strong>Prepared By:</strong> {{ encounter.case_summary.prepared_by.user.get_full_name|default:"N/A" }}</p>
+                        <p class="mb-1"><strong>Summary Date:</strong> {{ encounter.case_summary.summary_date|date:"M d, Y H:i" }}</p>
+                    {% else %}
+                        <div class="alert alert-info d-flex align-items-center" role="alert">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <div>No case summary available for this encounter.</div>
+                            <form action="{% url 'generate_case_summary' encounter.pk %}" method="post" class="ms-auto d-inline-block">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-magic me-1"></i> Generate Summary</button>
+                            </form>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
 
-        </div> {# End col-md-6 (right) #}
-    </div>
-</div>
+        </div> {# End col-lg-6 (right) #}
+    </div> {# End row #}
+
+</div> {# End container-fluid #}
 {% endblock %}

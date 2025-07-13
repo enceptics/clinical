@@ -11,7 +11,7 @@ import string # For password character set
 import json # For handling JSONField in Radiologist form
 from datetime import date # For default value of report_date
 import logging
-
+from django.forms import DateTimeInput 
 from .models import (
     User, Patient, Doctor, Nurse, ProcurementOfficer, Department, Appointment,
     VitalSign, MedicalHistory, PhysicalExamination, Diagnosis, TreatmentPlan,
@@ -137,23 +137,23 @@ class CustomUserCreationForm(forms.ModelForm):
         """
         user = super().save(commit=False)
 
-        # Determine user_type and generate username
-        effective_user_type = user_type or self.user_type_from_view
+        effective_user_type = user_type or getattr(self, 'user_type_from_view', None)
         if not effective_user_type:
-            raise ValueError("User type is required but was not provided.")
+            # Instead of raising an error, return None
+            print("[ERROR] User type not provided.")
+            return None
+
         prefix = USER_TYPE_PREFIXES.get(effective_user_type, 'USR')
         user.username = generate_unique_code(prefix)
 
-        # Generate secure password and hash it
         raw_password = generate_random_password()
         print(f"[DEBUG] Generated password: {raw_password}")
 
-        user.set_password(raw_password)  # This hashes the password
+        user.set_password(raw_password)
         print(f"[DEBUG] After set_password: {user.password}")
 
         user.user_type = effective_user_type
 
-        # Set roles based on user type
         if effective_user_type == 'Administrator':
             user.is_staff = True
             user.is_superuser = True
@@ -164,20 +164,52 @@ class CustomUserCreationForm(forms.ModelForm):
             user.is_staff = False
             user.is_superuser = False
 
-        user.is_active = True  # Enable the user account
+        user.is_active = True
 
         if commit:
-            user.user_type = user_type  # ✅ Don't forget this line
-
             user.save()
             print(f"[DEBUG] Saved user: {user.username}")
             print(f"[DEBUG] Password check valid: {user.check_password(raw_password)}")
 
-        # Store raw password for email or confirmation
         user._raw_password = raw_password
 
-        # You can return both if helpful
         return user
+
+class UserUpdateForm(forms.ModelForm):
+    class Meta:
+        model = User
+        fields = [
+            'username', 'first_name', 'last_name', 'email',
+            'user_type', 'phone_number', 'address', 'date_of_birth', 'gender',
+            'is_active', 'is_staff', 'is_superuser' # Include these for admin control
+        ]
+        widgets = {
+            'date_of_birth': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'address': forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}),
+            'username': forms.TextInput(attrs={'class': 'form-control'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'user_type': forms.Select(attrs={'class': 'form-select'}),
+            'phone_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'gender': forms.Select(attrs={'class': 'form-select'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'is_staff': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'is_superuser': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Add Bootstrap form-control class to all text/select inputs
+        for field_name, field in self.fields.items():
+            if isinstance(field.widget, (forms.TextInput, forms.EmailInput, forms.Select)):
+                field.widget.attrs.update({'class': 'form-control'})
+            elif isinstance(field.widget, forms.Textarea):
+                field.widget.attrs.update({'class': 'form-control', 'rows': 3})
+            elif isinstance(field.widget, forms.DateInput):
+                field.widget.attrs.update({'class': 'form-control', 'type': 'date'})
+            elif isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs.update({'class': 'form-check-input'})
 
 
 ## Specific User Type Registration Forms
@@ -806,40 +838,35 @@ class AppointmentForm(forms.ModelForm):
     class Meta:
         model = Appointment
         fields = ['patient', 'doctor', 'appointment_date', 'reason_for_visit']
-        # Add 'status' only when editing if needed
-        # widgets... (remain same)
+        widgets = {
+            'appointment_date': DateTimeInput(attrs={
+                'class': 'form-control',
+                'type': 'datetime-local',
+            }),
+            'reason_for_visit': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
 
     def __init__(self, *args, **kwargs):
         self.user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
 
-        # Apply initial Bootstrap classes
         self.fields['patient'].widget.attrs['class'] = 'form-control'
         self.fields['doctor'].widget.attrs['class'] = 'form-control'
-        
-        # Set empty labels for Select2
         self.fields['patient'].empty_label = "Search and select a Patient"
         self.fields['doctor'].empty_label = "Search and select a Doctor"
 
-
-        # Conditional display/initialization based on user type
         if self.user:
             if self.user.user_type == 'patient':
-                # Hide the patient field, it will be set automatically
                 self.fields['patient'].widget = forms.HiddenInput()
-                # Initial value will be set in the view's form_valid
-                self.fields['doctor'].queryset = Doctor.objects.all().order_by('user__first_name') # Patients can choose any doctor
-            
+                self.fields['doctor'].queryset = Doctor.objects.all().order_by('user__first_name')
             elif self.user.user_type == 'doctor':
-                # Hide the doctor field, it will be set automatically
                 self.fields['doctor'].widget = forms.HiddenInput()
-                # Doctors can choose any patient
                 self.fields['patient'].queryset = Patient.objects.all().order_by('user__first_name')
-            
             elif self.user.user_type in ['admin', 'receptionist']:
-                # Admin/Receptionist sees searchable fields for both
                 self.fields['patient'].queryset = Patient.objects.all().order_by('user__first_name')
                 self.fields['doctor'].queryset = Doctor.objects.all().order_by('user__first_name')
+
+
 class VitalSignForm(forms.ModelForm):
     class Meta:
         model = VitalSign
@@ -1062,15 +1089,15 @@ class PrescriptionForm(forms.ModelForm):
 class ConsentFormForm(forms.ModelForm):
     class Meta:
         model = ConsentForm
-        fields = ['consent_type', 'consent_text', 'is_signed', 'signed_date', 'document_file']
+        fields = ['consent_type', 'consent_text'] 
         widgets = {
             'consent_type': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., General Treatment Consent'}),
             'consent_text': forms.Textarea(attrs={'rows': 5, 'class': 'form-control', 'placeholder': 'Full text of the consent form'}),
-            'is_signed': forms.CheckboxInput(attrs={'class': 'form-check-input'}), # Specific class for checkbox
-            'signed_date': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
-            'document_file': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+            # No 'is_signed', 'signed_date', 'signature_image' here
         }
-    # No need for __init__ as widgets handle styling
+
+class ConsentSignatureUploadForm(forms.Form):
+    signature_data = forms.CharField(widget=forms.HiddenInput())
 
 class ClinicalNoteForm(forms.ModelForm):
     class Meta:

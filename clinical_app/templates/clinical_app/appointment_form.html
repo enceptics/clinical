@@ -4,123 +4,128 @@
     {% if form.instance.pk %}Edit Appointment{% else %}Schedule Appointment{% endif %}
 {% endblock %}
 
+{# No extra_head block needed here for CSS/JS, as it's meant to be in base.html #}
+{# If you had any page-specific CSS that isn't in base.html, it would go here. #}
+{# But for this styling, everything is in base.html now. #}
+{% block extra_head %}
+    {# Place any page-specific <style> blocks here if needed, but not common CSS files #}
+{% endblock extra_head %}
+
+
 {% block content %}
-<div class="container mt-4">
-    <h1 class="mb-4">
-        {% if form.instance.pk %}Edit Appointment{% else %}Schedule New Appointment{% endif %}
-    </h1>
+<div class="row justify-content-center mt-5 mb-5">
+    <div class="col-md-8 col-lg-7">
+        <div class="card shadow-lg">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0">
+                    <i class="fas {% if form.instance.pk %}fa-edit{% else %}fa-calendar-plus{% endif %} me-2"></i>
+                    {% if form.instance.pk %}Edit Appointment{% else %}Schedule New Appointment{% endif %}
+                </h3>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
 
-    <div class="card shadow-sm">
-        <div class="card-header bg-success text-white">
-            Appointment Details
-        </div>
-        <div class="card-body">
-            <form method="post">
-                {% csrf_token %}
-                {{ form.non_field_errors }}
-
-                <div class="form-group mb-3">
-                    <label for="{{ form.patient.id_for_label }}">Patient:</label>
-                    {{ form.patient }}
-                    {% if form.patient.errors %}
-                        <div class="invalid-feedback d-block">{{ form.patient.errors }}</div>
-                    {% endif %}
-                </div>
-
-                <div class="form-group mb-3">
-                    <label for="{{ form.doctor.id_for_label }}">Doctor:</label>
-                    {{ form.doctor }}
-                    {% if form.doctor.errors %}
-                        <div class="invalid-feedback d-block">{{ form.doctor.errors }}</div>
-                    {% endif %}
-                </div>
-
-                <div class="form-group mb-3">
-                    <label for="{{ form.appointment_date.id_for_label }}">Appointment Date & Time:</label>
-                    {{ form.appointment_date }}
-                    {% if form.appointment_date.errors %}
-                        <div class="invalid-feedback d-block">{{ form.appointment_date.errors }}</div>
-                    {% endif %}
-                </div>
-
-                <div class="form-group mb-3">
-                    <label for="{{ form.reason_for_visit.id_for_label }}">Reason for Visit:</label>
-                    {{ form.reason_for_visit }}
-                    {% if form.reason_for_visit.errors %}
-                        <div class="invalid-feedback d-block">{{ form.reason_for_visit.errors }}</div>
-                    {% endif %}
-                </div>
-
-                {# Status field visibility check #}
-                {% if form.instance.pk and request.user.user_type == 'admin' or request.user.user_type == 'receptionist' or request.user.user_type == 'doctor' %}
-                    <div class="form-group mb-3">
-                        <label for="{{ form.status.id_for_label }}">Status:</label>
-                        {{ form.status }}
-                        {% if form.status.errors %}
-                            <div class="invalid-feedback d-block">{{ form.status.errors }}</div>
-                        {% endif %}
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger mb-3">
+                        {{ form.non_field_errors }}
                     </div>
-                {% endif %}
+                    {% endif %}
 
-                <button type="submit" class="btn btn-success mt-3">
-                    {% if form.instance.pk %}Update Appointment{% else %}Schedule Appointment{% endif %}
-                </button>
-                <a href="{% url 'appointment_list' %}" class="btn btn-secondary mt-3">Cancel</a>
-            </form>
+                    {% for field in form.visible_fields %}
+                        <div class="form-group mb-3">
+                            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}:</label>
+                            {# Special handling for appointment_date to include the calendar icon #}
+                            {% if field.name == 'appointment_date' %}
+                                <div class="input-group">
+                                    {{ field }}
+                                    <span class="input-group-text" data-toggle>
+                                        <i class="fa-solid fa-calendar-alt"></i> {# Using a more common calendar icon #}
+                                    </span>
+                                </div>
+                            {# Select2 fields (patient, doctor) automatically get their styling from form.py #}
+                            {% else %}
+                                {{ field }}
+                            {% endif %}
+                            
+                            {% if field.help_text %}
+                                <small class="form-text text-muted">{{ field.help_text|safe }}</small>
+                            {% endif %}
+                            {% for error in field.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+
+                    {% for hidden in form.hidden_fields %}
+                        {{ hidden }}
+                    {% endfor %}
+
+                    <div class="d-flex justify-content-end mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas {% if form.instance.pk %}fa-save{% else %}fa-calendar-check{% endif %} me-2"></i>
+                            {% if form.instance.pk %}Update Appointment{% else %}Schedule Appointment{% endif %}
+                        </button>
+                        <a href="{% url 'appointment_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times-circle me-2"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
-{% endblock content %} {# <--- THIS WAS THE MISSING LINE! #}
+{% endblock content %}
 
-{# JavaScript for Select2 #}
 {% block extra_js %}
-<script>
-$(document).ready(function() {
-    // Initialize Select2 for the patient field
-    $('#id_patient').select2({
-        minimumInputLength: 2, // Minimum characters to type before searching
-        allowClear: true, // Allow clearing the selection
-        placeholder: $(this).attr('placeholder') || 'Search for a patient...',
-        ajax: {
-            url: "{% url 'search_patients_ajax' %}",
-            dataType: 'json',
-            delay: 250,
-            data: function (params) {
-                return {
-                    q: params.term
-                };
-            },
-            processResults: function (data) {
-                return {
-                    results: data.results
-                };
-            },
-            cache: true
-        }
-    });
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Flatpickr for the appointment_date field
+            flatpickr("input.flatpickr-input", {
+                enableTime: true,
+                dateFormat: "Y-m-dTH:i", // For actual input value
+                altInput: true,       // Show a user-friendly date format
+                altFormat: "F j, Y h:i K", // User-friendly display (e.g., July 7, 2025 10:30 AM)
+                allowInput: true,     // Allow direct typing into the altInput field
+                appendTo: document.body, // Prevents z-index issues, especially with modals
+                wrap: true, // Enables the icon (data-toggle) to open the picker
+            });
 
-    // Initialize Select2 for the doctor field
-    $('#id_doctor').select2({
-        minimumInputLength: 2,
-        allowClear: true,
-        placeholder: $(this).attr('placeholder') || 'Search for a doctor...',
-        ajax: {
-            url: "{% url 'search_doctors_ajax' %}",
-            dataType: 'json',
-            delay: 250,
-            data: function (params) {
-                return {
-                    q: params.term
-                };
-            },
-            processResults: function (data) {
-                return {
-                    results: data.results
-                };
-            },
-            cache: true
-        }
-    });
-});
-</script>
+            // Initialize Select2 for the patient field
+            // Check if the patient field is visible before initializing Select2
+            if ($('#id_patient').is(':visible')) {
+                $('#id_patient').select2({
+                    minimumInputLength: 2,
+                    allowClear: true,
+                    placeholder: $('#id_patient').attr('placeholder') || 'Search for a patient...',
+                    ajax: {
+                        url: "{% url 'search_patients_ajax' %}",
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) { return { q: params.term }; },
+                        processResults: function (data) { return { results: data.results }; },
+                        cache: true
+                    }
+                });
+            }
+
+            // Initialize Select2 for the doctor field
+            // Check if the doctor field is visible before initializing Select2
+            if ($('#id_doctor').is(':visible')) {
+                $('#id_doctor').select2({
+                    minimumInputLength: 2,
+                    allowClear: true,
+                    placeholder: $('#id_doctor').attr('placeholder') || 'Search for a doctor...',
+                    ajax: {
+                        url: "{% url 'search_doctors_ajax' %}",
+                        dataType: 'json',
+                        delay: 250,
+                        data: function (params) { return { q: params.term }; },
+                        processResults: function (data) { return { results: data.results }; },
+                        cache: true
+                    }
+                });
+            }
+        });
+    </script>
 {% endblock extra_js %}

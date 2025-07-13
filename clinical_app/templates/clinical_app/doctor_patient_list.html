@@ -3,76 +3,212 @@
 {% block title %}My Patients{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <h1 class="mb-4">My Patients</h1>
-    <form method="get" class="form-inline mb-3">
-        <input type="text" name="q" class="form-control mr-sm-2" placeholder="Search my patients..." value="{{ request.GET.q }}">
-        <button type="submit" class="btn btn-outline-success my-2 my-sm-0">Search</button>
-    </form>
+<div class="container-fluid py-4">
 
-    {% if patients %} {# 'patients' is now the list of dicts from the view #}
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="thead-dark">
-                    <tr>
-                        <th>Patient ID</th>
-                        <th>Name</th>
-                        <th>Gender</th>
-                        <th>Last Encounter</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {# Iterate over the list of dictionaries. Each 'item' contains 'patient' and 'latest_encounter'. #}
-                    {% for item in patients %}
-                    <tr>
-                        <td>{{ item.patient.patient_id }}</td>
-                        <td>{{ item.patient.user.get_full_name }}</td>
-                        {# Assuming 'user' on Patient model and 'get_gender_display' on the user model #}
-                        <td>{{ item.patient.user.get_gender_display }}</td>
-                        <td>
-                            {# Access the pre-fetched latest_encounter from the 'item' dictionary #}
-                            {% if item.latest_encounter %}
-                                {{ item.latest_encounter.encounter_date|date:"M d, Y" }}
-                                <a href="{% url 'encounter_detail' item.latest_encounter.pk %}" class="badge badge-info ml-1">View</a>
-                            {% else %}
-                                N/A
-                            {% endif %}
-                        </td>
-                        <td>
-                            <a href="{% url 'patient_detail' item.patient.pk %}" class="btn btn-info btn-sm">View Patient</a>
-                            {# Ensure 'encounter_create' URL can accept a patient ID as a query parameter if needed, or update if it expects kwargs #}
-                            <a href="{% url 'encounter_create' %}?patient={{ item.patient.pk }}" class="btn btn-primary btn-sm">New Encounter</a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    {# Page Header #}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-5 fw-bold text-primary mb-0">
+            <i class="fas fa-hospital-user me-3 opacity-75"></i> My Patients
+        </h1>
+        {# Optional: Add a button for quick patient registration if this is a doctor's page #}
+        <a href="" class="btn btn-success btn-lg d-flex align-items-center shadow-sm lift-on-hover">
+            <i class="fas fa-user-plus me-2"></i> Register New Patient
+        </a> 
+    </div>
+
+    {# Search/Filter Section #}
+    <div class="card shadow-sm border-0 rounded-4 mb-4">
+        <div class="card-body p-3">
+            <form class="d-flex align-items-center flex-grow-1" method="GET">
+                <div class="input-group input-group-lg border rounded-pill overflow-hidden shadow-sm-sm">
+                    <span class="input-group-text bg-white border-0 text-muted px-3" id="search-addon"><i class="fas fa-search"></i></span>
+                    <input type="text" name="q" class="form-control border-0 ps-1 pe-3 py-2"
+                           placeholder="Search patients by name, ID, or gender..."
+                           aria-label="Search patients"
+                           value="{{ request.GET.q|default:'' }}"
+                           aria-describedby="search-addon">
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="fas fa-search me-2"></i> Search
+                    </button>
+                </div>
+                {% if request.GET.q %}
+                    <a href="{% url 'doctor_patient_list' %}" class="btn btn-outline-secondary ms-2 rounded-pill px-3 py-2">
+                        <i class="fas fa-times me-2"></i> Clear
+                    </a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    {% if patients %}
+        <div class="card shadow-lg border-0 rounded-4">
+            <div class="card-header bg-gradient-primary text-white py-3 rounded-top-4">
+                <h5 class="mb-0 fw-bold"><i class="fas fa-users-medical me-2"></i> Patient List Overview</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0 align-middle">
+                        <thead class="bg-light-subtle">
+                            <tr>
+                                <th scope="col" class="text-primary ps-4">Patient ID</th>
+                                <th scope="col" class="text-primary">Name</th>
+                                <th scope="col" class="text-primary">Gender</th>
+                                <th scope="col" class="text-primary">Last Encounter</th>
+                                <th scope="col" class="text-center text-primary pe-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {# Iterate over the list of dictionaries. Each 'item' contains 'patient' and 'latest_encounter'. #}
+                            {% for item in patients %}
+                            <tr class="fade-in">
+                                <td class="ps-4">
+                                    <span class="text-muted small d-block">ID:</span>
+                                    <strong class="text-dark">{{ item.patient.patient_id }}</strong>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-user-circle fa-2x text-muted me-3"></i>
+                                        <div>
+                                            <strong class="text-dark">{{ item.patient.user.get_full_name|default:item.patient.user.username }}</strong>
+                                            <span class="d-block text-muted small">{{ item.patient.user.phone_number|default:"No Phone" }} <br />{{ item.patient.user.email|default:"No Email" }} </span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge rounded-pill px-3 py-2 fs-7
+                                        {% if item.patient.user.gender == 'male' %}bg-primary-subtle text-primary
+                                        {% elif item.patient.user.gender == 'female' %}bg-danger-subtle text-danger
+                                        {% else %}bg-secondary-subtle text-secondary{% endif %}">
+                                        <i class="fas {% if item.patient.user.gender == 'male' %}fa-male{% elif item.patient.user.gender == 'female' %}fa-female{% else %}fa-genderless{% endif %} me-1"></i>
+                                        {{ item.patient.user.get_gender_display|default:"N/A" }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if item.latest_encounter %}
+                                        <span class="d-block">{{ item.latest_encounter.encounter_date|date:"M d, Y" }}</span>
+                                        <span class="text-muted small">{{ item.latest_encounter.encounter_date|date:"h:i A" }}</span>
+                                        <a href="{% url 'encounter_detail' item.latest_encounter.pk %}" class="btn btn-sm btn-outline-info rounded-pill ms-2 mt-2 mt-md-0" data-bs-toggle="tooltip" data-bs-placement="top" title="View Latest Encounter Details">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted fst-italic">No encounters recorded</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center pe-4">
+                                    <div class="d-flex flex-column flex-md-row justify-content-center align-items-center gap-2">
+                                        <a href="{% url 'patient_detail' item.patient.pk %}" class="btn btn-info btn-sm rounded-pill lift-on-hover" data-bs-toggle="tooltip" data-bs-placement="top" title="View Patient Profile">
+                                            <i class="fas fa-user-circle"></i> <span class="d-none d-lg-inline ms-1">Profile</span>
+                                        </a>
+                                        {# Make sure 'encounter_create' URL can accept a patient ID, often as a query parameter or through kwargs #}
+                                        <a href="{% url 'encounter_create' %}?patient={{ item.patient.pk }}" class="btn btn-primary btn-sm rounded-pill lift-on-hover" data-bs-toggle="tooltip" data-bs-placement="top" title="Record New Encounter">
+                                            <i class="fas fa-plus-circle"></i> <span class="d-none d-lg-inline ms-1">New Encounter</span>
+                                        </a>
+                                         <a href="{% url 'appointment_create' %}?patient={{ item.patient.pk }}" class="btn btn-outline-success btn-sm rounded-pill lift-on-hover" data-bs-toggle="tooltip" data-bs-placement="top" title="Schedule Appointment">
+                                            <i class="fas fa-calendar-plus"></i> <span class="d-none d-lg-inline ms-1">Appt.</span>
+                                        </a> 
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         {# Pagination #}
         {% if is_paginated %}
-            <nav aria-label="Page navigation">
-                <ul class="pagination justify-content-center">
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center shadow-sm rounded-pill overflow-hidden">
                     {% if page_obj.has_previous %}
-                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">Previous</a></li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" aria-label="Previous">
+                                <span aria-hidden="true"><i class="fas fa-chevron-left"></i></span> <span class="d-none d-sm-inline">Previous</span>
+                            </a>
+                        </li>
                     {% endif %}
+
                     {% for i in paginator.page_range %}
                         {% if page_obj.number == i %}
-                            <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                            <li class="page-item active" aria-current="page"><span class="page-link">{{ i }}</span></li>
                         {% else %}
                             <li class="page-item"><a class="page-link" href="?page={{ i }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">{{ i }}</a></li>
                         {% endif %}
                     {% endfor %}
+
                     {% if page_obj.has_next %}
-                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">Next</a></li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" aria-label="Next">
+                                <span class="d-none d-sm-inline">Next</span> <span aria-hidden="true"><i class="fas fa-chevron-right"></i></span>
+                            </a>
+                        </li>
                     {% endif %}
                 </ul>
             </nav>
         {% endif %}
 
     {% else %}
-        <p>You currently have no assigned patients or patients with recorded encounters matching your search.</p>
+        <div class="alert alert-info text-center py-5 shadow-sm rounded-4" role="alert">
+            <h4 class="alert-heading display-6 mb-3"><i class="fas fa-info-circle me-3"></i>No Patients Found</h4>
+            <p class="lead mb-4">It looks like there are no patients assigned to you, or none matching your search criteria.</p>
+            <hr class="my-4">
+            <p class="mb-0">
+                If this is unexpected, click select patient below and create new encounters with them to have them on your list
+            </p>
+            <a href="{% url 'patient_list' %}" class="btn btn-success btn-lg mt-4 lift-on-hover">
+                <i class="fas fa-user-plus me-2"></i> Select Patient
+            </a>
+        </div>
     {% endif %}
 </div>
+
+{# Custom CSS for slight enhancements #}
+<style>
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-info) 100%) !important;
+        /* Adjust --bs-primary and --bs-info if you have custom Bootstrap variables */
+    }
+
+    /* Subtle hover effect for cards and buttons */
+    .lift-on-hover {
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    .lift-on-hover:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    }
+
+    /* Custom smaller font size for badges/text if fs-7 is not defined */
+    .fs-7 {
+        font-size: 0.8rem; /* You might need to add this to your main CSS */
+    }
+
+    /* Custom badge colors if not standard Bootstrap */
+    .bg-danger-subtle {
+        background-color: var(--bs-red-100) !important; /* Example: using Bootstrap's default red variable */
+    }
+    .text-danger {
+        color: var(--bs-red) !important;
+    }
+
+    /* Optional: Fade-in effect for table rows */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in {
+        animation: fadeIn 0.5s ease-out forwards;
+        opacity: 0; /* Hidden by default until animated */
+    }
+    /* Delay for staggered animation, adjust as needed */
+    .table tbody tr:nth-child(1) { animation-delay: 0.1s; }
+    .table tbody tr:nth-child(2) { animation-delay: 0.2s; }
+    .table tbody tr:nth-child(3) { animation-delay: 0.3s; }
+    /* ... add more nth-child rules for more rows or use JS for dynamic delay */
+
+    /* Ensure icons don't affect line height much */
+    .fas {
+        vertical-align: -0.125em; /* Slightly adjusts icon vertical alignment */
+    }
+</style>
 {% endblock %}

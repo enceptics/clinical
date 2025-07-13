@@ -26,6 +26,8 @@ from django.http import Http404
 from django.contrib.auth.decorators import login_required
 from django.contrib.messages.views import SuccessMessageMixin
 import datetime 
+from django.utils.timezone import now
+import uuid
 
 from .models import (
     User, Patient, Doctor, Pharmacist, Appointment, Encounter, VitalSign, MedicalHistory,
@@ -44,7 +46,7 @@ from .forms import (
     NurseRegistrationForm, PharmacistRegistrationForm, ProcurementOfficerRegistrationForm,
     CustomUserChangeForm, ReceptionistRegistrationForm, LabTechnicianRegistrationForm, 
     RadiologistRegistrationForm, ClinicalNoteForm, PatientForm, DepartmentForm, WardForm, BedCreateForm, BedUpdateForm,
-    BirthRecordForm, MortalityRecordForm, MedicationForm, CancerRegistryReportForm, ImagingResultForm, LabTestResultForm
+    BirthRecordForm, MortalityRecordForm, MedicationForm, CancerRegistryReportForm, ImagingResultForm, LabTestResultForm, UserUpdateForm, ConsentSignatureUploadForm
 )
 
 from .models import ActivityLog
@@ -553,25 +555,141 @@ class UserListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         context['title'] = 'All System Users'
         return context
 
+class UserDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    model = User
+    template_name = 'clinical_app/user_detail.html'
+    context_object_name = 'user_obj' # Renamed to avoid clash with request.user
+
+    def test_func(self):
+        # Allow admin, or the user themselves, or receptionists to view user details
+        user_obj = self.get_object()
+        return (self.request.user.user_type == 'admin' or
+                self.request.user.user_type == 'receptionist' or
+                self.request.user == user_obj)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = f"User: {self.object.get_full_name() or self.object.username}"
+        return context
+
+class UserUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+    model = User
+    form_class = UserUpdateForm # Use the form we defined
+    template_name = 'clinical_app/user_form.html' # Use a generic form template
+    context_object_name = 'user_obj'
+
+    def get_success_url(self):
+        return reverse_lazy('user_detail', kwargs={'pk': self.object.pk})
+
+    def test_func(self):
+        # Only admin can update other users.
+        # A user can update their OWN profile (e.g., patient updates their contact info)
+        user_to_update = self.get_object()
+        return (self.request.user.user_type == 'admin' or
+                self.request.user == user_to_update)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = f"Update User: {self.object.get_full_name() or self.object.username}"
+        context['is_update'] = True # Flag to indicate it's an update form
+        return context
+
+class UserDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = User
+    template_name = 'clinical_app/user_confirm_delete.html'
+    context_object_name = 'user_obj'
+    success_url = reverse_lazy('user_list') # Redirect to user list after deletion
+
+    def test_func(self):
+        # Only admin can delete users.
+        # An admin cannot delete their own account.
+        user_to_delete = self.get_object()
+        return (self.request.user.user_type == 'admin' and
+                self.request.user != user_to_delete) # Prevent self-deletion
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['title'] = f"Delete User: {self.object.get_full_name() or self.object.username}"
+        return context
 
 class ConsentFormCreateView(LoginRequiredMixin, IsMedicalStaffMixin, CreateView):
     model = ConsentForm
-    form_class = ConsentFormForm
-    template_name = 'clinical_app/sub_form.html'
+    form_class = ConsentFormForm # This form no longer handles signature fields
+    template_name = 'clinical_app/patient_consent_form.html'
 
     def get_success_url(self):
+        # This will be overridden in form_valid for redirection to sign view
         return reverse_lazy('patient_detail', kwargs={'pk': self.kwargs['patient_pk']})
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['patient'] = get_object_or_404(Patient, pk=self.kwargs['patient_pk'])
-        context['form_title'] = "Add Consent Form"
+        context['form_title'] = "Create New Consent Form" # Updated title
         return context
 
     def form_valid(self, form):
         form.instance.patient = get_object_or_404(Patient, pk=self.kwargs['patient_pk'])
-        form.instance.signed_by_staff = self.request.user
-        return super().form_valid(form)
+        # Initially, the form is not signed
+        form.instance.is_signed = False
+        form.instance.signed_by_staff = None # Will be set by signing view if staff signs
+        form.instance.signed_date = None # Will be set by signing view
+        form.instance.signature_image = None # Ensure it's empty
+
+        # Save the consent form (it's created as unsigned)
+        response = super().form_valid(form) # form.instance now has the ID
+
+        messages.success(self.request, f"Consent Form '{form.instance.consent_type}' created successfully. Now, please sign it.")
+        # Redirect to the new signing view, passing the newly created consent form's PK
+        return redirect(reverse('sign_consent_form', kwargs={'pk': form.instance.pk}))
+
+# clinical_app/views.py (continued)
+class SignConsentFormView(LoginRequiredMixin, IsMedicalStaffMixin, View):
+    template_name = 'clinical_app/patient_consent_form_sign.html' # The HTML you provided
+
+    def get(self, request, pk, *args, **kwargs):
+        consent_form = get_object_or_404(ConsentForm, pk=pk)
+        context = {
+            'consent_form': consent_form,
+            'form_title': "Sign Consent Form",
+        }
+        return render(request, self.template_name, context)
+
+    def post(self, request, pk, *args, **kwargs):
+        consent_form = get_object_or_404(ConsentForm, pk=pk)
+        form = ConsentSignatureUploadForm(request.POST)
+
+        if form.is_valid():
+            signature_data_url = form.cleaned_data['signature_data']
+
+            # Expected format: "data:image/png;base64,iVBORw0KGgo..."
+            if signature_data_url.startswith('data:image/png;base64,'):
+                format, imgstr = signature_data_url.split(';base64,')
+                ext = format.split('/')[-1] # Should be 'png'
+
+                # Generate a unique filename
+                file_name = f'signature_{uuid.uuid4()}.{ext}'
+                data = ContentFile(base64.b64decode(imgstr), name=file_name)
+
+                consent_form.signature_image.save(file_name, data, save=False) # save=False so we can update other fields first
+                consent_form.is_signed = True
+                consent_form.signed_date = timezone.now()
+                consent_form.signed_by_staff = request.user # Assuming staff member is signing
+
+                consent_form.save() # Now save the model instance with the image and updated fields
+
+                messages.success(request, "Consent form signed successfully!")
+                return redirect(reverse('patient_detail', kwargs={'pk': consent_form.patient.pk}))
+            else:
+                messages.error(request, "Invalid signature data format.")
+        else:
+            messages.error(request, "There was an error processing your signature.")
+
+        context = {
+            'consent_form': consent_form,
+            'form_title': "Sign Consent Form",
+            'form': form # Pass the form back to display errors if any
+        }
+        return render(request, self.template_name, context)
 
 class PatientListView(LoginRequiredMixin, IsMedicalStaffMixin, ListView):
     model = Patient
@@ -604,7 +722,7 @@ class PatientDetailView(LoginRequiredMixin, IsMedicalStaffMixin, DetailView):
         context['vitals'] = VitalSign.objects.filter(encounter__patient=patient).order_by('-timestamp')[:5] # Last 5 vitals
         context['diagnoses'] = Diagnosis.objects.filter(encounter__patient=patient).order_by('-diagnosis_date')[:5]
         context['prescriptions'] = Prescription.objects.filter(encounter__patient=patient).order_by('-prescription_date')[:5]
-        context['consent_forms'] = patient.consent_forms.all()
+        context['consent_forms'] = patient.consent_forms.all().order_by('-id')
 
         # Log patient viewing
         log_activity(
@@ -826,278 +944,152 @@ class EncounterDetailView(LoginRequiredMixin, IsMedicalStaffMixin, DetailView):
         return context
 
 # Generate case summary
-
 class GenerateCaseSummaryView(LoginRequiredMixin, IsMedicalStaffMixin, View):
-    """
-    A view to generate or update a CaseSummary draft for a given Encounter.
-    It prepares the summary content and then redirects the user to the signing page.
-    """
     def post(self, request, pk, *args, **kwargs):
         encounter = get_object_or_404(Encounter, pk=pk)
 
-        prepared_by_user = request.user # It's better to store the User object directly
-        # You can keep your doctor profile check if `prepared_by` in CaseSummary links to a Doctor model
-        # For simplicity, I'm assuming prepared_by in CaseSummary refers to a User
-        # If `prepared_by` in CaseSummary is a Doctor model, you'd need:
-        # prepared_by_doctor = None
-        # if hasattr(request.user, 'doctor'):
-        #     prepared_by_doctor = request.user.doctor
-        # elif request.user.is_superuser:
-        #     prepared_by_doctor = None # Or link to a default admin doctor profile if one exists
-        #     messages.info(request, "Superuser generating summary. No specific doctor profile assigned.")
-        # else:
-        #     messages.error(request, "Only doctors or authorized medical staff can generate case summaries.")
-        #     return redirect(reverse('encounter_detail', kwargs={'pk': encounter.pk}))
-
-        # Ensure the user has the necessary role/permission to prepare this summary
-        if not (request.user.user_type in ['doctor', 'nurse', 'admin'] or request.user.is_superuser): # Adjust roles as per your system
+        if not (request.user.user_type in ['doctor', 'nurse', 'admin'] or request.user.is_superuser):
             messages.error(request, "You are not authorized to prepare case summaries.")
             return redirect(reverse('encounter_detail', kwargs={'pk': encounter.pk}))
 
+        try:
+            doctor_instance = request.user.doctor
+        except Exception:
+            messages.error(request, "You are not registered as a doctor.")
+            return redirect(reverse('encounter_detail', kwargs={'pk': encounter.pk}))
 
-        # Optimize fetching related data for summary generation
         encounter_for_summary = Encounter.objects.select_related(
-            'patient__user', # Access patient's user directly
-            'doctor__user',  # Access doctor's user directly
-            'ward',
-            'bed'
+            'patient__user', 'doctor__user', 'ward', 'bed'
         ).prefetch_related(
             'vital_signs',
-        Prefetch(
-            'patient__medical_history_entries',
-            # Correct this based on what 'recorded_by' in MedicalHistory *actually* links to.
-            # If MedicalHistory.recorded_by links to Doctor:
-            queryset=MedicalHistory.objects.select_related('recorded_by__user').order_by('-recorded_date'),
-            # If MedicalHistory.recorded_by links to Nurse:
-            # queryset=MedicalHistory.objects.select_related('recorded_by__user').order_by('-recorded_date'),
-            # If MedicalHistory.recorded_by links to a generic User:
-            # queryset=MedicalHistory.objects.select_related('recorded_by').order_by('-recorded_date'),
-            to_attr='_patient_medical_histories'
-        ),
-        Prefetch(
-            'physical_examinations',
-            # Assuming PhysicalExamination.examined_by links to a 'Nurse' or 'Doctor' profile
-            queryset=PhysicalExamination.objects.select_related('examined_by__user').order_by('-examination_date'),
-            to_attr='prefetched_physical_examinations'
-        ),
-        Prefetch(
-            'diagnoses',
-            # Assuming Diagnosis.diagnosed_by links to a 'Doctor' profile
-            queryset=Diagnosis.objects.select_related('diagnosed_by__user').order_by('-diagnosis_date'),
-            to_attr='prefetched_diagnoses'
-        ),
-        Prefetch(
-            'treatment_plans',
-            # Assuming TreatmentPlan.created_by links to a 'Doctor' profile
-            queryset=TreatmentPlan.objects.select_related('created_by__user').order_by('-created_date'),
-            to_attr='prefetched_treatment_plans'
-        ),
-        Prefetch(
-            'prescriptions',
-            queryset=Prescription.objects.select_related(
-                'medication',
-                # Assuming Prescription.prescribed_by links to a 'Doctor' profile
-                'prescribed_by__user',
-                # Assuming Prescription.dispensed_by links to a 'Pharmacist' profile
-                'dispensed_by__user'
-            ).order_by('-prescription_date'),
-            to_attr='prefetched_prescriptions'
-        ),
-        Prefetch(
-            'lab_test_requests',
-            queryset=LabTestRequest.objects.select_related(
-                # Assuming LabTestRequest.requested_by links to a 'Doctor' or 'Nurse' profile
-                'requested_by__user',
-            ).prefetch_related(
-                'tests',
-                Prefetch(
-                    'results',
-                    queryset=LabTestResult.objects.select_related(
-                        'test',
-                        # Assuming LabTestResult.performed_by links to a 'LabTechnician' profile
-                        'performed_by__user'
-                    ).order_by('result_date'),
-                    to_attr='prefetched_results_list'
-                )
-            ).order_by('-requested_date'),
-            to_attr='prefetched_lab_requests'
-        ),
-        Prefetch(
-            'imaging_requests',
-            queryset=ImagingRequest.objects.select_related(
-                'imaging_type',
-            ).prefetch_related(
-                Prefetch(
-                    'imagingresult_set',
-                    # Assuming ImagingResult.reported_by links to a 'Radiologist' profile
-                    queryset=ImagingResult.objects.select_related('reported_by__user'),
-                    to_attr='prefetched_imaging_results'
-                )
-            ).order_by('-requested_date'),
-            to_attr='prefetched_imaging_requests'
-        ),
-            # Do NOT prefetch case_summary here if it's a OneToOneField from Encounter.
-            # You'll use encounter.case_summary directly if it exists.
+            Prefetch(
+                'patient__medical_history_entries',
+                queryset=MedicalHistory.objects.select_related('recorded_by').order_by('-recorded_date'),
+                to_attr='_patient_medical_histories'
+            ),
+            Prefetch(
+                'physical_examinations',
+                queryset=PhysicalExamination.objects.select_related('examined_by').order_by('-examination_date'),
+                to_attr='prefetched_physical_examinations'
+            ),
+            Prefetch(
+                'diagnoses',
+                queryset=Diagnosis.objects.select_related('diagnosed_by').order_by('-diagnosis_date'),
+                to_attr='prefetched_diagnoses'
+            ),
+            Prefetch(
+                'treatment_plans',
+                queryset=TreatmentPlan.objects.select_related('created_by').order_by('-created_date'),
+                to_attr='prefetched_treatment_plans'
+            ),
+            Prefetch(
+                'prescriptions',
+                queryset=Prescription.objects.select_related(
+                    'medication', 'prescribed_by', 'dispensed_by'
+                ).order_by('-prescription_date'),
+                to_attr='prefetched_prescriptions'
+            ),
+            Prefetch(
+                'lab_test_requests',
+                queryset=LabTestRequest.objects.select_related('requested_by').prefetch_related(
+                    'tests',
+                    Prefetch(
+                        'results',
+                        queryset=LabTestResult.objects.select_related('test', 'performed_by').order_by('result_date'),
+                        to_attr='prefetched_results_list'
+                    )
+                ).order_by('-requested_date'),
+                to_attr='prefetched_lab_requests'
+            ),
+            # --- START OF FIX ---
+            Prefetch(
+                'imaging_requests', # This is correct: Prefetching ImagingRequests related to the Encounter
+                queryset=ImagingRequest.objects.select_related('imaging_type', 'requested_by') # Also select related 'requested_by' for efficiency
+                                   .select_related('result__radiologist'), # Select the OneToOne 'result' AND its 'radiologist'
+                                   # Removed the inner Prefetch, as select_related is better for OneToOne.
+                to_attr='prefetched_imaging_requests'
+            ),
+            # --- END OF FIX ---
         ).get(pk=pk)
 
-        # --- Begin Summary Generation Logic ---
         summary_parts = []
-
-        # 1. Patient & Encounter Basic Info
         summary_parts.append(f"--- Encounter Summary ---")
         summary_parts.append(f"Patient: {encounter_for_summary.patient.user.get_full_name()} (ID: {encounter_for_summary.patient.patient_id})")
         summary_parts.append(f"Encounter ID: {encounter_for_summary.pk}")
-        summary_parts.append(f"Date: {encounter_for_summary.admission_date.strftime('%Y-%m-%d %H:%M %Z')}")
-        summary_parts.append(f"Attending Doctor: {encounter_for_summary.doctor.user.get_full_name()}")
-        summary_parts.append(f"Department: {encounter_for_summary.ward.name}")
-        summary_parts.append(f"Ward: {encounter_for_summary.ward.name}, Bed: {encounter_for_summary.bed.bed_number if encounter_for_summary.bed else 'N/A'}")
-        if hasattr(encounter_for_summary, 'appointment') and encounter_for_summary.appointment:
-            summary_parts.append(f"Reason for Visit: {encounter_for_summary.appointment.reason.strip()}")
-        elif encounter_for_summary.reason_for_visit:
-            summary_parts.append(f"Reason for Visit: {encounter_for_summary.reason_for_visit.strip()}")
-        else:
-            summary_parts.append(f"Reason for Visit: Not specified")
+        summary_parts.append(f"Date: {encounter_for_summary.admission_date.strftime('%Y-%m-%d %H:%M') if encounter_for_summary.admission_date else 'N/A'}")
+        summary_parts.append(f"Attending Doctor: {encounter_for_summary.doctor.user.get_full_name() if encounter_for_summary.doctor else 'N/A'}")
+        summary_parts.append(f"Department: {encounter_for_summary.ward.name if encounter_for_summary.ward else 'N/A'}")
+        summary_parts.append(f"Ward: {encounter_for_summary.ward.name if encounter_for_summary.ward else 'N/A'}, Bed: {encounter_for_summary.bed.bed_number if encounter_for_summary.bed else 'N/A'}")
 
-        if encounter_for_summary.encounter_type:
-            summary_parts.append(f"Encounter Type: {encounter_for_summary.encounter_type.strip()}")
-
-        # 2. Vital Signs
+        summary_parts.append("\n--- Vital Signs ---")
         vitals = encounter_for_summary.vital_signs.all().order_by('-timestamp')
-        if vitals:
-            summary_parts.append("\n--- Vital Signs ---")
-            for vital in vitals:
-                vitals_info = []
-                if vital.temperature: vitals_info.append(f"Temp: {vital.temperature}°C")
-                if vital.blood_pressure_systolic and vital.blood_pressure_diastolic:
-                    vitals_info.append(f"BP: {vital.blood_pressure_systolic}/{vital.blood_pressure_diastolic} mmHg")
-                if vital.heart_rate: vitals_info.append(f"HR: {vital.heart_rate} BPM")
-                if vital.respiratory_rate: vitals_info.append(f"RR: {vital.respiratory_rate} BPM")
-                if vital.oxygen_saturation: vitals_info.append(f"O2 Sat: {vital.oxygen_saturation}%")
-                if vital.weight_kg: vitals_info.append(f"Weight: {vital.weight_kg} kg")
-                if vital.height_cm: vitals_info.append(f"Height: {vital.height_cm} cm")
-                if vital.bmi: vitals_info.append(f"BMI: {vital.bmi:.2f}")
+        for vital in vitals:
+            vitals_info = []
+            if vital.temperature: vitals_info.append(f"Temp: {vital.temperature}°C")
+            if vital.blood_pressure_systolic and vital.blood_pressure_diastolic:
+                vitals_info.append(f"BP: {vital.blood_pressure_systolic}/{vital.blood_pressure_diastolic} mmHg")
+            if vital.heart_rate: vitals_info.append(f"HR: {vital.heart_rate} BPM")
+            if vital.respiratory_rate: vitals_info.append(f"RR: {vital.respiratory_rate} BPM")
+            if vital.oxygen_saturation: vitals_info.append(f"O2 Sat: {vital.oxygen_saturation}%")
+            summary_parts.append(f"  {vital.timestamp.strftime('%Y-%m-%d %H:%M')}: {', '.join(vitals_info)}")
 
-                summary_parts.append(f"  {vital.timestamp.strftime('%Y-%m-%d %H:%M %Z')}: {', '.join(vitals_info)}")
-        else:
-            summary_parts.append("\nNo vital signs recorded.")
+        summary_parts.append("\n--- Physical Examination ---")
+        for pe in getattr(encounter_for_summary, 'prefetched_physical_examinations', []):
+            examined_by = pe.examined_by.get_full_name() if pe.examined_by else "N/A"
+            summary_parts.append(f"Examined on {pe.examination_date.strftime('%Y-%m-%d')} by {examined_by}")
+            for field in ['general_appearance', 'head_and_neck', 'chest_and_lungs', 'heart_and_circulation', 'abdomen', 'musculoskeletal', 'neurological', 'skin', 'other_findings']:
+                value = getattr(pe, field)
+                if value:
+                    summary_parts.append(f"  {field.replace('_', ' ').title()}: {value}")
 
-        # 3. Physical Examination
-        physical_exams = encounter_for_summary.prefetched_physical_examinations
-        if physical_exams:
-            summary_parts.append("\n--- Physical Examination ---")
-            for pe in physical_exams:
-                examined_by_name = pe.examined_by.user.get_full_name() if pe.examined_by else "N/A"
-                summary_parts.append(f"  Examined: {pe.examination_date.strftime('%Y-%m-%d %H:%M %Z')} by {examined_by_name}")
-                if pe.general_appearance: summary_parts.append(f"    General Appearance: {pe.general_appearance.strip()}")
-                if pe.head_and_neck: summary_parts.append(f"    Head & Neck: {pe.head_and_neck.strip()}")
-                if pe.chest_and_lungs: summary_parts.append(f"    Chest & Lungs: {pe.chest_and_lungs.strip()}")
-                if pe.heart_and_circulation: summary_parts.append(f"    Heart & Circulation: {pe.heart_and_circulation.strip()}")
-                if pe.abdomen: summary_parts.append(f"    Abdomen: {pe.abdomen.strip()}")
-                if pe.musculoskeletal: summary_parts.append(f"    Musculoskeletal: {pe.musculoskeletal.strip()}")
-                if pe.neurological: summary_parts.append(f"    Neurological: {pe.neurological.strip()}")
-                if pe.skin: summary_parts.append(f"    Skin: {pe.skin.strip()}")
-                if pe.other_findings: summary_parts.append(f"    Other Findings: {pe.other_findings.strip()}")
-        else:
-            summary_parts.append("\nNo physical examination recorded.")
+        summary_parts.append("\n--- Diagnoses ---")
+        for diag in getattr(encounter_for_summary, 'prefetched_diagnoses', []):
+            diagnosed_by = diag.diagnosed_by.get_full_name() if diag.diagnosed_by else "N/A"
+            summary_parts.append(f"{diag.diagnosis_text} ({diag.icd10_code}) - {diag.get_diagnosis_status_display()} by {diagnosed_by}")
 
-        # 4. Diagnoses
-        diagnoses = encounter_for_summary.prefetched_diagnoses
-        if diagnoses:
-            summary_parts.append("\n--- Diagnoses ---")
-            for diag in diagnoses:
-                primary_status = "Primary" if diag.is_primary else "Secondary"
-                diagnosed_by_name = diag.diagnosed_by.user.get_full_name() if diag.diagnosed_by else "N/A"
-                summary_parts.append(f"  - {diag.diagnosis_text.strip()} ({diag.icd10_code or 'N/A'}) - {primary_status} ({diag.get_diagnosis_status_display()})")
-                summary_parts.append(f"    Diagnosed By: {diagnosed_by_name} on {diag.diagnosis_date.strftime('%Y-%m-%d %H:%M %Z')}")
-        else:
-            summary_parts.append("\nNo diagnoses recorded.")
+        summary_parts.append("\n--- Treatment Plans ---")
+        for tp in getattr(encounter_for_summary, 'prefetched_treatment_plans', []):
+            created_by = tp.created_by.get_full_name() if tp.created_by else "N/A"
+            summary_parts.append(f"{tp.treatment_description} - {tp.get_status_display()} (Created by {created_by})")
 
-        # 5. Treatment Plans
-        treatment_plans = encounter_for_summary.prefetched_treatment_plans
-        if treatment_plans:
-            summary_parts.append("\n--- Treatment Plans ---")
-            for tp in treatment_plans:
-                created_by_name = tp.created_by.user.get_full_name() if tp.created_by else "N/A"
-                summary_parts.append(f"  - Plan created by {created_by_name} on {tp.created_date.strftime('%Y-%m-%d %H:%M %Z')}")
-                summary_parts.append(f"    Status: {tp.get_status_display()}")
-                summary_parts.append(f"    Description: {tp.treatment_description.strip()}")
-                if tp.recommendations: summary_parts.append(f"    Recommendations: {tp.recommendations.strip()}")
-                if tp.expected_return_date: summary_parts.append(f"    Expected Return: {tp.expected_return_date.strftime('%Y-%m-%d')}")
-        else:
-            summary_parts.append("\nNo treatment plans created.")
+        summary_parts.append("\n--- Prescriptions ---")
+        for rx in getattr(encounter_for_summary, 'prefetched_prescriptions', []):
+            summary_parts.append(f"{rx.medication.name} ({rx.route}): {rx.dosage} - {rx.frequency} - {rx.duration}")
+        summary_parts.append("\n--- Lab Tests ---")
+        for req in getattr(encounter_for_summary, 'prefetched_lab_requests', []):
+            test_names = ", ".join([t.name for t in req.tests.all()])
+            summary_parts.append(f"Requested: {test_names} on {req.requested_date.strftime('%Y-%m-%d')}")
+            for result in getattr(req, 'prefetched_results_list', []):
+                summary_parts.append(f"  {result.test.name}: {result.result_value} {result.result_unit}")
 
-        # 6. Prescriptions
-        prescriptions = encounter_for_summary.prefetched_prescriptions
-        if prescriptions:
-            summary_parts.append("\n--- Prescriptions ---")
-            for rx in prescriptions:
-                dispensed_status = "Dispensed" if rx.is_dispensed else "Not Dispensed"
-                dispensed_by_name = rx.dispensed_by.user.get_full_name() if rx.dispensed_by else "N/A"
-                prescribed_by_name = rx.prescribed_by.user.get_full_name() if rx.prescribed_by else "N/A"
-                summary_parts.append(f"  - {rx.medication.name} {rx.medication.strength or ''} ({rx.get_route_display()})")
-                summary_parts.append(f"    Dosage: {rx.dosage.strip()}, Freq: {rx.frequency.strip()}, Duration: {rx.duration.strip()}")
-                summary_parts.append(f"    Prescribed By: {prescribed_by_name} on {rx.prescription_date.strftime('%Y-%m-%d %H:%M %Z')}")
-                summary_parts.append(f"    Status: {dispensed_status} by {dispensed_by_name}")
-        else:
-            summary_parts.append("\nNo prescriptions issued.")
+        summary_parts.append("\n--- Imaging Requests ---")
+        # Access the prefetched imaging requests
+        for img_req in getattr(encounter_for_summary, 'prefetched_imaging_requests', []):
+            summary_parts.append(f"{img_req.imaging_type.name} on {img_req.requested_date.strftime('%Y-%m-%d')}")
+            # Access the related result via the 'result' attribute
+            # Check if 'result' exists, as OneToOneField can be null on the reverse side if no result is linked
+            if hasattr(img_req, 'result'):
+                # The 'result' and its 'radiologist' are already loaded due to select_related
+                summary_parts.append(f"  Findings: {img_req.result.findings}, Impression: {img_req.result.impression}")
+                if img_req.result.radiologist:
+                    summary_parts.append(f"  Reported by: {img_req.result.radiologist.get_full_name()}")
+                if img_req.result.report_date:
+                    summary_parts.append(f"  Report Date: {img_req.result.report_date.strftime('%Y-%m-%d %H:%M')}")
 
-        # 7. Lab Test Requests & Results
-        lab_requests = encounter_for_summary.prefetched_lab_requests
-        if lab_requests:
-            summary_parts.append("\n--- Lab Investigations ---")
-            for req in lab_requests:
-                test_names = ", ".join([t.name for t in req.tests.all()])
-                summary_parts.append(f"  - Request for: {test_names} (Requested: {req.requested_date.strftime('%Y-%m-%d %H:%M %Z')})")
-
-                if hasattr(req, 'prefetched_results_list') and req.prefetched_results_list:
-                    for result in req.prefetched_results_list:
-                        abnormal = " (Abnormal)" if result.is_abnormal else ""
-                        performed_by_name = result.performed_by.user.get_full_name() if result.performed_by else "N/A"
-                        summary_parts.append(f"    Result for {result.test.name}: {result.result_value or 'N/A'} {result.result_unit or ''}{abnormal}")
-                        if result.comment:
-                            summary_parts.append(f"    Comment: {result.comment.strip()}")
-                        summary_parts.append(f"    Performed By: {performed_by_name} on {result.result_date.strftime('%Y-%m-%d %H:%M %Z')}")
-                else:
-                    summary_parts.append(f"    Status: {req.get_status_display()} (No results yet)")
-        else:
-            summary_parts.append("\nNo lab orders placed.")
-
-        # 8. Imaging Requests & Results
-        imaging_requests = encounter_for_summary.prefetched_imaging_requests
-        if imaging_requests:
-            summary_parts.append("\n--- Imaging Investigations ---")
-            for req in imaging_requests:
-                summary_parts.append(f"  - Procedure: {req.imaging_type.name} (Requested: {req.requested_date.strftime('%Y-%m-%d %H:%M %Z')})")
-
-                if hasattr(req, 'prefetched_imaging_results') and req.prefetched_imaging_results: # Note: 'results' is usually a list
-                    result = req.prefetched_imaging_results[0] # Assuming one result per request for imaging
-                    if result:
-                        reported_by_name = result.reported_by.user.get_full_name() if result.reported_by else "N/A"
-                        summary_parts.append(f"    Findings: {result.findings.strip() or 'None'}")
-                        summary_parts.append(f"    Impression: {result.impression.strip() or 'None'}")
-                        summary_parts.append(f"    Reported By: {reported_by_name} on {result.report_date.strftime('%Y-%m-%d %H:%M %Z')}")
-                else:
-                    summary_parts.append(f"    Status: {req.get_status_display()} (No report yet)")
-        else:
-            summary_parts.append("\nNo imaging orders placed.")
 
         final_summary_text = "\n".join(summary_parts)
 
-        # IMPORTANT CHANGE HERE:
-        # Instead of directly setting digital_signature_hash (which is now content_hash_at_signing)
-        # and marking it as signed, we just update/create the draft.
-        # The signing happens in the `sign_case_summary` view.
         case_summary, created = CaseSummary.objects.update_or_create(
             encounter=encounter,
             defaults={
                 'summary_text': final_summary_text,
-                'prepared_by': prepared_by_user, # Assign the User object
-                'is_signed': False, # Explicitly mark as not signed yet
+                'prepared_by': doctor_instance,
+                'is_signed': False,
                 'signed_by_user': None,
                 'user_signature_image': None,
                 'user_initials': None,
                 'date_signed': None,
-                'content_hash_at_signing': None, # Clear existing hash if re-generating draft
+                'digital_signature_hash': None,
             }
         )
 
@@ -1111,86 +1103,34 @@ class GenerateCaseSummaryView(LoginRequiredMixin, IsMedicalStaffMixin, View):
         )
 
         messages.success(request, f"Case Summary draft for Encounter {encounter.pk} successfully {'created' if created else 'updated'}. Please sign to finalize.")
-        # Redirect to the signature page
-        return redirect(reverse('clinical_app:sign_case_summary', kwargs={'pk': case_summary.pk}))
+        return redirect(reverse('sign_case_summary', kwargs={'pk': case_summary.pk}))
 
-def base64_to_image(base64_string):
-    """
-    Converts a base64 encoded string (e.g., from a canvas signature) to a Django ContentFile.
-    Expects format like "data:image/png;base64,iVBORw0K..."
-    """
-    if "data:image" in base64_string and ";base64," in base64_string:
-        header, data = base64_string.split(';base64,')
-        try:
-            decoded_data = base64.b64decode(data)
-            ext = header.split('/')[-1] # e.g., 'png', 'jpeg'
-            file_name = f"signature.{ext}"
-            return ContentFile(decoded_data, name=file_name)
-        except Exception as e:
-            logger.error(f"Error decoding base64 image: {e}")
-            return None
-    return None
+class SignCaseSummaryView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        summary = get_object_or_404(CaseSummary, pk=pk)
+        return render(request, 'clinical_app/case_summary_sign.html', {'summary': summary})
 
-@login_required
-def sign_case_summary(request, pk):
-    """
-    Allows a user to electronically sign a case summary.
-    The case summary should be in a 'ready to sign' state.
-    """
-    case_summary = get_object_or_404(CaseSummary, pk=pk)
+    def post(self, request, pk):
+        summary = get_object_or_404(CaseSummary, pk=pk)
 
-    # Prevent signing if already signed
-    if case_summary.is_signed:
-        messages.info(request, "This case summary has already been signed.")
-        return redirect('clinical_app:case_summary_detail', pk=pk) # Redirect to view the signed summary
+        signature_data = request.POST.get("signature_data")
+        if not signature_data:
+            messages.error(request, "No signature provided.")
+            return redirect('sign_case_summary', pk=pk)
 
-    # Ensure only the prepared_by user (or an authorized role like doctor/admin) can sign
-    # Adjust this logic based on your specific authorization rules
-    if request.user != case_summary.prepared_by and not request.user.user_type=='doctor': # role check
-         messages.error(request, "You are not authorized to sign this case summary.")
-         raise Http404("Not authorized")
+        # Decode the base64 string
+        format, imgstr = signature_data.split(';base64,')
+        ext = format.split('/')[-1]
+        file_name = f'signature_{request.user.username}_{pk}.{ext}'
 
-    if request.method == "POST":
-        signature_data = request.POST.get('signature_data')
-        initials = request.POST.get('initials', '').strip()
+        summary.user_signature_image.save(file_name, ContentFile(base64.b64decode(imgstr)), save=True)
+        summary.is_signed = True
+        summary.signed_by_user = request.user
+        summary.date_signed = now()
+        summary.save()
 
-        if signature_data and "data:image" in signature_data:
-            signature_image_file = base64_to_image(signature_data)
-            if signature_image_file:
-                try:
-                    case_summary.mark_as_signed(
-                        signer_user=request.user,
-                        signature_image=signature_image_file
-                    )
-                    messages.success(request, "Case summary successfully signed!")
-                    logger.info(f"Case summary {pk} signed by {request.user.username} with image signature.")
-                    return redirect('clinical_app:case_summary_detail', pk=pk)
-                except Exception as e:
-                    logger.exception(f"Error saving signature for case summary {pk}: {e}")
-                    messages.error(request, "Failed to save the signature. Please try again.")
-            else:
-                messages.error(request, "Invalid signature data. Please try again.")
-
-        elif initials:
-            if len(initials) > 10: # Basic validation
-                messages.error(request, "Initials cannot be more than 10 characters.")
-            else:
-                try:
-                    case_summary.mark_as_signed(
-                        signer_user=request.user,
-                        initials=initials
-                    )
-                    messages.success(request, "Case summary successfully signed with initials!")
-                    logger.info(f"Case summary {pk} signed by {request.user.username} with initials.")
-                    return redirect('clinical_app:case_summary_detail', pk=pk)
-                except Exception as e:
-                    logger.exception(f"Error saving initials for case summary {pk}: {e}")
-                    messages.error(request, "Failed to save initials. Please try again.")
-        else:
-            messages.warning(request, "Please provide a signature or initials.")
-
-    return render(request, 'clinical_app/sign_case_summary.html', {'case_summary': case_summary})
-
+        messages.success(request, "Signature successfully saved.")
+        return redirect(reverse('case_summary_detail', kwargs={'pk': summary.pk}))
 
 # --- NEW VIEW FOR DISPLAYING CASE SUMMARY ---
 class CaseSummaryDetailView(LoginRequiredMixin, IsMedicalStaffMixin, View):
@@ -1283,7 +1223,7 @@ class PatientDetailView(LoginRequiredMixin, IsMedicalStaffMixin, DetailView):
         context['vitals'] = VitalSign.objects.filter(encounter__patient=patient).order_by('-timestamp')[:5] # Last 5 vitals
         context['diagnoses'] = Diagnosis.objects.filter(encounter__patient=patient).order_by('-diagnosis_date')[:5]
         context['prescriptions'] = Prescription.objects.filter(encounter__patient=patient).order_by('-prescription_date')[:5]
-        context['consent_forms'] = patient.consent_forms.all()
+        context['consent_forms'] = patient.consent_forms.all().order_by('-id')
 
         # Log patient viewing
         log_activity(
@@ -1849,7 +1789,7 @@ class MedicalHistoryCreateView(LoginRequiredMixin, IsDoctorMixin, CreateView):
     def form_valid(self, form):
         patient = get_object_or_404(Patient, pk=self.kwargs['patient_pk'])
         form.instance.patient = patient
-        form.instance.recorded_by = self.request.user.doctor # Assuming a direct link
+        form.instance.recorded_by = self.request.user # Assuming a direct link
 
         response = super().form_valid(form) # Save the form and get the instance
 
@@ -1881,7 +1821,7 @@ class PhysicalExaminationCreateView(LoginRequiredMixin, IsDoctorMixin, CreateVie
     def form_valid(self, form):
         encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
         form.instance.encounter = encounter
-        form.instance.examined_by = self.request.user.doctor
+        form.instance.examined_by = self.request.user
 
         response = super().form_valid(form) # Save the form and get the instance
 
@@ -1913,7 +1853,7 @@ class DiagnosisCreateView(LoginRequiredMixin, IsDoctorMixin, CreateView):
     def form_valid(self, form):
         encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
         form.instance.encounter = encounter
-        form.instance.diagnosed_by = self.request.user.doctor
+        form.instance.diagnosed_by = self.request.user
 
         response = super().form_valid(form) # Save the form and get the instance
 
@@ -1945,7 +1885,7 @@ class TreatmentPlanCreateView(LoginRequiredMixin, IsDoctorMixin, CreateView):
     def form_valid(self, form):
         encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
         form.instance.encounter = encounter
-        form.instance.created_by = self.request.user.doctor
+        form.instance.created_by = self.request.user
 
         response = super().form_valid(form) # Save the form and get the instance
 
@@ -1977,7 +1917,7 @@ class LabTestRequestCreateView(LoginRequiredMixin, IsDoctorMixin, CreateView):
     def form_valid(self, form):
         encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
         form.instance.encounter = encounter
-        form.instance.requested_by = self.request.user.doctor
+        form.instance.requested_by = self.request.user
 
         response = super().form_valid(form) # Save the form and get the instance
 
@@ -2603,7 +2543,7 @@ class PrescriptionCreateView(LoginRequiredMixin, IsDoctorMixin, CreateView): # A
     def form_valid(self, form):
         encounter = get_object_or_404(Encounter, pk=self.kwargs['encounter_pk'])
         form.instance.encounter = encounter
-        form.instance.prescribed_by = self.request.user.doctor
+        form.instance.prescribed_by = self.request.user
         form.instance.patient = encounter.patient # Assign patient from encounter
 
         response = super().form_valid(form)

@@ -1,0 +1,37 @@
+{% extends "clinical_app/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg border-danger">
+                <div class="card-header bg-danger text-white py-3">
+                    <h4 class="mb-0 fw-bold text-center"><i class="fas fa-exclamation-triangle me-2"></i> Confirm Deletion</h4>
+                </div>
+                <div class="card-body text-center p-4">
+                    <p class="lead">Are you absolutely sure you want to delete the user:</p>
+                    <h3 class="text-danger fw-bold mb-4">{{ user_obj.get_full_name|default:user_obj.username }} ({{ user_obj.user_type|capfirst }})?</h3>
+                    <p class="text-muted">This action is irreversible and will permanently remove all associated data for this user.</p>
+
+                    <form method="post" class="mt-4">
+                        {% csrf_token %}
+                        <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
+                            <button type="submit" class="btn btn-danger btn-lg shadow-sm">
+                                <i class="fas fa-trash-alt me-2"></i> Yes, Delete User
+                            </button>
+                            <a href="{% url 'user_detail' user_obj.pk %}" class="btn btn-outline-secondary btn-lg shadow-sm">
+                                <i class="fas fa-ban me-2"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-footer text-muted text-center py-3">
+                    <small>Please be certain before proceeding.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

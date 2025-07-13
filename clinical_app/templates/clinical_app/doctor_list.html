@@ -1,146 +1,171 @@
 {% extends "clinical_app/base.html" %}
 
-{% block title %}Doctor List{% endblock %} {# <--- CORRECTED Title #}
+{% block title %}Doctor List - Rungiri Hospital{% endblock %}
 
 {% block content %}
-<style>
-	/* Custom CSS for the Search Bar */
-.search-bar-modern {
-    max-width: 500px; /* Limit the max width of the search bar */
-    position: relative; /* Needed for z-index to work correctly on children */
-}
+<div class="container-fluid py-4">
 
-.search-bar-modern .form-control {
-    padding-right: 4.5rem; /* Ensure enough space for the button inside */
-}
-
-.search-bar-modern .search-btn {
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    padding-right: 1.5rem; /* Adjust button padding as needed */
-    padding-left: 1.5rem;  /* Adjust button padding as needed */
-    height: 100%; /* Make button height match input */
-    border-top-left-radius: 0; /* Remove rounding on inner edges */
-    border-bottom-left-radius: 0; /* Remove rounding on inner edges */
-    z-index: 10; /* Ensure it's above the input */
-    border: none; /* Remove border to blend perfectly with input */
-}
-
-/* For the specific case of the button overlapping into the rounded pill input */
-.search-bar-modern .rounded-pill.search-btn {
-    border-radius: 0 50rem 50rem 0 !important; /* Forces right side to be pill, left side straight */
-}
-
-/* If you want the input group to look like a single pill */
-.search-bar-modern .form-control.rounded-pill {
-    border-radius: 50rem 0 0 50rem !important; /* Forces left side to be pill, right side straight */
-}
-
-/* Example Gradient for Primary Button (if not already defined) */
-.btn-primary {
-    background-image: linear-gradient(to right, #007bff, #6f42c1); /* Example blue-to-purple gradient */
-    border: none;
-    transition: all 0.3s ease;
-}
-.btn-primary:hover {
-    background-image: linear-gradient(to right, #6f42c1, #007bff); /* Reverse gradient on hover */
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
-}
-</style>
-<div class="container-fluid">
-    <h1 class="mb-4">Doctors List</h1>
-<form method="get" class="mb-4 d-flex justify-content-center"> {# Add d-flex and justify-content-center to center the form #}
-    <div class="input-group search-bar-modern"> {# Custom class for additional styling if needed #}
-        <input 
-            type="text" 
-            name="q" 
-            class="form-control " {# Added form-control-lg, border-primary, rounded-pill, and pe-5 for padding #}
-            placeholder="Search doctors (name, license, specialization)..." 
-            value="{{ request.GET.q }}"
-            aria-label="Search doctors"
-        >
-        <button 
-            type="submit" 
-            class="btn btn-primary rounded-pill search-btn" {# Changed to btn-primary, added rounded-pill, and custom class #}
-            style="margin-left: ; z-index: 5;" {# Adjust margin to overlap, bring to front with z-index #}
-        >
-            <i class="fas fa-search me-2"></i> Search {# Added Font Awesome icon for visual appeal #}
-        </button>
+    {# Page Header and Actions #}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-5 fw-bold text-primary mb-0">
+            <i class="fas fa-user-md me-3"></i> Doctor Directory
+        </h1>
+        {% if user.user_type == 'admin' %}
+            <a href="{% url 'register_by_type' user_type='doctor' %}" class="btn btn-success btn-lg d-flex align-items-center">
+                <i class="fas fa-user-plus me-2"></i> Register New Doctor
+            </a>
+        {% endif %}
     </div>
-</form>
 
-    {% if user.user_type == 'admin' %}
-        <a href="{% url 'register_by_type' user_type='doctor' %}" class="btn btn-primary mb-3">Register New Doctor</a>
-    {% endif %}
+    {# Search Form #}
+    <div class="card shadow-sm mb-4">
+        <div class="card-body p-3">
+            <form method="get" class="row g-3 align-items-center justify-content-center"> {# Centered the form horizontally #}
+                <div class="col-12 col-md-9 col-lg-7"> {# Adjusted column width for the search input #}
+                    <label for="search-query" class="visually-hidden">Search Doctors</label>
+                    <div class="input-group input-group-lg border rounded-pill overflow-hidden"> {# input-group-lg for larger size, rounded-pill for pill shape, overflow-hidden to clip button #}
+                        <span class="input-group-text bg-light text-muted border-0" id="search-addon"><i class="fas fa-search"></i></span>
+                        <input
+                            type="text"
+                            id="search-query"
+                            name="q"
+                            class="form-control border-0 ps-0" {# Removed borders as they are on the input group, no left padding needed for actual input #}
+                            placeholder="Search doctors (name, license, specialization)..."
+                            value="{{ request.GET.q }}"
+                            aria-label="Search doctors"
+                            aria-describedby="search-addon"
+                        >
+                        <button
+                            type="submit"
+                            class="btn btn-primary d-flex align-items-center" {# Added d-flex and align-items-center for icon #}
+                            style="border-radius: 0 50rem 50rem 0 !important;" {# Forces right side to be pill, left side straight #}
+                        >
+                            <i class="fas fa-search me-2"></i> Search
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
 
+    {# Doctor List Table #}
     {% if doctors %}
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="thead-dark">
-                    <tr>
-                        <th>License No.</th> {# <--- CORRECTED Header #}
-                        <th>Name</th>
-                        <th>Specialization</th> {# <--- ADDED Field #}
-                        <th>Department</th> {# <--- ADDED Field #}
-                        <th>Years Exp.</th> {# <--- ADDED Field #}
-                        <th>Gender</th>
-                        <th>Date of Birth</th>
-                        <th>Phone</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for doctor in doctors %}
-                    <tr>
-                        <td>{{ doctor.medical_license_number }}</td> {# <--- CORRECTED: Display medical license #}
-                        <td>{{ doctor.user.get_full_name }}</td>
-                        <td>{{ doctor.specialization }}</td> {# <--- ADDED: Display specialization #}
-                        <td>{{ doctor.department.name|default:"N/A" }}</td> {# <--- ADDED: Display department #}
-                        <td>{{ doctor.years_of_experience|default:"N/A" }}</td> {# <--- ADDED: Display years of experience #}
-                        <td>{{ doctor.user.get_gender_display }}</td> {# <--- CORRECTED: Typo fixed #}
-                        <td>{{ doctor.user.date_of_birth|date:"M d, Y"|default:"N/A" }}</td>
-                        <td>{{ doctor.user.phone_number|default:"N/A" }}</td>
-                        <td>
-                            {# <--- CORRECTED: Typo fixed 'hdoctorref' to 'href' #}
-                            <a href="{% url 'doctor_detail' doctor.pk %}" class="btn btn-info btn-sm">View</a>
-                            
-                            {# Add delete button for admin if needed #}
-                            {% if user.user_type == 'admin' %}
-                                <a href="{% url 'doctor_delete' doctor.pk %}" class="btn btn-danger btn-sm">Delete</a>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white py-3">
+                <h5 class="mb-0 fw-bold"><i class="fas fa-users-cog me-2"></i> Registered Doctors</h5>
+            </div>
+            <div class="card-body p-0"> {# Remove padding from card body to make table span full width #}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover mb-0"> {# Added mb-0 to remove bottom margin from table #}
+                        <thead class="bg-light"> {# Light header for better contrast #}
+                            <tr>
+                                <th scope="col" class="text-primary">License No.</th>
+                                <th scope="col" class="text-primary">Name</th>
+                                <th scope="col" class="text-primary">Specialization</th>
+                                <th scope="col" class="text-primary">Department</th>
+                                <th scope="col" class="text-primary">Years Exp.</th>
+                                <th scope="col" class="text-primary">Gender</th>
+                                <th scope="col" class="text-primary">Date of Birth</th>
+                                <th scope="col" class="text-primary">Phone</th>
+                                <th scope="col" class="text-primary">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for doctor in doctors %}
+                            <tr>
+                                <td><span class="badge bg-secondary text-white">{{ doctor.medical_license_number }}</span></td>
+                                <td><a href="{% url 'doctor_detail' doctor.pk %}" class="text-decoration-none text-dark fw-semibold">{{ doctor.user.get_full_name }}</a></td>
+                                <td>{{ doctor.specialization|default:"N/A" }}</td>
+                                <td>{{ doctor.department.name|default:"N/A" }}</td>
+                                <td>{{ doctor.years_of_experience|default:"N/A" }}</td>
+                                <td>{{ doctor.user.get_gender_display }}</td>
+                                <td>{{ doctor.user.date_of_birth|date:"M d, Y"|default:"N/A" }}</td>
+                                <td>{{ doctor.user.phone_number|default:"N/A" }}</td>
+                                <td>
+                                    <div class="d-flex gap-2"> {# Use gap-2 for spacing between action buttons #}
+                                        <a href="{% url 'doctor_detail' doctor.pk %}" class="btn btn-info btn-sm" data-bs-toggle="tooltip" data-bs-placement="top" title="View Doctor Details">
+                                            <i class="fas fa-eye"></i> <span class="d-none d-md-inline ms-1">View</span>
+                                        </a>
+                                        <a href="{% url 'doctor_update' doctor.pk %}" class="btn btn-warning btn-sm" data-bs-toggle="tooltip" data-bs-placement="top" title="Edit Doctor Information">
+                                            <i class="fas fa-edit"></i> <span class="d-none d-md-inline ms-1">Edit</span>
+                                        </a>
+                                        {% if user.user_type == 'admin' %}
+                                            <a href="{% url 'doctor_delete' doctor.pk %}" class="btn btn-danger btn-sm" data-bs-toggle="tooltip" data-bs-placement="top" title="Delete Doctor" onclick="return confirm('Are you sure you want to delete Dr. {{ doctor.user.get_full_name }}?');">
+                                                <i class="fas fa-trash"></i> <span class="d-none d-md-inline ms-1">Delete</span>
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         {# Pagination #}
         {% if is_paginated %}
-            <nav aria-label="Page navigation">
+            <nav aria-label="Page navigation" class="mt-4">
                 <ul class="pagination justify-content-center">
                     {% if page_obj.has_previous %}
-                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">Previous</a></li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span> Previous
+                            </a>
+                        </li>
                     {% endif %}
                     {% for i in paginator.page_range %}
                         {% if page_obj.number == i %}
-                            <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+                            <li class="page-item active" aria-current="page"><span class="page-link">{{ i }}</span></li>
                         {% else %}
                             <li class="page-item"><a class="page-link" href="?page={{ i }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">{{ i }}</a></li>
                         {% endif %}
                     {% endfor %}
                     {% if page_obj.has_next %}
-                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}">Next</a></li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}" aria-label="Next">
+                                Next <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
                     {% endif %}
                 </ul>
             </nav>
         {% endif %}
 
     {% else %}
-        <p>No doctors found.</p>
+        <div class="alert alert-info shadow-sm" role="alert">
+            <h4 class="alert-heading"><i class="fas fa-info-circle me-2"></i> No Doctors Found</h4>
+            <p>There are no doctors currently registered or matching your search criteria.</p>
+            {% if user.user_type == 'admin' %}
+                <hr>
+                <p class="mb-0">Click the button below to register the first doctor!</p>
+                <a href="{% url 'register_by_type' user_type='doctor' %}" class="btn btn-success mt-2">
+                    <i class="fas fa-user-plus me-2"></i> Register New Doctor
+                </a>
+            {% endif %}
+        </div>
     {% endif %}
 </div>
 {% endblock %}
+
+{% comment %}
+    If you're using custom gradient buttons and want them specifically for .btn-primary:
+    You should define this in your main CSS file (e.g., static/css/custom.css)
+    or directly in a <style> block in your base.html if it's a site-wide style.
+    Putting it here works but is less organized for general styles.
+
+    Example Gradient CSS (moved to a comment as it's better in a dedicated CSS file):
+    <style>
+        .btn-primary {
+            background-image: linear-gradient(to right, #007bff, #6f42c1); /* Example blue-to-purple gradient */
+            border: none;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-image: linear-gradient(to right, #6f42c1, #007bff); /* Reverse gradient on hover */
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+        }
+    </style>
+{% endcomment %}

@@ -9,7 +9,9 @@ urlpatterns = [
     path('register/', views.select_user_type, name='select_user_type'),
     path('register/<str:user_type>/', views.UserRegistrationView.as_view(), name='register_by_type'),
     path('users/', views.UserListView.as_view(), name='user_list'),
-
+    path('users/<int:pk>/', views.UserDetailView.as_view(), name='user_detail'),
+    path('users/<int:pk>/update/', views.UserUpdateView.as_view(), name='user_update'),
+    path('users/<int:pk>/delete/', views.UserDeleteView.as_view(), name='user_delete'),
     path('', views.HomeView.as_view(), name='home'),
 
     # Patient URLs
@@ -18,6 +20,7 @@ urlpatterns = [
     path('patients/<int:pk>/', views.PatientDetailView.as_view(), name='patient_detail'),
     path('patients/<int:pk>/update/', views.PatientUpdateView.as_view(), name='patient_update'),
     path('patients/<int:patient_pk>/add_consent/', views.ConsentFormCreateView.as_view(), name='consent_create'),
+    path('consent_forms/<int:pk>/sign/', views.SignConsentFormView.as_view(), name='sign_consent_form'),
     path('patients/<int:patient_pk>/add_history/', views.MedicalHistoryCreateView.as_view(), name='medical_history_create'),
 
     # Doctor URLs
@@ -72,6 +75,8 @@ urlpatterns = [
     # Case summary
     path('encounters/<int:pk>/generate-summary/', views.GenerateCaseSummaryView.as_view(), name='generate_case_summary'),
     path('case-summaries/<int:pk>/', views.CaseSummaryDetailView.as_view(), name='case_summary_detail'),
+    path('case-summary/<int:pk>/sign/', views.SignCaseSummaryView.as_view(), name='sign_case_summary'),
+
     # path('summary/<int:pk>/sign/', views.sign_case_summary, name='sign_case_summary'),
     # Doctor-specific URLs
     path('doctor/my_patients/', views.DoctorPatientListView.as_view(), name='doctor_patient_list'),

@@ -1,0 +1,88 @@
+{# clinical_app/consent_form_sign.html #}
+{% extends "clinical_app/base.html" %}
+
+{% block title %}{{ form_title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-5 mb-5">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow-lg">
+            <div class="card-header bg-primary text-white">
+                <h3 class="mb-0">
+                    <i class="fas fa-signature me-2"></i> {{ form_title }}
+                </h3>
+            </div>
+            <div class="card-body">
+                <p class="mb-3"><strong>Consent Type:</strong> {{ consent_form.consent_type }}</p>
+                <p class="mb-3"><strong>Patient:</strong> <a href="{% url 'patient_detail' consent_form.patient.pk %}">{{ consent_form.patient.user.get_full_name }}</a></p>
+
+                <div class="alert alert-info mb-4" role="alert" style="max-height: 200px; overflow-y: auto; white-space: pre-wrap;">
+                    <p class="fw-bold">Consent Text:</p>
+                    {{ consent_form.consent_text }}
+                </div>
+
+                <form method="POST" enctype="multipart/form-data" id="signature-form">
+                    {% csrf_token %}
+
+                    <div class="mb-3 text-center">
+                        <label for="signature-pad" class="form-label d-block text-start">Please draw your signature below:</label>
+                        <canvas id="signature-pad" width="450" height="200"
+                                style="border:1px solid #ced4da; border-radius: 0.5rem; background-color: #fff; touch-action: none;"></canvas>
+                        <small class="form-text text-muted">Use your mouse or touch screen to sign.</small>
+                    </div>
+
+                    <div class="d-flex justify-content-center gap-3 mt-4">
+                        <button type="button" id="clear" class="btn btn-outline-secondary">
+                            <i class="fas fa-eraser me-2"></i> Clear
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-check-circle me-2"></i> Sign Consent
+                        </button>
+                    </div>
+
+                    <input type="hidden" name="signature_data" id="signature-data">
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const canvas = document.getElementById("signature-pad");
+
+        function resizeCanvas() {
+            const ratio = Math.max(window.devicePixelRatio || 1, 1);
+            canvas.width = canvas.offsetWidth * ratio;
+            canvas.height = canvas.offsetHeight * ratio;
+            canvas.getContext("2d").scale(ratio, ratio);
+            // Redraw if there was content
+            // signaturePad.fromData(signaturePad.toData()); // This might clear background on some browsers
+        }
+
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+
+        const signaturePad = new SignaturePad(canvas, {
+            backgroundColor: 'rgb(255, 255, 255)' // Ensure white background
+        });
+
+        document.getElementById("clear").addEventListener("click", () => {
+            signaturePad.clear();
+        });
+
+        document.getElementById("signature-form").addEventListener("submit", function (e) {
+            if (signaturePad.isEmpty()) {
+                alert("Please provide your signature first.");
+                e.preventDefault();
+            } else {
+                const dataUrl = signaturePad.toDataURL("image/png");
+                document.getElementById("signature-data").value = dataUrl;
+            }
+        });
+    });
+</script>
+{% endblock extra_js %}

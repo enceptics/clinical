@@ -1,68 +1,203 @@
 {% extends "clinical_app/base.html" %}
 
+{% block title %}Clinical Note - {{ patient.user.get_full_name }}{% endblock %}
+
 {% block content %}
-    <div class="container mt-4">
-        <h3 style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; font-size: 1.8em; margin-bottom: 15px;">
-            Clinical Note for: 
-            <a href="{% url 'patient_detail' pk=patient.pk %}" 
-               style="color: #007bff; text-decoration: none;">
-                <span style="font-weight: 600; text-shadow: 0.5px 0.5px 1px rgba(0,0,0,0.1);">
-                    {{ patient.user.get_full_name }}
-                </span>
-            </a>
-        </h3>
-        <p style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #666; font-size: 1.1em; margin-top: 10px;">
-            Encounter Date: 
-            <span style="font-weight: 500; color: #444;">
-                {{ encounter.encounter_date|date:"Y-m-d H:i" }}
-            </span>
-            (<a href="{% url 'encounter_detail' pk=encounter.pk %}" style="text-decoration: none; color: #17a2b8;">View Encounter</a>)
-        </p>
+<div class="container my-5 print-area"> 
+    
+    <div class="text-center mb-4">
+        <h1 class="display-6 fw-bold text-primary mb-1" style="font-family: 'Times New Roman', serif;">Hospital System & Medical Centre</h1>
+        <p class="text-muted mb-0">P.O. Box 12345 - 00100, Nairobi, Kenya</p>
+        <p class="text-muted mb-0">Tel: +254 7XX XXX XXX | Email: info@rungirihospital.co.ke</p>
+        <hr class="my-3">
+        <h2 class="text-secondary fw-normal">CLINICAL ENCOUNTER NOTE</h2>
+    </div>
 
-        <hr>
-
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Clinical Details</h5>
-            </div>
-            <div class="card-body">
-                <p><strong>Chief Complaint:</strong> {{ clinical_note.chief_complaint|linebreaksbr }}</p>
-                {% if clinical_note.history_of_present_illness %}
-                    <p><strong>History of Present Illness (HPI):</strong> {{ clinical_note.history_of_present_illness|linebreaksbr }}</p>
-                {% endif %}
-                {% if clinical_note.review_of_systems %}
-                    <p><strong>Review of Systems (ROS):</strong> {{ clinical_note.review_of_systems|linebreaksbr }}</p>
-                {% endif %}
-                {% if clinical_note.physical_exam_findings %}
-                    <p><strong>Physical Examination Findings:</strong> {{ clinical_note.physical_exam_findings|linebreaksbr }}</p>
-                {% endif %}
-                <p><strong>Assessment:</strong> {{ clinical_note.assessment|linebreaksbr }}</p>
-                <p><strong>Plan:</strong> {{ clinical_note.plan|linebreaksbr }}</p>
-                {% if clinical_note.primary_diagnosis %}
-                    <p><strong>Primary Diagnosis:</strong> {{ clinical_note.primary_diagnosis }}</p>
-                {% endif %}
-                {% if clinical_note.secondary_diagnoses %}
-                    <p><strong>Secondary Diagnoses:</strong> {{ clinical_note.secondary_diagnoses|linebreaksbr }}</p>
-                {% endif %}
-                {% if clinical_note.interventions_performed %}
-                    <p><strong>Interventions/Procedures Performed:</strong> {{ clinical_note.interventions_performed|linebreaksbr }}</p>
-                {% endif %}
-                {% if clinical_note.medications_prescribed %}
-                    <p><strong>Medications Prescribed/Administered:</strong> {{ clinical_note.medications_prescribed|linebreaksbr }}</p>
-                {% endif %}
-                {% if clinical_note.follow_up_instructions %}
-                    <p><strong>Follow-up Instructions:</strong> {{ clinical_note.follow_up_instructions|linebreaksbr }}</p>
-                {% endif %}
-                <p class="text-muted small mt-3">Created by {{ clinical_note.created_by.get_full_name }} on {{ clinical_note.created_at|date:"Y-m-d H:i" }}</p>
-                {% if clinical_note.created_at != clinical_note.updated_at %}
-                    <p class="text-muted small">Last updated on {{ clinical_note.updated_at|date:"Y-m-d H:i" }}</p>
-                {% endif %}
-            </div>
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-info text-white py-2"> 
+            <h5 class="mb-0 fs-6"><i class="fas fa-user-tag me-2"></i> Patient & Encounter Details</h5>
         </div>
-
-        <div class="mt-4">
-            <a href="{% url 'clinical_note_update' encounter_pk=encounter.pk pk=clinical_note.pk %}" class="btn btn-warning">Edit Note</a>
-            <a href="{% url 'encounter_detail' pk=encounter.pk %}" class="btn btn-secondary">Back to Encounter</a>
+        <div class="card-body p-3"> 
+            <div class="row g-2"> 
+                <div class="col-md-6">
+                    <p class="mb-1"><strong>Patient Name:</strong> 
+                        <a href="{% url 'patient_detail' pk=patient.pk %}" class="text-primary fw-bold text-decoration-none">
+                            {{ patient.user.get_full_name }}
+                        </a>
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <p class="mb-1"><strong>Patient ID:</strong> {{ patient.patient_id }}</p>
+                </div>
+                
+               
+                <div class="col-md-6">
+                    <p class="mb-1"><strong>Encounter Date:</strong> {{ encounter.encounter_date|date:"Y-m-d H:i A" }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p class="mb-1"><strong>Encounter Type:</strong> {{ encounter.get_encounter_type_display }}</p>
+                </div>
+                 <div class="col-12 text-end mt-2">
+                    <small><a href="{% url 'encounter_detail' pk=encounter.pk %}" class="text-muted text-decoration-none"><i class="fas fa-external-link-alt me-1"></i> View Full Encounter</a></small>
+                </div>
+            </div>
         </div>
     </div>
-{% endblock content %}
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white py-2">
+            <h5 class="mb-0 fs-6"><i class="fas fa-notes-medical me-2"></i> Clinical Details (SOAP Format)</h5>
+        </div>
+        <div class="card-body p-3">
+            <h6 class="text-primary mt-0 mb-1 fw-bold">Subjective:</h6>
+            <p class="text-break ps-3 mb-2"><strong>Chief Complaint:</strong> {{ clinical_note.chief_complaint|linebreaksbr }}</p>
+            {% if clinical_note.history_of_present_illness %}
+                <p class="text-break ps-3 mb-2"><strong>History of Present Illness (HPI):</strong> {{ clinical_note.history_of_present_illness|linebreaksbr }}</p>
+            {% endif %}
+            {% if clinical_note.review_of_systems %}
+                <p class="text-break ps-3 mb-2"><strong>Review of Systems (ROS):</strong> {{ clinical_note.review_of_systems|linebreaksbr }}</p>
+            {% endif %}
+
+            <h6 class="text-primary mt-3 mb-1 fw-bold">Objective:</h6>
+            {% if clinical_note.physical_exam_findings %}
+                <p class="text-break ps-3 mb-2"><strong>Physical Examination Findings:</strong> {{ clinical_note.physical_exam_findings|linebreaksbr }}</p>
+            {% endif %}
+            {# You might want to pull in Vitals, Lab Results, Imaging Reports here from the encounter #}
+            {% comment %}
+            {% if encounter.vitals.exists %}
+                <p class="fw-bold ps-3 mb-1">Vitals:</p>
+                <ul class="list-unstyled ps-4 small">
+                    {% for vital in encounter.vitals.all %}
+                        <li>{{ vital.vital_type }}: {{ vital.value }} {{ vital.unit }} ({{ vital.recorded_at|date:"Y-m-d H:i" }})</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+            {% endcomment %}
+
+            <h6 class="text-primary mt-3 mb-1 fw-bold">Assessment:</h6>
+            <p class="text-break ps-3 mb-2">{{ clinical_note.assessment|linebreaksbr }}</p>
+            {% if clinical_note.primary_diagnosis %}
+                <p class="text-break ps-3 mb-2"><strong>Primary Diagnosis:</strong> {{ clinical_note.primary_diagnosis }}</p>
+            {% endif %}
+            {% if clinical_note.secondary_diagnoses %}
+                <p class="text-break ps-3 mb-2"><strong>Secondary Diagnoses:</strong> {{ clinical_note.secondary_diagnoses|linebreaksbr }}</p>
+            {% endif %}
+
+            <h6 class="text-primary mt-3 mb-1 fw-bold">Plan:</h6>
+            <p class="text-break ps-3 mb-2">{{ clinical_note.plan|linebreaksbr }}</p>
+            {% if clinical_note.interventions_performed %}
+                <p class="text-break ps-3 mb-2"><strong>Interventions/Procedures Performed:</strong> {{ clinical_note.interventions_performed|linebreaksbr }}</p>
+            {% endif %}
+            {% if clinical_note.medications_prescribed %}
+                <p class="text-break ps-3 mb-2"><strong>Medications Prescribed/Administered:</strong> {{ clinical_note.medications_prescribed|linebreaksbr }}</p>
+            {% endif %}
+            {% if clinical_note.follow_up_instructions %}
+                <p class="text-break ps-3 mb-2"><strong>Follow-up Instructions:</strong> {{ clinical_note.follow_up_instructions|linebreaksbr }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {# Provider Information & Timestamp #}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-dark text-white py-2"> {# Darker header for this section #}
+            <h5 class="mb-0 fs-6"><i class="fas fa-user-md me-2"></i> Provider Information</h5>
+        </div>
+        <div class="card-body p-3">
+            <p class="mb-1"><strong>Documented By:</strong> {{ clinical_note.created_by.get_full_name }}</p>
+           <p class="mb-1"><strong>Role:</strong> {{ clinical_note.created_by.user_type|capfirst|default:"N/A" }}</p>
+            <p class="text-muted small mb-0">
+                <strong>Created On:</strong> {{ clinical_note.created_at|date:"Y-m-d H:i A" }}
+                {% if clinical_note.created_at != clinical_note.updated_at %}
+                    <br><strong>Last Updated On:</strong> {{ clinical_note.updated_at|date:"Y-m-d H:i A" }}
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    {# Action Buttons #}
+    <div class="d-flex justify-content-start gap-2 mt-4">
+        <a href="{% url 'clinical_note_update' encounter_pk=encounter.pk pk=clinical_note.pk %}" class="btn btn-warning"><i class="fas fa-edit me-2"></i> Edit Note</a>
+        <a href="{% url 'encounter_detail' pk=encounter.pk %}" class="btn btn-secondary"><i class="fas fa-arrow-left me-2"></i> Back to Encounter</a>
+        <button class="btn btn-info print-button d-print-none" onclick="window.print();"><i class="fas fa-print me-2"></i> Print Note</button>
+    </div>
+
+    {# Hospital Footer - Optional, for print or detailed notes #}
+    <div class="text-center text-muted small mt-5 pt-3 border-top d-print-block"> {# d-print-block to ensure it shows on print #}
+        <p>&copy; 2025 Rungiri Hospital & Medical Centre. All rights reserved.</p>
+        <p>This document contains confidential patient information.</p>
+    </div>
+
+</div>
+{% endblock %}
+
+{# Optional: Basic print styles for better output #}
+{% block extra_css %}
+<style>
+    @media print {
+        body {
+            font-size: 10pt;
+            margin: 0;
+            padding: 0;
+            -webkit-print-color-adjust: exact; /* Ensures background colors print */
+            color-adjust: exact;
+        }
+        .container {
+            width: 100%;
+            max-width: none; /* Remove max-width on print */
+            padding: 0 15mm; /* Add some print margin */
+        }
+        .card {
+            border: 1px solid #dee2e6 !important; /* Ensure borders are visible */
+            box-shadow: none !important; /* Remove shadows for print */
+            margin-bottom: 0.5rem !important; /* Reduce margin between cards */
+        }
+        .card-header {
+            background-color: #e9ecef !important; /* Light background for print */
+            color: #343a40 !important; /* Dark text for readability */
+            border-bottom: 1px solid #dee2e6 !important;
+            padding-top: 0.3rem !important;
+            padding-bottom: 0.3rem !important;
+        }
+        .card-body {
+            padding: 0.5rem 0.75rem !important; /* Reduce padding inside body */
+        }
+        h1, h2, h3, h4, h5, h6 {
+            color: #343a40 !important; /* Ensure dark text for headings */
+            margin-top: 0.5rem !important;
+            margin-bottom: 0.2rem !important;
+        }
+        p {
+            margin-bottom: 0.15rem !important; /* Tighten up paragraphs */
+        }
+        hr {
+            border-top: 1px solid #adb5bd !important; /* Ensure hr is visible */
+        }
+        .text-primary, .text-secondary, .text-info, .text-muted {
+            color: #212529 !important; /* Convert colorful text to black for print */
+        }
+        a {
+            text-decoration: none !important; /* Remove underlines for print */
+            color: #212529 !important; /* Black text for links */
+        }
+        .btn, .d-print-none {
+            display: none !important; /* Hide buttons and non-print elements */
+        }
+        .print-area {
+            padding: 0 !important; /* Remove overall container padding for print */
+        }
+        /* Ensure specific background colors are printed for headers */
+        .card-header.bg-primary, .card-header.bg-info, .card-header.bg-dark {
+            -webkit-print-color-adjust: exact;
+            color-adjust: exact;
+        }
+        .bg-primary { background-color: #007bff !important; }
+        .bg-info { background-color: #17a2b8 !important; }
+        .bg-dark { background-color: #343a40 !important; }
+        .text-white { color: #fff !important; } /* Re-apply white text for dark headers */
+    }
+</style>
+{% endblock extra_css %}
+
+{% block extra_js %}
+{# If you have specific JS for print button, etc. #}
+{% endblock extra_js %}

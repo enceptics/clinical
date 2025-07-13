@@ -75,9 +75,9 @@ class ProcurementOfficerAdmin(admin.ModelAdmin):
 
 @admin.register(ConsentForm)
 class ConsentFormAdmin(admin.ModelAdmin):
-    list_display = ('patient', 'consent_type', 'is_signed', 'signed_date', 'signed_by_staff')
+    list_display = ('patient', 'consent_type', 'signed_date', 'signed_by_staff')
     search_fields = ('patient__user__first_name', 'patient__user__last_name', 'consent_type')
-    list_filter = ('consent_type', 'is_signed')
+    list_filter = ('consent_type', 'signed_date')
     raw_id_fields = ('patient', 'signed_by_staff')
 
 @admin.register(Appointment)
